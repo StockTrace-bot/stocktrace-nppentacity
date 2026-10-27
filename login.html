@@ -38,7 +38,7 @@
         // GANTI URL DAN KEY SUPABASE MILIKMU DI SINI
         const SUPABASE_URL = 'https://tcwkfsrxjujsuyttxgfz.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_PlaYZ1SsTeoCiF4FefE-Eg_w1s2uIum';
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
