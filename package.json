@@ -1,8 +1,0 @@
-{
-  "name": "stocktrace-backend",
-  "version": "1.0.0",
-  "dependencies": {
-    "formidable": "^3.5.1",
-    "googleapis": "^128.0.0"
-  }
-}
