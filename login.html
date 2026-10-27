@@ -31,43 +31,106 @@
             <button type="submit" id="btnLogin" class="w-full py-2.5 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors mt-4">
                 Masuk
             </button>
+            <p id="loginStatus" role="alert" aria-live="polite" class="hidden mt-4 px-3 py-3 rounded-lg text-sm border"></p>
         </form>
     </div>
 
     <script>
-        // GANTI URL DAN KEY SUPABASE MILIKMU DI SINI
-        const SUPABASE_URL = 'https://tcwkfsrxjujsuyttxgfz.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_PlaYZ1SsTeoCiF4FefE-Eg_w1s2uIum';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // Supabase publishable key boleh berada di frontend. Jangan gunakan service_role/secret key di sini.
+    const SUPABASE_URL = 'https://tcwkfsrxjujsuyttxgfz.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_PlaYZ1SsTeoCiF4FefE-Eg_w1s2uIum';
+    const form = document.getElementById('loginForm');
+    const statusEl = document.getElementById('loginStatus');
+    const btn = document.getElementById('btnLogin');
+    let sb = null;
 
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const btn = document.getElementById('btnLogin');
-            btn.innerText = 'Memeriksa kredensial...';
-            btn.disabled = true;
+    function showStatus(message, isError = true) {
+        statusEl.textContent = message;
+        statusEl.className = isError
+          ? 'mt-4 px-3 py-3 rounded-lg text-sm border border-red-200 bg-red-50 text-red-800'
+          : 'mt-4 px-3 py-3 rounded-lg text-sm border border-blue-200 bg-blue-50 text-blue-900';
+    }
 
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
+    try {
+        if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+            throw new Error('Library Supabase gagal dimuat. Periksa koneksi internet atau pemblokiran CDN.');
+        }
+        sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    } catch (e) {
+        console.error('Supabase initialization:', e);
+        showStatus('Koneksi aplikasi gagal: ' + e.message);
+        btn.disabled = true;
+    }
 
-            try {
-                const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-                if (authError) throw authError;
+    function explainAuthError(error) {
+        const code = error?.code || '';
+        const message = String(error?.message || 'Tidak diketahui');
+        if (code === 'invalid_credentials' || /invalid login credentials/i.test(message)) {
+            return 'Email atau kata sandi tidak cocok. Pastikan akun sudah dibuat di Supabase → Authentication → Users.';
+        }
+        if (code === 'email_not_confirmed' || /email not confirmed/i.test(message)) {
+            return 'Email akun belum dikonfirmasi. Periksa status konfirmasi akun di Supabase Authentication.';
+        }
+        if (code === 'over_request_rate_limit' || code === 'over_email_send_rate_limit') {
+            return 'Terlalu banyak percobaan login. Coba lagi setelah batas permintaan berakhir.';
+        }
+        return 'Autentikasi Supabase gagal (' + (code || 'tanpa kode') + '): ' + message;
+    }
 
-                const { data: userData, error: userError } = await supabase
-                    .from('users').select('role, nama_lengkap').eq('id_user', authData.user.id).single();
-                
-                if (userError) throw userError;
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        if (!sb) return showStatus('Supabase belum siap. Periksa koneksi ke CDN dan konfigurasi proyek.');
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        btn.disabled = true;
+        btn.textContent = 'Memeriksa akun...';
+        statusEl.classList.add('hidden');
 
-                localStorage.setItem('user_role', userData.role);
-                localStorage.setItem('user_name', userData.nama_lengkap);
-                window.location.href = 'index.html';
+        let stage = 'auth';
+        try {
+            const {data: authData, error: authError} = await sb.auth.signInWithPassword({email, password});
+            if (authError) throw authError;
+            if (!authData?.user?.id) throw new Error('Login tidak menghasilkan ID pengguna.');
 
-            } catch (error) {
-                Swal.fire({ title: 'Gagal Masuk', text: 'Email atau kata sandi salah.', icon: 'error', confirmButtonColor: '#1E293B' });
-                btn.innerText = 'Masuk';
-                btn.disabled = false;
+            stage = 'profile';
+            showStatus('Autentikasi berhasil. Memeriksa profil dan akses pengguna...', false);
+            // Tabel public.users harus punya id_user (UUID Auth), nama_lengkap, dan role.
+            const {data: userData, error: userError} = await sb
+                .from('users')
+                .select('role, nama_lengkap')
+                .eq('id_user', authData.user.id)
+                .maybeSingle();
+            if (userError) {
+                const detail = userError.message || 'Akses profil ditolak.';
+                const err = new Error('Profil gagal dibaca: ' + detail + ' (kode: ' + (userError.code || '-') + '). Periksa tabel public.users dan RLS SELECT.');
+                err.cause = userError;
+                throw err;
             }
-        });
+            if (!userData) {
+                throw new Error('Akun berhasil login ke Supabase Auth, tetapi profilnya tidak ada/tersembunyi di public.users. Periksa kecocokan auth.users.id dengan public.users.id_user dan policy RLS.');
+            }
+            if (!userData.role) {
+                throw new Error('Profil ditemukan tetapi kolom role kosong. Atur role akun di public.users terlebih dahulu.');
+            }
+            // Data localStorage hanya untuk tampilan. Akses sebenarnya harus dijaga oleh RLS/backend.
+            localStorage.setItem('user_role', String(userData.role));
+            localStorage.setItem('user_name', String(userData.nama_lengkap || authData.user.email || 'Pengguna'));
+            showStatus('Login berhasil. Membuka dashboard...', false);
+            window.location.replace('index.html');
+        } catch (error) {
+            console.error('Login gagal pada tahap ' + stage, error);
+            if (stage === 'profile') {
+                // Hindari sesi setengah masuk ketika akun Auth belum mempunyai profil/izin yang benar.
+                try { await sb.auth.signOut(); } catch (_) {}
+                showStatus('Autentikasi BERHASIL, tetapi data profil bermasalah. ' + (error?.message || 'Periksa tabel users.'));
+            } else {
+                showStatus(explainAuthError(error));
+            }
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Masuk';
+        }
+    });
     </script>
 </body>
 </html>
