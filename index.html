@@ -124,12 +124,12 @@
         </div>
     </main>
 
-   <script>
+    <script>
         // GANTI URL DAN KEY SUPABASE MILIKMU DI SINI
         const SUPABASE_URL = 'https://tcwkfsrxjujsuyttxgfz.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_PlaYZ1SsTeoCiF4FefE-Eg_w1s2uIum';
         
-        // Deklarasi supabase CUKUP SATU KALI DI SINI
+        // DEKLARASI SUPABASE HANYA SEKALI DI SINI
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         async function checkAuth() {
@@ -179,7 +179,69 @@
                 target.classList.add('block');
             }
         }
-    </script>
 
+        document.getElementById('formLaporanLengkap').addEventListener('submit', async function(e) {
+            e.preventDefault(); 
+            const btnSubmit = document.getElementById('btnSubmitLaporan');
+            const fileInput = document.getElementById('inputFile').files[0];
+
+            if (fileInput.size > 10 * 1024 * 1024) {
+                Swal.fire({ title: 'File Terlalu Besar', text: 'Maksimal ukuran file adalah 10MB.', icon: 'warning' });
+                return;
+            }
+
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return window.location.replace('login.html');
+
+            const sku = document.getElementById('inputSKU').value;
+            const nama = document.getElementById('inputNama').value;
+            const stokSistem = parseInt(document.getElementById('inputSistem').value);
+            const stokFisik = parseInt(document.getElementById('inputFisik').value);
+            const penyebab = document.getElementById('inputPenyebab').value;
+            const kronologi = document.getElementById('inputKronologi').value;
+            
+            const idKasus = `ST-${new Date().toISOString().slice(2,7).replace('-','')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+
+            try {
+                btnSubmit.innerText = 'Memproses...'; btnSubmit.disabled = true;
+
+                const formData = new FormData();
+                formData.append('bukti_file', fileInput);
+                formData.append('id_kasus', idKasus);
+                
+                const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+                const uploadResult = await uploadRes.json();
+                if (!uploadResult.success) throw new Error(uploadResult.error);
+
+                const { error: errCase } = await supabase.from('cases').insert([{ 
+                    id_kasus: idKasus, id_pelapor: session.user.id,
+                    sku_produk: sku, nama_produk: nama,
+                    stok_sistem: stokSistem, stok_fisik: stokFisik, selisih: stokFisik - stokSistem,
+                    dugaan_penyebab: penyebab, kronologi: kronologi
+                }]);
+                if (errCase) throw errCase;
+
+                await supabase.from('evidence_files').insert([{
+                    id_kasus: idKasus, nama_file_asli: fileInput.name,
+                    drive_file_id: uploadResult.drive_file_id, drive_view_url: uploadResult.drive_link
+                }]);
+
+                await supabase.from('case_logs').insert([{
+                    id_kasus: idKasus, id_user: session.user.id,
+                    aksi: 'Membuat laporan selisih stok', catatan: penyebab
+                }]);
+
+                Swal.fire({ title: 'Berhasil!', text: `Kasus ${idKasus} tersimpan.`, icon: 'success', confirmButtonColor: '#1E293B' });
+                document.getElementById('formLaporanLengkap').reset();
+                showView('dashboard'); 
+
+            } catch (error) {
+                console.error(error);
+                Swal.fire({ title: 'Error Sistem', text: error.message, icon: 'error' });
+            } finally {
+                btnSubmit.innerText = 'Kirim Laporan'; btnSubmit.disabled = false;
+            }
+        });
+    </script>
 </body>
 </html>
