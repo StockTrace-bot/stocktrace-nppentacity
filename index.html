@@ -128,14 +128,13 @@
         // GANTI URL DAN KEY SUPABASE MILIKMU DI SINI
         const SUPABASE_URL = 'https://tcwkfsrxjujsuyttxgfz.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_PlaYZ1SsTeoCiF4FefE-Eg_w1s2uIum';
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        // Deklarasi supabase CUKUP SATU KALI DI SINI
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // FUNGSI PROTEKSI KETAT (Mencegah kebocoran halaman utama)
         async function checkAuth() {
             try {
                 const { data: { session }, error } = await supabase.auth.getSession();
-                
-                // Jika tidak ada sesi atau terjadi error autentikasi, paksa pindah ke login.html
                 if (error || !session) {
                     window.location.replace('login.html');
                     return;
@@ -158,7 +157,6 @@
             }
         }
         
-        // Jalankan pengecekan keamanan sesegera mungkin
         checkAuth();
 
         async function logout() {
@@ -166,8 +164,22 @@
             localStorage.clear();
             window.location.replace('login.html');
         }
-        
-        // ... (fungsi showView dan event listener form biarkan tetap seperti sebelumnya)
+
+        function showView(viewName) {
+            ['dashboard', 'form-laporan', 'detail-kasus'].forEach(v => {
+                const el = document.getElementById('view-' + v);
+                if(el) {
+                    el.classList.add('hidden');
+                    el.classList.remove('block');
+                }
+            });
+            const target = document.getElementById('view-' + viewName);
+            if(target) {
+                target.classList.remove('hidden');
+                target.classList.add('block');
+            }
+        }
     </script>
+
 </body>
 </html>
