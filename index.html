@@ -108,7 +108,7 @@
                             </select>
                             <textarea id="inputKronologi" rows="3" placeholder="Kronologi detail..." required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500 resize-none"></textarea>
                             <input type="file" id="inputFile" accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" required class="w-full text-sm p-2 border border-dashed rounded-lg bg-slate-50">
-                            <p class="text-xs text-slate-400">Satu berkas per laporan, maks. 10 MB. Foto, PDF, video, Word, Excel, CSV, atau TXT. Server upload harus mengizinkan jenis file yang dipilih.</p>
+                            <p class="text-xs text-slate-400">Satu berkas per laporan, maks. 4 MB (batas Vercel). Foto, PDF, video, Word, Excel, CSV, atau TXT. Server upload harus mengizinkan jenis file yang dipilih.</p>
                         </div>
                         <div class="col-span-1 md:col-span-2 pt-4 flex justify-end">
                             <button type="button" onclick="showView('dashboard')" class="px-5 py-2 mr-3 border rounded-lg text-sm">Batal</button>
@@ -333,7 +333,7 @@
             let result = null;
             try { result = JSON.parse(raw); }
             catch {
-                throw new Error(`Endpoint /api/upload mengembalikan ${response.status} non-JSON (kemungkinan HTML/404). Pastikan route API benar dan backend aktif.`);
+                throw new Error(`Endpoint /api/upload mengembalikan HTTP ${response.status} non-JSON. Periksa Vercel → Logs pada deployment aktif; periksa juga apakah folder api/upload.mjs telah ter-deploy.`);
             }
             if (!response.ok || result?.success !== true) {
                 throw new Error(result?.error || result?.message || `Upload gagal (HTTP ${response.status}).`);
@@ -349,7 +349,7 @@
             const button = el('btnSubmitLaporan');
             const file = el('inputFile').files?.[0];
             if (!file) return notice('Berkas belum dipilih', 'Pilih satu berkas bukti terlebih dahulu.', 'warning');
-            if (file.size > 10 * 1024 * 1024) return notice('Berkas terlalu besar', 'Maksimum 10 MB per berkas.', 'warning');
+            if (file.size > 4 * 1024 * 1024) return notice('Berkas terlalu besar', 'Maksimum 4 MB per berkas pada versi Vercel ini. Video lebih besar memerlukan upload langsung/resumable.', 'warning');
             if (file.size === 0) return notice('Berkas kosong', 'Pilih berkas yang berisi data.', 'warning');
             const extension = file.name.split('.').pop().toLowerCase();
             if (!allowedExtensions.has(extension)) return notice('Jenis berkas tidak didukung', 'Gunakan JPG, PNG, PDF, MP4, WEBM, DOC, DOCX, XLS, XLSX, CSV, atau TXT.', 'warning');
