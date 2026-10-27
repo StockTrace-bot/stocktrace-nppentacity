@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockTrace - Nada Puspita</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { npnavy: '#1E293B', npaccent: '#3B82F6' } } } }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans flex h-screen overflow-hidden">
+
+    <!-- SIDEBAR -->
+    <aside class="w-64 bg-npnavy text-white flex-col transition-all duration-300 hidden md:flex">
+        <div class="h-16 flex items-center px-6 border-b border-slate-700">
+            <i class="ph ph-package text-2xl mr-2 text-blue-400"></i><span class="text-lg font-bold tracking-wide">StockTrace</span>
+        </div>
+        <nav class="flex-1 px-4 py-6 space-y-2">
+            <button onclick="showView('dashboard')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-squares-four text-lg mr-3"></i> Dashboard</button>
+            <button onclick="showView('form-laporan')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-file-plus text-lg mr-3"></i> Buat Laporan</button>
+        </nav>
+        <div class="p-4 border-t border-slate-700">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center font-bold" id="profilInisial">U</div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium" id="displayUserName">Loading...</p>
+                        <p class="text-xs text-slate-400" id="displayUserRole">Loading...</p>
+                    </div>
+                </div>
+                <button onclick="logout()" class="text-slate-400 hover:text-red-400"><i class="ph ph-sign-out text-xl"></i></button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden">
+        <header class="h-16 bg-white shadow-sm flex items-center justify-between px-4 md:px-8 z-10">
+            <div class="flex items-center bg-slate-100 rounded-lg px-3 py-2 w-full md:w-96">
+                <i class="ph ph-magnifying-glass text-slate-400"></i>
+                <input type="text" placeholder="Cari Kasus..." class="bg-transparent border-none outline-none text-sm ml-2 w-full">
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 relative">
+            
+            <!-- DASHBOARD VIEW -->
+            <div id="view-dashboard" class="block space-y-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h1 class="text-2xl font-bold text-slate-800">Dashboard Utama</h1>
+                        <p class="text-sm text-slate-500 mt-1">Status selisih stok gerai.</p>
+                    </div>
+                    <button onclick="showView('form-laporan')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center">
+                        <i class="ph ph-plus mr-2"></i> Lapor Kasus
+                    </button>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-8 text-center text-slate-500">
+                    <i class="ph ph-kanban text-4xl mb-3 text-slate-300"></i>
+                    <p>Dashboard operasional gerai Nada Puspita Pentacity.</p>
+                    <button onclick="showView('detail-kasus')" class="mt-4 px-4 py-2 bg-slate-100 text-blue-600 rounded-md text-sm">Simulasi Buka Detail Kasus</button>
+                </div>
+            </div>
+
+            <!-- FORM LAPORAN VIEW -->
+            <div id="view-form-laporan" class="hidden space-y-6">
+                <h1 class="text-2xl font-bold text-slate-800">Form Laporan Selisih Stok</h1>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                    <form id="formLaporanLengkap" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="space-y-4">
+                            <h3 class="font-semibold text-slate-800 border-b pb-2">Informasi Produk</h3>
+                            <input type="text" id="inputSKU" placeholder="SKU (ex: NP-SC-BLU)" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
+                            <input type="text" id="inputNama" placeholder="Nama Produk" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
+                            <div class="flex gap-4">
+                                <div class="w-1/2"><label class="text-xs text-slate-500">Stok Sistem</label><input type="number" id="inputSistem" value="0" required class="w-full p-2 border rounded text-center"></div>
+                                <div class="w-1/2"><label class="text-xs text-slate-500">Stok Fisik</label><input type="number" id="inputFisik" value="0" required class="w-full p-2 border rounded text-center"></div>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <h3 class="font-semibold text-slate-800 border-b pb-2">Kronologi & Bukti</h3>
+                            <select id="inputPenyebab" class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
+                                <option>Kesalahan Input Kasir</option>
+                                <option>Selisih Penerimaan dari Pusat</option>
+                                <option>Retur Pelanggan</option>
+                            </select>
+                            <textarea id="inputKronologi" rows="3" placeholder="Kronologi detail..." required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500 resize-none"></textarea>
+                            <input type="file" id="inputFile" accept="image/*,application/pdf,video/mp4" required class="w-full text-sm p-2 border border-dashed rounded-lg bg-slate-50">
+                            <p class="text-xs text-slate-400">Maks. 10MB (JPG/PNG/PDF/MP4)</p>
+                        </div>
+                        <div class="col-span-1 md:col-span-2 pt-4 flex justify-end">
+                            <button type="button" onclick="showView('dashboard')" class="px-5 py-2 mr-3 border rounded-lg text-sm">Batal</button>
+                            <button type="submit" id="btnSubmitLaporan" class="px-5 py-2 bg-npnavy text-white rounded-lg text-sm">Kirim Laporan</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- DETAIL KASUS VIEW -->
+            <div id="view-detail-kasus" class="hidden space-y-6">
+                <div class="flex justify-between items-center">
+                    <h1 class="text-2xl font-bold text-slate-800">Detail Kasus: Simulasi</h1>
+                    <button onclick="window.print()" class="px-4 py-2 bg-white border rounded-lg text-sm"><i class="ph ph-printer mr-2"></i> Cetak</button>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-white p-6 rounded-xl border">
+                        <h3 class="font-semibold border-b pb-2 mb-4">Informasi Kasus</h3>
+                        <p class="text-sm text-slate-600">Simulasi detail laporan dan tautan Google Drive.</p>
+                    </div>
+                    <div class="space-y-6">
+                        <div id="panelTindakLanjutLeader" class="bg-npnavy p-6 rounded-xl text-white">
+                            <h3 class="font-bold text-blue-300 border-b border-slate-700 pb-2 mb-4">Tindak Lanjut Leader</h3>
+                            <select class="w-full p-2 bg-slate-800 border-slate-600 rounded text-sm mb-3 text-white"><option>Dalam Pemeriksaan</option><option>Selesai</option></select>
+                            <button class="w-full py-2 bg-blue-600 rounded text-sm font-semibold">Simpan Status</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // GANTI URL DAN KEY SUPABASE MILIKMU DI SINI
+        const SUPABASE_URL = 'https://tcwkfsrxjujsuyttxgfz.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_PlaYZ1SsTeoCiF4FefE-Eg_w1s2uIum';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function checkAuth() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) { window.location.href = 'login.html'; return; }
+
+            const userRole = localStorage.getItem('user_role');
+            const userName = localStorage.getItem('user_name') || 'User';
+            
+            document.getElementById('displayUserName').innerText = userName;
+            document.getElementById('displayUserRole').innerText = userRole;
+            document.getElementById('profilInisial').innerText = userName.charAt(0).toUpperCase();
+
+            if (userRole === 'Staff') {
+                const panelLeader = document.getElementById('panelTindakLanjutLeader');
+                if(panelLeader) panelLeader.style.display = 'none';
+            }
+        }
+        checkAuth();
+
+        async function logout() {
+            await supabase.auth.signOut();
+            localStorage.clear();
+            window.location.href = 'login.html';
+        }
+
+        function showView(viewName) {
+            ['dashboard', 'form-laporan', 'detail-kasus'].forEach(v => {
+                document.getElementById('view-' + v).classList.add('hidden');
+                document.getElementById('view-' + v).classList.remove('block');
+            });
+            document.getElementById('view-' + viewName).classList.remove('hidden');
+            document.getElementById('view-' + viewName).classList.add('block');
+        }
+
+        document.getElementById('formLaporanLengkap').addEventListener('submit', async function(e) {
+            e.preventDefault(); 
+            const btnSubmit = document.getElementById('btnSubmitLaporan');
+            const fileInput = document.getElementById('inputFile').files[0];
+
+            if (fileInput.size > 10 * 1024 * 1024) {
+                Swal.fire({ title: 'File Terlalu Besar', text: 'Maksimal ukuran file adalah 10MB.', icon: 'warning' });
+                return;
+            }
+
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return window.location.href = 'login.html';
+
+            const sku = document.getElementById('inputSKU').value;
+            const nama = document.getElementById('inputNama').value;
+            const stokSistem = parseInt(document.getElementById('inputSistem').value);
+            const stokFisik = parseInt(document.getElementById('inputFisik').value);
+            const penyebab = document.getElementById('inputPenyebab').value;
+            const kronologi = document.getElementById('inputKronologi').value;
+            
+            const idKasus = `ST-${new Date().toISOString().slice(2,7).replace('-','')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+
+            try {
+                btnSubmit.innerText = 'Memproses...'; btnSubmit.disabled = true;
+
+                const formData = new FormData();
+                formData.append('bukti_file', fileInput);
+                formData.append('id_kasus', idKasus);
+                
+                const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+                const uploadResult = await uploadRes.json();
+                if (!uploadResult.success) throw new Error(uploadResult.error);
+
+                const { error: errCase } = await supabase.from('cases').insert([{ 
+                    id_kasus: idKasus, id_pelapor: session.user.id,
+                    sku_produk: sku, nama_produk: nama,
+                    stok_sistem: stokSistem, stok_fisik: stokFisik, selisih: stokFisik - stokSistem,
+                    dugaan_penyebab: penyebab, kronologi: kronologi
+                }]);
+                if (errCase) throw errCase;
+
+                await supabase.from('evidence_files').insert([{
+                    id_kasus: idKasus, nama_file_asli: fileInput.name,
+                    drive_file_id: uploadResult.drive_file_id, drive_view_url: uploadResult.drive_link
+                }]);
+
+                await supabase.from('case_logs').insert([{
+                    id_kasus: idKasus, id_user: session.user.id,
+                    aksi: 'Membuat laporan selisih stok', catatan: penyebab
+                }]);
+
+                Swal.fire({ title: 'Berhasil!', text: `Kasus ${idKasus} tersimpan.`, icon: 'success', confirmButtonColor: '#1E293B' });
+                document.getElementById('formLaporanLengkap').reset();
+                showView('dashboard'); 
+
+            } catch (error) {
+                console.error(error);
+                Swal.fire({ title: 'Error Sistem', text: error.message, icon: 'error' });
+            } finally {
+                btnSubmit.innerText = 'Kirim Laporan'; btnSubmit.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
