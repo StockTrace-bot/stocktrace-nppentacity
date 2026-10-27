@@ -124,107 +124,50 @@
         </div>
     </main>
 
-    <script>
+   <script>
         // GANTI URL DAN KEY SUPABASE MILIKMU DI SINI
         const SUPABASE_URL = 'https://tcwkfsrxjujsuyttxgfz.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_PlaYZ1SsTeoCiF4FefE-Eg_w1s2uIum';
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // FUNGSI PROTEKSI KETAT (Mencegah kebocoran halaman utama)
         async function checkAuth() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) { window.location.href = 'login.html'; return; }
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession();
+                
+                // Jika tidak ada sesi atau terjadi error autentikasi, paksa pindah ke login.html
+                if (error || !session) {
+                    window.location.replace('login.html');
+                    return;
+                }
 
-            const userRole = localStorage.getItem('user_role');
-            const userName = localStorage.getItem('user_name') || 'User';
-            
-            document.getElementById('displayUserName').innerText = userName;
-            document.getElementById('displayUserRole').innerText = userRole;
-            document.getElementById('profilInisial').innerText = userName.charAt(0).toUpperCase();
+                const userRole = localStorage.getItem('user_role');
+                const userName = localStorage.getItem('user_name') || 'User gerai';
+                
+                document.getElementById('displayUserName').innerText = userName;
+                document.getElementById('displayUserRole').innerText = userRole || 'Staff';
+                document.getElementById('profilInisial').innerText = userName.charAt(0).toUpperCase();
 
-            if (userRole === 'Staff') {
-                const panelLeader = document.getElementById('panelTindakLanjutLeader');
-                if(panelLeader) panelLeader.style.display = 'none';
+                if (userRole === 'Staff') {
+                    const panelLeader = document.getElementById('panelTindakLanjutLeader');
+                    if(panelLeader) panelLeader.style.display = 'none';
+                }
+            } catch (err) {
+                console.error("Auth error:", err);
+                window.location.replace('login.html');
             }
         }
+        
+        // Jalankan pengecekan keamanan sesegera mungkin
         checkAuth();
 
         async function logout() {
             await supabase.auth.signOut();
             localStorage.clear();
-            window.location.href = 'login.html';
+            window.location.replace('login.html');
         }
-
-        function showView(viewName) {
-            ['dashboard', 'form-laporan', 'detail-kasus'].forEach(v => {
-                document.getElementById('view-' + v).classList.add('hidden');
-                document.getElementById('view-' + v).classList.remove('block');
-            });
-            document.getElementById('view-' + viewName).classList.remove('hidden');
-            document.getElementById('view-' + viewName).classList.add('block');
-        }
-
-        document.getElementById('formLaporanLengkap').addEventListener('submit', async function(e) {
-            e.preventDefault(); 
-            const btnSubmit = document.getElementById('btnSubmitLaporan');
-            const fileInput = document.getElementById('inputFile').files[0];
-
-            if (fileInput.size > 10 * 1024 * 1024) {
-                Swal.fire({ title: 'File Terlalu Besar', text: 'Maksimal ukuran file adalah 10MB.', icon: 'warning' });
-                return;
-            }
-
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return window.location.href = 'login.html';
-
-            const sku = document.getElementById('inputSKU').value;
-            const nama = document.getElementById('inputNama').value;
-            const stokSistem = parseInt(document.getElementById('inputSistem').value);
-            const stokFisik = parseInt(document.getElementById('inputFisik').value);
-            const penyebab = document.getElementById('inputPenyebab').value;
-            const kronologi = document.getElementById('inputKronologi').value;
-            
-            const idKasus = `ST-${new Date().toISOString().slice(2,7).replace('-','')}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
-
-            try {
-                btnSubmit.innerText = 'Memproses...'; btnSubmit.disabled = true;
-
-                const formData = new FormData();
-                formData.append('bukti_file', fileInput);
-                formData.append('id_kasus', idKasus);
-                
-                const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
-                const uploadResult = await uploadRes.json();
-                if (!uploadResult.success) throw new Error(uploadResult.error);
-
-                const { error: errCase } = await supabase.from('cases').insert([{ 
-                    id_kasus: idKasus, id_pelapor: session.user.id,
-                    sku_produk: sku, nama_produk: nama,
-                    stok_sistem: stokSistem, stok_fisik: stokFisik, selisih: stokFisik - stokSistem,
-                    dugaan_penyebab: penyebab, kronologi: kronologi
-                }]);
-                if (errCase) throw errCase;
-
-                await supabase.from('evidence_files').insert([{
-                    id_kasus: idKasus, nama_file_asli: fileInput.name,
-                    drive_file_id: uploadResult.drive_file_id, drive_view_url: uploadResult.drive_link
-                }]);
-
-                await supabase.from('case_logs').insert([{
-                    id_kasus: idKasus, id_user: session.user.id,
-                    aksi: 'Membuat laporan selisih stok', catatan: penyebab
-                }]);
-
-                Swal.fire({ title: 'Berhasil!', text: `Kasus ${idKasus} tersimpan.`, icon: 'success', confirmButtonColor: '#1E293B' });
-                document.getElementById('formLaporanLengkap').reset();
-                showView('dashboard'); 
-
-            } catch (error) {
-                console.error(error);
-                Swal.fire({ title: 'Error Sistem', text: error.message, icon: 'error' });
-            } finally {
-                btnSubmit.innerText = 'Kirim Laporan'; btnSubmit.disabled = false;
-            }
-        });
+        
+        // ... (fungsi showView dan event listener form biarkan tetap seperti sebelumnya)
     </script>
 </body>
 </html>
