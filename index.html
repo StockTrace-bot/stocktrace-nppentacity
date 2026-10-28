@@ -176,7 +176,8 @@
             <section id="view-reports" class="hidden space-y-5">
                 <div class="flex flex-wrap gap-3 justify-between items-center"><div><h1 class="text-2xl font-bold">Rekap & Ekspor</h1><p class="text-sm text-slate-500">Jumlah kasus dan pola temuan dalam laporan yang dapat kamu akses.</p></div>
                     <div class="flex gap-2"><button onclick="window.print()" class="px-4 py-2 bg-white border rounded-lg text-sm">Cetak / Simpan PDF</button>
-                    <button onclick="exportCasesCSV()" class="px-4 py-2 bg-npnavy text-white rounded-lg text-sm">Ekspor CSV</button></div>
+                    <button onclick="exportCasesCSV()" class="px-4 py-2 bg-npnavy text-white rounded-lg text-sm">Ekspor CSV</button>
+                    <button id="btnSyncSheets" type="button" onclick="syncSheetsNow()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm" style="display:none">Sinkronkan Google Sheets</button></div>
                 </div>
                 <div class="bg-white rounded-xl p-4 border flex gap-3 flex-wrap items-end">
                     <div><label class="block text-xs text-slate-500 mb-1" for="reportFrom">Dari tanggal</label><input class="border p-2 rounded text-sm" id="reportFrom" type="date"></div>

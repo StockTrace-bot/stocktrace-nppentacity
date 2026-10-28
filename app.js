@@ -35,8 +35,25 @@ async function checkAuth(){
   activeRole=profile.role||'Staff';const name=profile.nama_lengkap||user.email||'Pengguna';
   el('displayUserName').textContent=name;el('displayUserRole').textContent=activeRole;el('profilInisial').textContent=name.slice(0,1).toUpperCase();
   el('panelTindakLanjutLeader').style.display=canManageCases()?'':'none';
+  el('btnSyncSheets').style.display=canManageCases()?'':'none';
   await loadCases();
  }catch(e){el('dashboardNotice').textContent=e.message;await notice('Profil belum siap',e.message,'error');}
+}
+async function syncSheetsNow(){
+ if(!canManageCases())return notice('Akses ditolak','Hanya Leader/Admin dapat menjalankan sinkronisasi penuh.','warning');
+ const btn=el('btnSyncSheets');if(btn){btn.disabled=true;btn.textContent='Sinkronisasi...';}
+ try{
+  const {data:{session},error}=await sb.auth.getSession();
+  if(error||!session?.access_token)throw new Error('Sesi Supabase kedaluwarsa. Silakan masuk kembali.');
+  const response=await fetch('/api/sheets-sync',{
+   method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},
+   body:JSON.stringify({mode:'full'})
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok||!result.ok)throw new Error(result.message||'Sinkronisasi gagal.');
+  await notice('Google Sheets diperbarui',`Kasus: ${result.counts.cases}, bukti: ${result.counts.evidence_files}, riwayat: ${result.counts.case_logs}.`,'success');
+ }catch(e){await notice('Sinkronisasi gagal',e.message,'error');}
+ finally{if(btn){btn.disabled=false;btn.textContent='Sinkronkan Google Sheets';}}
 }
 async function logout(){try{await sb?.auth.signOut();}catch(e){console.warn(e)}localStorage.removeItem('user_role');localStorage.removeItem('user_name');redirectLogin();}
 function displayCases(){
