@@ -9,7 +9,21 @@ const toText=v=>v===null||v===undefined?'':String(v);
 const htmlEscape=v=>toText(v).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const allowedExtensions=new Set(['jpg','jpeg','png','pdf','mp4','webm','doc','docx','xls','xlsx','csv','txt']);
 const statuses=['Baru Dilaporkan','Dalam Pemeriksaan','Menunggu Tindak Lanjut IT/MD','Dalam Penyelesaian','Selesai'];
-let activeUser=null,activeRole='Staff',cachedCases=[],selectedCase=null;
+let activeUser=null,activeRole='Staff',cachedCases=[],selectedCase=null,staffDirectory=[];
+const directoryNameById=new Map();
+function displayPerson(id){return directoryNameById.get(String(id||''))||(id===activeUser?.id?'Saya':'Pengguna tercatat');}
+async function loadStaffDirectory(){
+ const {data,error}=await sb.rpc('stocktrace_staff_directory');
+ if(error)throw new Error('Daftar Staff belum siap: '+error.message);
+ staffDirectory=Array.isArray(data)?data:[];directoryNameById.clear();
+ staffDirectory.forEach(u=>directoryNameById.set(String(u.id_user),u.nama_lengkap||'Nama belum diisi'));
+ const select=el('selectPIC');if(!select)return;
+ const previous=select.value;select.replaceChildren(new Option('Belum ditugaskan',''));
+ staffDirectory.filter(u=>String(u.role||'').toLowerCase().trim()==='staff')
+  .forEach(u=>select.add(new Option(u.nama_lengkap,String(u.id_user))));
+ select.value=[...select.options].some(o=>o.value===previous)?previous:'';
+}
+
 function notice(title,message,icon='info'){
  if(window.Swal?.fire)return window.Swal.fire({title,text:toText(message),icon,confirmButtonColor:'#1E293B'});
  window.alert(`${title}\n${message}`);return Promise.resolve();
@@ -37,6 +51,7 @@ async function checkAuth(){
   el('panelTindakLanjutLeader').style.display=canManageCases()?'':'none';
   el('view-detail-kasus').classList.toggle('staff-detail-centered',!canManageCases());
   el('btnSyncSheets').style.display=canManageCases()?'':'none';
+  try{await loadStaffDirectory();}catch(dirError){console.warn(dirError.message);el('picFormHint').textContent='Daftar Staff belum tersedia. Jalankan migrasi PIC terlebih dahulu.';}
   await loadCases();
  }catch(e){el('dashboardNotice').textContent=e.message;await notice('Profil belum siap',e.message,'error');}
 }
@@ -58,9 +73,9 @@ async function syncSheetsNow(){
 }
 async function logout(){try{await sb?.auth.signOut();}catch(e){console.warn(e)}localStorage.removeItem('user_role');localStorage.removeItem('user_name');redirectLogin();}
 function displayCases(){
- const q=el('searchCases').value.toLowerCase().trim(), filter=el('filterCaseStatus').value;
- const list=cachedCases.filter(c=>(!filter||toText(c.status_kasus||statuses[0])===filter)&&[c.id_kasus,c.sku_produk,c.nama_produk].some(x=>toText(x).toLowerCase().includes(q)));
- el('dashboardCasesBody').innerHTML=list.map(c=>`<tr class="border-b"><td class="py-3 pr-4"><button type="button" data-case-id="${htmlEscape(c.id_kasus)}" class="text-blue-600 font-semibold underline">${htmlEscape(c.id_kasus)}</button></td><td class="py-3 pr-4">${htmlEscape(c.nama_produk)}<span class="text-xs text-slate-400 block">${htmlEscape(c.sku_produk)}</span></td><td class="py-3 pr-4">${htmlEscape(c.selisih)}</td><td class="py-3"><span class="status-chip">${htmlEscape(c.status_kasus||statuses[0])}</span></td></tr>`).join('');
+ const q=el('searchCases').value.toLowerCase().trim(), filter=el('filterCaseStatus').value, picFilter=el('filterCasePIC').value;
+ const list=cachedCases.filter(c=>(!filter||toText(c.status_kasus||statuses[0])===filter)&&(!picFilter||(picFilter==='mine'?c.pic_id===activeUser?.id:picFilter==='reported'?c.id_pelapor===activeUser?.id:picFilter==='unassigned'?!c.pic_id:true))&&[c.id_kasus,c.sku_produk,c.nama_produk].some(x=>toText(x).toLowerCase().includes(q)));
+ el('dashboardCasesBody').innerHTML=list.map(c=>`<tr class="border-b"><td class="py-3 pr-4"><button type="button" data-case-id="${htmlEscape(c.id_kasus)}" class="text-blue-600 font-semibold underline">${htmlEscape(c.id_kasus)}</button></td><td class="py-3 pr-4">${htmlEscape(c.nama_produk)}<span class="text-xs text-slate-400 block">${htmlEscape(c.sku_produk)}</span></td><td class="py-3 pr-4">${htmlEscape(c.selisih)}</td><td class="py-3 pr-4 text-xs"><span class="block">Pelapor: ${htmlEscape(displayPerson(c.id_pelapor))}</span><span class="block mt-1 text-slate-500">PIC: ${htmlEscape(c.pic_nama||'Belum ditugaskan')}</span></td><td class="py-3"><span class="status-chip">${htmlEscape(c.status_kasus||statuses[0])}</span></td></tr>`).join('');
  el('dashboardNotice').textContent=list.length?`${list.length} kasus ditampilkan.`:(q||filter?'Tidak ada kasus yang cocok.':'Belum ada kasus yang dapat diakses.');
 }
 async function loadCases(){
@@ -79,9 +94,15 @@ async function openCase(id){
  selectedCase=cachedCases.find(c=>c.id_kasus===id)||null;
  if(!selectedCase)return notice('Kasus tidak ditemukan','Refresh daftar kasus lalu coba lagi.','warning');
  const c=selectedCase;el('detailTitle').textContent='Kasus: '+c.id_kasus;
- const pairs=[['ID kasus',c.id_kasus],['Produk',c.nama_produk],['SKU',c.sku_produk],['Stok sistem',c.stok_sistem],['Stok fisik',c.stok_fisik],['Selisih fisik−sistem',c.selisih],['Dugaan penyebab',c.dugaan_penyebab],['Kronologi',c.kronologi],['Status',c.status_kasus||statuses[0]],['Dibuat',niceDate(c.created_at)]];
+ const pairs=[['ID kasus',c.id_kasus],['Produk',c.nama_produk],['SKU',c.sku_produk],['Stok sistem',c.stok_sistem],['Stok fisik',c.stok_fisik],['Selisih fisik−sistem',c.selisih],['Dugaan penyebab',c.dugaan_penyebab],['Kronologi',c.kronologi],['Pelapor',displayPerson(c.id_pelapor)],['PIC penanganan',c.pic_nama||'Belum ditugaskan'],['Penugasan PIC',c.pic_ditetapkan_pada?niceDate(c.pic_ditetapkan_pada):'—'],['Status',c.status_kasus||statuses[0]],['Dibuat',niceDate(c.created_at)]];
  el('detailInfo').innerHTML='<dl class="grid grid-cols-1 sm:grid-cols-2 gap-3">'+pairs.map(([k,v])=>`<div class="bg-slate-50 p-3 rounded"><dt class="text-xs uppercase text-slate-500">${htmlEscape(k)}</dt><dd class="text-sm whitespace-pre-wrap break-words mt-1">${htmlEscape(v)}</dd></div>`).join('')+'</dl>';
  el('selectStatus').value=statuses.includes(c.status_kasus)?c.status_kasus:statuses[0];el('inputStatusNote').value='';
+ if(canManageCases()){
+  const picSelect=el('selectPIC');const exists=[...picSelect.options].some(o=>o.value===toText(c.pic_id));
+  picSelect.value=exists?toText(c.pic_id):'';
+  el('inputPICNote').value='';
+  el('picFormHint').textContent=c.pic_id&&!exists?'PIC lama tidak ada dalam daftar Staff aktif. Pilih Staff pengganti jika diperlukan.':'Penugasan tercatat dalam Riwayat dan Google Sheets.';
+ }
  el('detailEvidence').textContent='Memuat bukti...';el('detailHistory').textContent='Memuat riwayat...';
  showView('detail-kasus');
  await Promise.all([loadEvidence(id),loadHistory(id)]);
@@ -98,12 +119,8 @@ async function loadHistory(id){
  if(selectedCase?.id_kasus!==id)return;
  if(error){el('detailHistory').textContent='Gagal membaca riwayat: '+error.message;return;}
  if(!data?.length){el('detailHistory').textContent='Belum ada catatan tindak lanjut.';return;}
- const names={};if(canManageCases()){
-  const ids=[...new Set(data.map(x=>x.id_user).filter(Boolean))];
-  if(ids.length){const r=await sb.from('users').select('id_user,nama_lengkap').in('id_user',ids);if(!r.error)(r.data||[]).forEach(u=>names[u.id_user]=u.nama_lengkap);}
- }
  if(selectedCase?.id_kasus!==id)return;
- el('detailHistory').innerHTML=data.map(log=>`<div class="border-l-2 border-blue-300 pl-4 pb-3"><strong>${htmlEscape(log.aksi)}</strong><p class="text-xs text-slate-400">${htmlEscape(niceDate(log.waktu_aksi))} • ${htmlEscape(names[log.id_user]||(log.id_user===activeUser?.id?'Akun saya':'Pengguna tercatat'))}</p><p class="mt-1 break-words whitespace-pre-wrap">${htmlEscape(log.catatan)}</p></div>`).join('');
+ el('detailHistory').innerHTML=data.map(log=>`<div class="border-l-2 border-blue-300 pl-4 pb-3"><strong>${htmlEscape(log.aksi)}</strong><p class="text-xs text-slate-400">${htmlEscape(niceDate(log.waktu_aksi))} • ${htmlEscape(displayPerson(log.id_user))}</p><p class="mt-1 break-words whitespace-pre-wrap">${htmlEscape(log.catatan)}</p></div>`).join('');
 }
 async function saveStatus(){
  if(!canManageCases())return notice('Akses tidak diizinkan','Hanya Leader/Admin.','warning');
@@ -118,6 +135,22 @@ async function saveStatus(){
   await loadCases();await openCase(id);await notice('Berhasil','Status dan catatan tercatat secara bersamaan.','success');
  }catch(e){await notice('Belum dapat memperbarui',e.message,'error');}
  finally{btn.disabled=false;btn.textContent='Simpan status & catatan';}
+}
+async function savePIC(){
+ if(!canManageCases())return notice('Akses ditolak','Hanya Leader dapat menetapkan PIC.','warning');
+ if(!selectedCase)return notice('Kasus belum dipilih','Buka kasus dari dashboard.','warning');
+ const btn=el('btnSimpanPIC'),id=selectedCase.id_kasus,pic=el('selectPIC').value||null,note=el('inputPICNote').value.trim();
+ if(note.length<8||note.length>2000)return notice('Catatan wajib','Isi alasan penugasan minimal 8 karakter (maksimal 2000).','warning');
+ if(toText(selectedCase.pic_id)===toText(pic))return notice('PIC belum berubah','Pilih Staff berbeda atau kosongkan PIC jika ingin membatalkan penugasan.','warning');
+ btn.disabled=true;btn.textContent='Menyimpan penugasan...';
+ try{
+  const {data,error}=await sb.rpc('stocktrace_assign_pic',{p_case_id:id,p_pic_user_id:pic,p_note:note});
+  if(error)throw new Error(error.message);
+  if(!data?.ok)throw new Error('Database tidak mengonfirmasi penugasan.');
+  await loadCases();await openCase(id);
+  await notice('PIC berhasil diperbarui',pic?`PIC: ${data.pic_name||displayPerson(pic)}. Riwayat penugasan dicatat.`:'PIC berhasil dilepas. Riwayat dicatat.','success');
+ }catch(e){await notice('Gagal memperbarui PIC',e.message,'error');}
+ finally{btn.disabled=false;btn.textContent='Simpan penugasan PIC';}
 }
 function validateFiles(files){
  if(!files.length){notice('Bukti belum dipilih','Pilih foto, PDF, atau berkas lain dahulu.','warning');return false;}
@@ -206,12 +239,13 @@ function reportBars(id,items,total){el(id).innerHTML=items.length?items.map(([la
 function renderReports(){const data=selectedReportCases();reportBars('reportStatusBars',statuses.map(s=>[s,data.filter(c=>(c.status_kasus||statuses[0])===s).length]),data.length);const map=new Map();data.forEach(c=>{const s=toText(c.sku_produk)||'(tanpa SKU)';map.set(s,(map.get(s)||0)+1);});reportBars('reportSkuBars',[...map].sort((a,b)=>b[1]-a[1]).slice(0,8),data.length);}
 function clearReportDates(){el('reportFrom').value='';el('reportTo').value='';renderReports();}
 function csv(v){let s=toText(v);if(/^[\s]*[=+@-]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';}
-function exportCasesCSV(){const header=['ID Kasus','Tanggal','SKU','Produk','Stok Sistem','Stok Fisik','Selisih','Dugaan Penyebab','Kronologi','Status'];const rows=selectedReportCases().map(c=>[c.id_kasus,c.created_at,c.sku_produk,c.nama_produk,c.stok_sistem,c.stok_fisik,c.selisih,c.dugaan_penyebab,c.kronologi,c.status_kasus]);const text='\uFEFF'+[header,...rows].map(row=>row.map(csv).join(',')).join('\r\n');const u=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=u;a.download='StockTrace_Rekap_'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),10000);}
+function exportCasesCSV(){const header=['ID Kasus','Tanggal','SKU','Produk','Stok Sistem','Stok Fisik','Selisih','Dugaan Penyebab','Kronologi','Status','Pelapor','PIC','Waktu Penugasan PIC'];const rows=selectedReportCases().map(c=>[c.id_kasus,c.created_at,c.sku_produk,c.nama_produk,c.stok_sistem,c.stok_fisik,c.selisih,c.dugaan_penyebab,c.kronologi,c.status_kasus,displayPerson(c.id_pelapor),c.pic_nama||'',c.pic_ditetapkan_pada?niceDate(c.pic_ditetapkan_pada):'']);const text='\uFEFF'+[header,...rows].map(row=>row.map(csv).join(',')).join('\r\n');const u=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=u;a.download='StockTrace_Rekap_'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),10000);}
 function downloadClick(ev){const btn=ev.target.closest('button[data-download-id]');if(btn)downloadEvidence(btn.dataset.downloadCase,btn.dataset.downloadId,btn.dataset.downloadName);}
 el('formLaporanLengkap').addEventListener('submit',submitReport);
 el('formExtraEvidence').addEventListener('submit',addEvidenceToCase);
 el('searchCases').addEventListener('input',displayCases);
 el('filterCaseStatus').addEventListener('change',displayCases);
+el('filterCasePIC').addEventListener('change',displayCases);
 el('dashboardCasesBody').addEventListener('click',e=>{const btn=e.target.closest('button[data-case-id]');if(btn)openCase(btn.dataset.caseId);});
 el('detailEvidence').addEventListener('click',downloadClick);
 el('archiveBody').addEventListener('click',downloadClick);

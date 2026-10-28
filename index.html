@@ -27,27 +27,31 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   html,body{width:100%;max-width:100%;overflow-x:hidden}
   body{height:100vh;height:100dvh;min-width:0}
   body>main{width:100%;min-width:0;height:100vh;height:100dvh}
-  main>header{height:58px;min-height:58px;flex-shrink:0;padding:8px 12px;gap:10px}
+  main>header{order:1;height:58px;min-height:58px;flex-shrink:0;padding:8px 12px;gap:10px}
   main>header>div:first-child{flex:1;max-width:none;min-width:0}
   .mobile-signout{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
     width:44px;height:44px;border-radius:10px;background:#f1f5f9;color:#334155;font-size:23px}
-  .mobile-bottom-nav{position:fixed;z-index:50;bottom:0;left:0;right:0;display:flex;
-    justify-content:space-around;align-items:stretch;background:#fff;border-top:1px solid #cbd5e1;
+  /* Bottom nav joins the main flex layout so it cannot cover the form's action buttons. */
+  .mobile-bottom-nav{order:3;position:relative;z-index:20;inset:auto;flex:0 0 auto;
+    width:100%;box-sizing:border-box;display:flex;justify-content:space-around;
+    align-items:stretch;background:#fff;border-top:1px solid #cbd5e1;
     padding:4px 6px max(6px,env(safe-area-inset-bottom));box-shadow:0 -3px 12px rgba(15,23,42,.06)}
   .mobile-bottom-item{display:flex;min-width:0;flex:1;flex-direction:column;align-items:center;
     justify-content:center;gap:3px;min-height:56px;padding:4px 0;color:#334155;font-size:11px;
     line-height:1.15;font-weight:600;border-radius:9px}
   .mobile-bottom-item i{font-size:23px;line-height:1}
   .mobile-bottom-item:active,.mobile-bottom-item:focus-visible{background:#dbeafe;color:#1d4ed8}
-  main>.flex-1.overflow-y-auto{min-width:0;overflow-x:hidden;overflow-y:auto;
-    padding:14px 12px calc(86px + env(safe-area-inset-bottom));
+  /* Only this area scrolls; nav stays below it, never overlapping its content. */
+  main>.flex-1.overflow-y-auto{order:2;min-width:0;min-height:0;overflow-x:hidden;overflow-y:auto;
+    padding:14px 12px 26px;
     overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
   #view-dashboard,#view-form-laporan,#view-detail-kasus,#view-archive,#view-reports{max-width:100%;min-width:0}
   #view-dashboard .grid.grid-cols-2{gap:9px}
   #view-dashboard .grid.grid-cols-2>div{padding:13px;min-width:0}
   #view-dashboard .grid.grid-cols-2>div p{overflow-wrap:anywhere}
   #view-dashboard .bg-white.rounded-xl.shadow-sm,#view-archive .bg-white.rounded-xl{padding:13px}
-  #view-dashboard table,#view-archive table{min-width:530px}
+  #view-dashboard table{min-width:760px}
+  #view-archive table{min-width:530px}
   #view-dashboard .overflow-x-auto,#view-archive .overflow-x-auto{max-width:100%;-webkit-overflow-scrolling:touch}
   #view-form-laporan>.bg-white,#detailMainCard,#detailLeaderColumn>div{padding:15px}
   #view-form-laporan form{gap:18px}
@@ -134,12 +138,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                 <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
                     <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                         <h2 class="font-semibold">Daftar kasus & monitoring</h2>
+                        <select id="filterCasePIC" aria-label="Filter penugasan" class="text-sm p-2 border rounded-lg"><option value="">Semua penugasan</option><option value="mine">PIC saya</option><option value="reported">Laporan saya</option><option value="unassigned">Belum ada PIC</option></select>
                         <select id="filterCaseStatus" aria-label="Filter status" class="text-sm p-2 border rounded-lg"><option value="">Semua status</option><option>Baru Dilaporkan</option><option>Dalam Pemeriksaan</option><option>Menunggu Tindak Lanjut IT/MD</option><option>Dalam Penyelesaian</option><option>Selesai</option></select>
                         <button type="button" onclick="loadCases()" class="text-sm text-blue-600 hover:underline">Muat ulang</button>
                     </div>
                     <p id="dashboardNotice" role="status" class="text-sm text-slate-500 mb-3">Memuat data dari Supabase...</p>
                     <div class="overflow-x-auto"><table class="w-full text-sm text-left">
-                        <thead class="text-xs uppercase text-slate-500 border-b"><tr><th class="py-3 pr-4">ID Kasus</th><th class="py-3 pr-4">Produk / SKU</th><th class="py-3 pr-4">Selisih</th><th class="py-3">Status</th></tr></thead>
+                        <thead class="text-xs uppercase text-slate-500 border-b"><tr><th class="py-3 pr-4">ID Kasus</th><th class="py-3 pr-4">Produk / SKU</th><th class="py-3 pr-4">Selisih</th><th class="py-3 pr-4">Pelapor / PIC</th><th class="py-3">Status</th></tr></thead>
                         <tbody id="dashboardCasesBody"></tbody>
                     </table></div>
                     <p class="text-xs text-slate-400 mt-4">Menampilkan maksimal 500 kasus terbaru sesuai akses akun. Hak akses sebenarnya diatur oleh kebijakan database (RLS).</p>
@@ -213,6 +218,18 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                             <textarea id="inputStatusNote" maxlength="2000" rows="4" class="w-full p-2 bg-slate-800 text-white border border-slate-600 rounded mb-3" placeholder="Hasil pemeriksaan dan rencana tindak lanjut..."></textarea>
                             <button type="button" id="btnSimpanStatus" class="w-full py-2 bg-blue-600 rounded text-sm font-semibold" onclick="saveStatus()">Simpan status & catatan</button>
                             <p class="text-xs text-slate-300 mt-2">Hanya Leader/Admin. Perubahan status dan catatan dilakukan bersama oleh fungsi database.</p>
+                        </div>
+                        <div id="panelPenugasanPIC" class="bg-white p-5 rounded-xl border border-slate-200 space-y-3">
+                            <h3 class="font-bold text-slate-800 border-b pb-3">Penugasan PIC</h3>
+                            <p class="text-xs text-slate-500">Pelapor dicatat otomatis dari akun login. PIC adalah Staff yang ditunjuk untuk menelusuri kasus; keputusan akhir tetap milik Leader.</p>
+                            <label for="selectPIC" class="block text-sm font-semibold text-slate-700">Pilih Staff sebagai PIC</label>
+                            <select id="selectPIC" class="w-full px-3 py-3 border border-slate-300 rounded-lg bg-white text-slate-800 text-sm" aria-label="Pilih PIC">
+                                <option value="">Belum ditugaskan</option>
+                            </select>
+                            <label for="inputPICNote" class="block text-sm font-semibold text-slate-700">Alasan penugasan / penggantian PIC</label>
+                            <textarea id="inputPICNote" rows="3" maxlength="2000" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800" placeholder="Contoh: Periksa dokumen transaksi dan cocokkan dengan stok fisik..."></textarea>
+                            <button type="button" id="btnSimpanPIC" onclick="savePIC()" class="w-full rounded-lg py-3 px-4 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm">Simpan penugasan PIC</button>
+                            <p id="picFormHint" class="text-xs text-slate-500" role="status">Hanya Leader dapat menetapkan atau mengganti PIC. Semua perubahan dicatat dalam timeline.</p>
                         </div>
                     </div>
                 </div>

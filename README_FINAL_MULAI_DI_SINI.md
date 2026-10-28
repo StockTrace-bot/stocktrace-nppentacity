@@ -1,86 +1,76 @@
-# STOCKTRACE — V1.0 PROTOTYPE | SATU PAKET FINAL
+# STOCKTRACE v1.2 — PAKET UTUH PIC & 5 AKUN
 
-**Nama paket tunggal:** `STOCKTRACE_FINAL_SATU_PAKET_V1_0.zip`  
-**Tanggal konsolidasi:** 28 Oktober 2026  
-**Tujuan:** satu arsip penuh untuk menggantikan ZIP patch yang beredar sebelumnya.
+**Ini paket source code UTUH**, bukan patch. Dibangun dari StockTrace V1.1 yang sudah bekerja, termasuk mobile nav tidak menutup tombol, layout Staff, Google Drive, Google Sheets webhook & WITA.
 
-## Isi yang dikonsolidasikan
+## Perubahan v1.2
+- 4 akun Staff individual + 1 akun Leader (dibuat melalui Supabase Auth, bukan dibuat otomatis dari ZIP).
+- Pelapor ditentukan otomatis menggunakan `auth.uid()` (tidak ada dropdown "siapa yang melapor").
+- Leader saja yang dapat menetapkan/mengganti/melepas PIC Staff pada detail kasus.
+- Penugasan PIC membutuhkan catatan, menyimpan snapshot nama PIC, dan dicatat pada `case_logs` secara atomik.
+- Staff tetap dapat membaca kasus bersama dan unggah bukti, tapi tidak dapat menugaskan PIC maupun mengubah keputusan/status.
+- Kasus lama aman: PIC awalnya kosong sampai ditugaskan, tidak menghapus laporan/riwayat/bukti.
+- Google Sheets tab **Kasus** menambah 3 kolom di akhir: ID PIC, Nama PIC, Ditugaskan Pada (WITA). Tab Bukti/Riwayat tetap.
+- CSV dan detail kasus menampilkan pelapor serta PIC.
 
-Ini **full source** (bukan patch terpisah). `index.html`, `login.html`, dan `app.js` sudah berupa file lengkap terakhir; ketiga API juga lengkap.
+## PENTING SEBELUM MIGRASI
+1. Simpan backup database Supabase kamu. Jangan kirim backup atau secret kepada siapa pun.
+2. Pastikan proyek Supabase adalah StockTrace DB dengan skema v1.1. **Jangan jalankan ulang** SQL migrasi historis `01_...` dan `02_...`.
+3. SQL BARU yang perlu dijalankan **sekali** ialah `sql/03_AKTIFKAN_PIC_V1_2_JALANKAN_SEKALI.sql` melalui Supabase SQL Editor sebagai admin. SQL memakai BEGIN/COMMIT, tidak menghapus tabel atau data lama. **Ini mengubah izin INSERT pada cases**, jadi pastikan tidak ada aplikasi lain yang menggunakan tabel ini.
+4. Saat SQL sukses, baru deploy file sumber baru ke Vercel. Kalau deploy duluan, fitur PIC belum tersedia sampai SQL dijalankan.
 
-- Desktop + navigasi Android/iPhone: `index.html`, `login.html` dan styling mobile.
-- Hak akses Staff/Leader, layout Staff terpusat, dashboard, laporan, detail, arsip, ekspor: `app.js` dan `index.html`.
-- Google Drive: `api/upload.mjs`, `api/evidence.mjs`.
-- Google Sheets (webhook, sinkronisasi manual Leader, WITA): `api/sheets-sync.mjs`.
-- Halaman publik, CSS dan dependensi: `about.html`, `privacy.html`, `terms.html`, `public.css`, `package.json`.
-- `sql/`: arsip migrasi dan policy satu gerai sebagai **dokumentasi historis**, bukan skrip untuk dijalankan ulang.
-- `.gitignore`: menghindari masuknya rahasia umum ke Git; jangan pernah commit JSON service account, backup data, token, atau private key.
-- `ENV_VERCEL_NAMA_SAJA.txt`: hanya DAFTAR NAMA variabel Vercel, bukan nilainya.
+## Cara memasang dari satu ZIP
 
-## PENTING: pemasangan yang dimaksud adalah mengganti source code, BUKAN menghapus data
+1. Ekstrak seluruh isi ZIP menjadi folder `STOCKTRACE_FINAL_PIC_5_AKUN_V1_2` pada Downloads.
+2. Simpan repo `C:\Users\hilmi\Downloads\stocktrace-app` (jangan hapus folder `.git`).
+3. Pada PowerShell:
 
-**JANGAN:** menghapus repository Git, tabel Supabase, bucket/berkas Google Drive, spreadsheet,
-webhook Supabase, database backup, atau environment variables Vercel.
+```powershell
+cd C:\Users\hilmi\Downloads\stocktrace-app
+Copy-Item -Path 'C:\Users\hilmi\Downloads\STOCKTRACE_FINAL_PIC_5_AKUN_V1_2\*' -Destination '.\' -Recurse -Force
+node --check app.js
+node --check api/upload.mjs
+node --check api/evidence.mjs
+node --check api/sheets-sync.mjs
+git status
+```
 
-Data laporan, bukti, dan log sudah disimpan di luar ZIP (Supabase/Google Drive/Sheets). ZIP ini tidak menyimpan isi database.
-Tidak perlu mengulang setup Google Cloud atau mengeksekusi file di folder `sql/`.
+4. Tinjau perubahan. Perhatikan **jangan pernah commit** `.env`, JSON service account, token, file backup asli atau password.
+5. Lalu:
 
-## Cara memasang ulang dari satu ZIP saja
+```powershell
+git add index.html login.html app.js about.html privacy.html terms.html public.css package.json api sql .gitignore README_FINAL_MULAI_DI_SINI.md ENV_VERCEL_NAMA_SAJA.txt
+git commit -m "StockTrace v1.2 individual staff accounts and leader PIC assignment"
+git push origin main
+```
 
-1. Simpan paket ZIP master ini dan ekstrak menggunakan **Extract All**. Pastikan hasilnya punya folder
-   `STOCKTRACE_FINAL_SATU_PAKET_V1_0` yang langsung berisi `index.html`, `login.html`, `app.js`, `api/`, dan `sql/`.
-2. **Jangan** menghapus `C:\Users\hilmi\Downloads\stocktrace-app`; folder itu adalah repository Git yang terhubung ke Vercel.
-3. Buka PowerShell dan jalankan kode berikut satu per satu:
+6. Vercel `Deployments` harus **Ready**. Jangan ganti variabel Vercel atau webhook Supabase yang sudah bekerja.
+7. Login sebagai Leader → `Rekap & Ekspor` → **Sinkronkan Google Sheets** sekali setelah deploy. Ini memperbarui header `Kasus` beserta data lama. Selanjutnya event webhook INSERT/UPDATE menjaga sinkronisasi otomatis. Script juga mengenali dan menaikkan header versi lama secara otomatis pada webhook Kasus.
 
-   ```powershell
-   cd C:\Users\hilmi\Downloads\stocktrace-app
-   git status
-   Copy-Item -Path 'C:\Users\hilmi\Downloads\STOCKTRACE_FINAL_SATU_PAKET_V1_0\*' -Destination '.\' -Recurse -Force
-   Copy-Item -Path 'C:\Users\hilmi\Downloads\STOCKTRACE_FINAL_SATU_PAKET_V1_0\.gitignore' -Destination '.\.gitignore' -Force
-   node --check app.js
-   node --check api/upload.mjs
-   node --check api/evidence.mjs
-   node --check api/sheets-sync.mjs
-   git status
-   git diff --stat
-   ```
+## Membuat 4 Staff individual + 1 Leader
 
-4. Tinjau perubahan. Jangan lanjut bila melihat file `.env`, file JSON kredensial, backup SQL berisi data, atau private key sebagai file baru yang akan ditambahkan.
-5. **Setelah yakin file aman**, commit dan push (jangan jalankan jika masih ada modifikasi tidak terkait):
+Jangan berbagi password akun Staff. Jumlah akun bukan dibuat oleh migrasi SQL; butuh identitas login masing-masing orang.
 
-   ```powershell
-   git add index.html login.html app.js about.html privacy.html terms.html public.css package.json api sql .gitignore README_FINAL_MULAI_DI_SINI.md ENV_VERCEL_NAMA_SAJA.txt
-   git commit -m "Consolidate StockTrace v1.0 full source and mobile support"
-   git push origin main
-   ```
+- Supabase Dashboard → **Authentication → Users**. Lihat dulu akun Staff dan Leader yang sudah ada. Jika akun Staff lama benar-benar dipakai satu karyawan tertentu, akun itu boleh menjadi salah satu dari empat; sisanya dibuat secara individual.
+- Buat akun melalui fitur **Invite user** (lebih baik agar setiap orang menetapkan password sendiri), atau buat login di Admin hanya jika invitation tidak tersedia. Pastikan redirect/URL login di Supabase Auth sudah benar.
+- Setelah akun muncul di Authentication, masukkan profilnya ke `public.users` dengan `id_user` **persis sama** dengan UUID auth pengguna tersebut, `nama_lengkap` nama karyawan, `email` email yang sesuai, `role='Staff'` (Leader satu akun `role='Leader'`). Gunakan Table Editor dan periksa UUID satu per satu. Jangan membuat akun fiktif dengan nama generik di data asli.
+- Akun lama yang dahulu dibagi bersama sebaiknya dipensiunkan setelah semua karyawan punya akun individual; jangan hapus histori laporan. Jangan aktifkan self-register tanpa pengendalian.
+- Verifikasi dengan SQL read-only `sql/04_QA_AKUN_DAN_PIC_READONLY.sql`. Jumlah ideal: **4 profil Staff dan 1 Leader**; bila dulu ada akun bersama ekstra, audit sebelum menonaktifkannya.
 
-   Perintah `git commit` bisa memberi `nothing to commit` bila isi repo sudah sama persis; itu **normal**.
-   `README_FINAL_MULAI_DI_SINI.md` di repo akan berasal dari master ini jika berkasnya ikut disalin.
-6. Buka Vercel > Deployments > pastikan deployment commit terbaru **Ready**.
-7. Cek akun Staff dan Leader; lapor simulasi, upload/download bukti, perubahan status khusus Leader,
-   ketiga tab Google Sheets otomatis, dan resync manual Leader. Tes langsung dengan Android Chrome dan iPhone Safari.
+## Pengujian yang WAJIB dilakukan
 
-## Kapan boleh hapus ZIP lain?
+1. Staff A login → buat laporan simulasi → pelapor muncul sebagai Staff A otomatis.
+2. Leader login → buka kasus → dropdown PIC menampilkan akun Staff A–D → pilih Staff B + alasan minimal 8 karakter → Simpan.
+3. Staff A/B login → lihat laporan & PIC Staff B; bagian penugasan dan keputusan Leader tidak muncul.
+4. Leader ganti Staff B ke Staff C → nama terbaru dan riwayat tercatat (log lama tidak berubah).
+5. Google Sheets tab Kasus punya kolom ID PIC, Nama PIC, Ditugaskan Pada dan isi sesuai penugasan. Tab Riwayat mencatat aksi penugasan.
+6. Uji upload/download Google Drive; validasi WITA; uji form pada Android Chrome/iPhone Safari.
+7. Audit SQL: Staff tidak memiliki GRANT UPDATE/DELETE ke cases, fungsi assign_pic menolak user bukan Leader. Uji keamanan backend secara terkontrol; jangan jalankan kode asing di DevTools.
 
-**Setelah** paket tunggal ini tersimpan, source berhasil dipasang di GitHub, deployment Vercel Ready, dan uji fitur berhasil.
-Saat itu boleh menghapus **ZIP patch/kode lama** di Downloads, contohnya:
-`StockTrace_Integrated_Final_Sesuai_Supabase.zip`,
-`StockTrace_Sheets_Sync_Update.zip`, `StockTrace_Fix_Jam_WITA.zip`,
-`StockTrace_Fix_Layout_Staff.zip`, `StockTrace_Mobile_Android_iPhone_Update.zip`,
-`StockTrace_MASTER_FINAL_Full_Web_Android_iPhone.zip`.
+## Batas penting
 
-**JANGAN HAPUS** `StockTrace_Backup_Sebelum_Migrasi.zip`, database backup apa pun, file JSON Service Account rahasia, atau folder Git `stocktrace-app`. Kalau ingin menghapus `StockTrace_Source_Terkini.zip`, pastikan kamu sudah mempunyai cadangan source terpisah karena itu snapshot awal, bukan sekadar patch.
-
-## Batasan yang masih berlaku
-
-- Ini aplikasi web untuk browser (bukan APK atau IPA).
-- Responsif mobile sudah diperiksa secara statis, tetapi pengujian real-device tetap dilakukan setelah deploy.
-- Maksimum upload bukti kira-kira 4 MB per file sesuai batas server saat ini.
-- Google Sheets bersifat sinkronisasi mendekati real-time, bukan transaksi atomik lintas sistem.
-- Backup database sebelumnya belum dipulihkan dalam uji restore; prototipe belum melalui audit keamanan penuh.
-- Policy baca semua kasus disiapkan untuk **satu gerai**; perlu pembatasan tambahan jika melayani banyak cabang.
-- OAuth Google, Vercel, dan Supabase tetap memerlukan pemantauan operasional berkala.
-
-## Ringkasan QA paket ini
-
-Lihat `HASIL_AUDIT_PAKET.txt`: lint JavaScript, seluruh referensi ID `app.js`, kesesuaian file-versi akhir, ZIP integrity, dan pencarian kredensial. Ini pemeriksaan paket, **bukan** klaim bahwa seluruh operasi live telah diuji ulang setelah update mobile.
+- PIC **bukan** hak mengubah status. Koreksi inventory resmi tetap wewenang perusahaan/IT/MD; StockTrace hanya mencatat penelusuran dan keputusan tindak lanjut gerai.
+- Google Sheets sinkron mendekati real-time, bukan sistem transaksi real-time absolut. Bila webhook gagal, Leader gunakan tombol Sinkronkan Google Sheets.
+- Sistem dibangun untuk **satu gerai**. Penambahan cabang perlu kolom gerai & pembatasan RLS baru.
+- Bukti maksimum 4 MB per file. Data dan backup tetap di Supabase/Google Drive, bukan di ZIP.
+- Waktu WITA ditampilkan bagi pengguna, timestamp tetap tersimpan UTC di database.
+- Belum diuji langsung dengan database produksi milikmu; SQL harus dijalankan hati-hati sesudah backup dan pengujian pada data simulasi.

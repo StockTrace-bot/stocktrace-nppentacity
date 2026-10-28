@@ -8,8 +8,8 @@ import { timingSafeEqual } from 'node:crypto';
 const SHEETS = {
   cases: {
     tab: 'Kasus', key: 'id_kasus',
-    columns: ['id_kasus','id_pelapor','sku_produk','nama_produk','stok_sistem','stok_fisik','selisih','dugaan_penyebab','kronologi','status_kasus','created_at'],
-    labels: ['ID Kasus','ID Pelapor','SKU Produk','Nama Produk','Stok Sistem','Stok Fisik','Selisih','Dugaan Penyebab','Kronologi','Status Kasus','Dibuat Pada']
+    columns: ['id_kasus','id_pelapor','sku_produk','nama_produk','stok_sistem','stok_fisik','selisih','dugaan_penyebab','kronologi','status_kasus','created_at','pic_id','pic_nama','pic_ditetapkan_pada'],
+    labels: ['ID Kasus','ID Pelapor','SKU Produk','Nama Produk','Stok Sistem','Stok Fisik','Selisih','Dugaan Penyebab','Kronologi','Status Kasus','Dibuat Pada','ID PIC','Nama PIC','Ditugaskan Pada']
   },
   evidence_files: {
     tab: 'Bukti', key: 'id_file',
@@ -40,7 +40,7 @@ function googleValue(x){
 }
 // Convert UTC timestamps from Supabase to readable Balikpapan local time.
 // Google Sheets stores this as readable text; Supabase retains original UTC values.
-const TIMESTAMP_COLUMNS = new Set(['created_at','waktu_unggah','waktu_aksi']);
+const TIMESTAMP_COLUMNS = new Set(['created_at','waktu_unggah','waktu_aksi','pic_ditetapkan_pada']);
 const WITA_FORMATTER = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Makassar',
   year: 'numeric', month: '2-digit', day: '2-digit',
@@ -78,6 +78,11 @@ async function ensureHeader(client,sid,schema){
   const response=await client.spreadsheets.values.get({spreadsheetId:sid,range});
   const current=response.data.values?.[0]||[];
   if(!current.length){
+    await client.spreadsheets.values.update({spreadsheetId:sid,range,valueInputOption:'RAW',requestBody:{values:[schema.labels]}});
+  }else if(schema.tab==='Kasus' && current.length===schema.labels.length-3
+    && current.every((label,i)=>label===schema.labels[i])){
+    // Seamless transition: old Kasus sheet has 11 columns; preserve all existing rows.
+    // A Leader full resync will backfill PIC columns for historical cases.
     await client.spreadsheets.values.update({spreadsheetId:sid,range,valueInputOption:'RAW',requestBody:{values:[schema.labels]}});
   }else if(schema.labels.some((label,i)=>current[i]!==label)){
     throw Object.assign(new Error(`Header tab ${schema.tab} tidak sama dengan StockTrace. Jalankan sinkronisasi penuh dari akun Leader terlebih dahulu.`),{code:'SHEET_HEADER_MISMATCH',status:409});
