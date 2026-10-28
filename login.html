@@ -2,12 +2,19 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#1E293B">
     <title>Login - StockTrace Nada Puspita</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+    body{min-height:100vh;min-height:100dvh;height:auto!important;padding:16px max(12px,env(safe-area-inset-right)) 16px max(12px,env(safe-area-inset-left));overflow-x:hidden;overflow-y:auto}
+    #email,#password{font-size:16px!important;min-height:46px}
+    #btnLogin{min-height:46px}
+    @media(max-width:480px){body>div{padding:22px 18px;margin:0 auto;border-radius:14px}h1{text-align:center;line-height:1.3}}
+    </style>
 </head>
 <body class="bg-slate-50 flex items-center justify-center h-screen font-sans">
     <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-slate-100">

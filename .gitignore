@@ -1,0 +1,14 @@
+# Local credentials and logs — never commit secrets.
+.env
+.env.*
+!.env.example
+*service-account*.json
+*service_account*.json
+*credentials*.json
+*.pem
+*.p12
+*.key
+*.log
+node_modules/
+.DS_Store
+Thumbs.db

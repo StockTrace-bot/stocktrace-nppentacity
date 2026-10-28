@@ -1,0 +1,17 @@
+KONFIGURASI YANG SUDAH TERPASANG DI VERCEL (JANGAN UPLOAD NILAINYA)
+
+SUPABASE_URL
+SUPABASE_PUBLISHABLE_KEY
+GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET
+GOOGLE_REFRESH_TOKEN
+GOOGLE_DRIVE_FOLDER_ID
+GOOGLE_SHEETS_SPREADSHEET_ID
+GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON
+STOCKTRACE_SHEETS_WEBHOOK_SECRET
+
+Proyek: stocktrace-nppentacity; Production (dan Preview bila memang perlu)
+
+Tidak ada secret/JSON pribadi di dalam paket ini. Key publik Supabase di frontend adalah publishable key,
+BUKAN service-role secret. Jangan menaruh secret Google di HTML/JS browser.
+Konfigurasi Service Account Google Sheets memerlukan akses Editor ke spreadsheet yang benar.

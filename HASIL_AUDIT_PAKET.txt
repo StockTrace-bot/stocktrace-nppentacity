@@ -1,0 +1,20 @@
+PASS JavaScript syntax: app.js
+PASS JavaScript syntax: api/upload.mjs
+PASS JavaScript syntax: api/evidence.mjs
+PASS JavaScript syntax: api/sheets-sync.mjs
+PASS Referensi elemen: 37 ID yang dipakai app.js tersedia di index.html
+PASS Paket mencakup: fitur navigasi HP
+PASS Paket mencakup: layout Staff terpusat
+PASS Paket mencakup: form dan panel Leader
+PASS Paket mencakup: sinkronisasi Google Sheets
+PASS Paket mencakup: WITA Asia/Makassar
+PASS Paket mencakup: Google Drive upload
+PASS Paket mencakup: Google Drive download
+PASS Paket mencakup: login HP
+PASS Cocok versi patch TERAKHIR: index.html
+PASS Cocok versi patch TERAKHIR: login.html
+PASS Cocok versi patch TERAKHIR: app.js
+PASS Cocok versi patch TERAKHIR: api/sheets-sync.mjs
+PASS Tidak terdeteksi private key literal atau JSON service account pada berkas paket
+NOTE Key sb_publishable_ di browser adalah key publik, bukan service_role
+NOTE Status produksi dan pengalaman mobile di perangkat pengguna perlu diverifikasi setelah deploy
