@@ -38,7 +38,28 @@ function googleValue(x){
   if(typeof x==='number'||typeof x==='boolean')return x;
   return String(x); // valueInputOption: RAW prevents formula evaluation.
 }
-function encodeRow(rec,schema){return schema.columns.map(k=>googleValue(rec[k]));}
+// Convert UTC timestamps from Supabase to readable Balikpapan local time.
+// Google Sheets stores this as readable text; Supabase retains original UTC values.
+const TIMESTAMP_COLUMNS = new Set(['created_at','waktu_unggah','waktu_aksi']);
+const WITA_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Makassar',
+  year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', second: '2-digit',
+  hourCycle: 'h23'
+});
+function formatWitaTimestamp(value){
+  if(value === null || value === undefined || value === '')return '';
+  const parsed = new Date(value);
+  if(Number.isNaN(parsed.getTime()))return String(value);
+  const parts = Object.fromEntries(WITA_FORMATTER.formatToParts(parsed)
+    .filter(item => item.type !== 'literal')
+    .map(item => [item.type, item.value]));
+  return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}:${parts.second} WITA`;
+}
+function encodeRow(rec,schema){
+  return schema.columns.map(k => TIMESTAMP_COLUMNS.has(k)
+    ? formatWitaTimestamp(rec[k]) : googleValue(rec[k]));
+}
 function colLetter(n){let result='';while(n>0){n--;result=String.fromCharCode(65+n%26)+result;n=Math.floor(n/26);}return result;}
 function getClient(){
   let credentials;
