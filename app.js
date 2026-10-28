@@ -35,6 +35,7 @@ async function checkAuth(){
   activeRole=profile.role||'Staff';const name=profile.nama_lengkap||user.email||'Pengguna';
   el('displayUserName').textContent=name;el('displayUserRole').textContent=activeRole;el('profilInisial').textContent=name.slice(0,1).toUpperCase();
   el('panelTindakLanjutLeader').style.display=canManageCases()?'':'none';
+  el('view-detail-kasus').classList.toggle('staff-detail-centered',!canManageCases());
   el('btnSyncSheets').style.display=canManageCases()?'':'none';
   await loadCases();
  }catch(e){el('dashboardNotice').textContent=e.message;await notice('Profil belum siap',e.message,'error');}
