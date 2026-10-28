@@ -129,6 +129,17 @@ export default {
       if (file.size === 0 || file.size > MAX_BYTES) return reject('INVALID_SIZE', 'Ukuran file harus lebih dari 0 dan maksimal 4 MB.', 413);
       const extension = String(file.name || '').split('.').pop().toLowerCase();
       if (!ALLOWED.has(extension)) return reject('INVALID_TYPE', 'Format tidak diizinkan. Gunakan JPG, PNG, PDF, MP4, WEBM, DOC, DOCX, XLS, XLSX, CSV, atau TXT.', 415);
+      // Kasus harus ada dan terlihat oleh akun ini (RLS): hindari bukti yatim.
+      // Alur frontend membuat cases lebih dulu, kemudian upload satu per satu.
+      const authToken = (request.headers.get('authorization') || '').match(/^Bearer\s+(.+)$/i)?.[1];
+      const origin = process.env.SUPABASE_URL.replace(/\/+$/, '');
+      const visibleCaseResponse = await fetch(`${origin}/rest/v1/cases?select=id_kasus&id_kasus=eq.${encodeURIComponent(caseId)}&limit=1`, {
+        headers: { apikey: process.env.SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${authToken}` }
+      });
+      if (!visibleCaseResponse.ok) return reject('CASE_ACCESS_CHECK_FAILED','Gagal memvalidasi hak akses kasus.',403);
+      const visibleCases = await visibleCaseResponse.json().catch(() => []);
+      if (!Array.isArray(visibleCases) || visibleCases.length !== 1)
+        return reject('CASE_NOT_FOUND','Kasus belum disimpan atau kamu tidak memiliki akses. Simpan laporan terlebih dahulu.',403);
       const result = await sendToDrive(file, caseId);
       return respond({ success: true, id_kasus: caseId, ...result, message: 'Berkas telah diterima Google Drive.' }, 200);
     } catch (error) {
