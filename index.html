@@ -19,164 +19,29 @@
 #view-detail-kasus.staff-detail-centered #detailCaseGrid { grid-template-columns:minmax(0,1fr); }
 #view-detail-kasus.staff-detail-centered #detailMainCard { grid-column:1 / -1; min-width:0; }
 #view-detail-kasus.staff-detail-centered #detailLeaderColumn { display:none; }
-button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #60a5fa;outline-offset:2px}.bar{height:10px;background:#3b82f6;border-radius:100px}.status-chip{font-size:12px;padding:3px 8px;background:#dbeafe;color:#1e40af;border-radius:100px} @media print{aside,header,.md\:hidden,#view-dashboard,#view-form-laporan,#view-detail-kasus,#view-archive,button{display:none!important}main,main>div{height:auto!important;overflow:visible!important}#view-reports{display:block!important}body{overflow:visible!important;height:auto!important}}
-/* StockTrace mobile experience: compact bottom navigation and iPhone safe areas. */
-.mobile-bottom-nav{display:none}
-.mobile-signout{display:none}
-@media (max-width:767px){
-  html,body{width:100%;max-width:100%;overflow-x:hidden}
-  body{height:100vh;height:100dvh;min-width:0}
-  body>main{width:100%;min-width:0;height:100vh;height:100dvh}
-  main>header{order:1;height:58px;min-height:58px;flex-shrink:0;padding:8px 12px;gap:10px}
-  main>header>div:first-child{flex:1;max-width:none;min-width:0}
-  .mobile-signout{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
-    width:44px;height:44px;border-radius:10px;background:#f1f5f9;color:#334155;font-size:23px}
-  /* Bottom nav joins the main flex layout so it cannot cover the form's action buttons. */
-  .mobile-bottom-nav{order:3;position:relative;z-index:20;inset:auto;flex:0 0 auto;
-    width:100%;box-sizing:border-box;display:flex;justify-content:space-around;
-    align-items:stretch;background:#fff;border-top:1px solid #cbd5e1;
-    padding:4px 6px max(6px,env(safe-area-inset-bottom));box-shadow:0 -3px 12px rgba(15,23,42,.06)}
-  .mobile-bottom-item{display:flex;min-width:0;flex:1;flex-direction:column;align-items:center;
-    justify-content:center;gap:3px;min-height:56px;padding:4px 0;color:#334155;font-size:11px;
-    line-height:1.15;font-weight:600;border-radius:9px}
-  .mobile-bottom-item i{font-size:23px;line-height:1}
-  .mobile-bottom-item:active,.mobile-bottom-item:focus-visible{background:#dbeafe;color:#1d4ed8}
-  /* Only this area scrolls; nav stays below it, never overlapping its content. */
-  main>.flex-1.overflow-y-auto{order:2;min-width:0;min-height:0;overflow-x:hidden;overflow-y:auto;
-    padding:14px 12px 26px;
-    overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
-  #view-dashboard,#view-form-laporan,#view-detail-kasus,#view-archive,#view-reports{max-width:100%;min-width:0}
-  #view-dashboard .grid.grid-cols-2{gap:9px}
-  #view-dashboard .grid.grid-cols-2>div{padding:13px;min-width:0}
-  #view-dashboard .grid.grid-cols-2>div p{overflow-wrap:anywhere}
-  #view-dashboard .bg-white.rounded-xl.shadow-sm,#view-archive .bg-white.rounded-xl{padding:13px}
-  #view-dashboard table{min-width:760px}
-  #view-archive table{min-width:530px}
-  #view-dashboard .overflow-x-auto,#view-archive .overflow-x-auto{max-width:100%;-webkit-overflow-scrolling:touch}
-  #view-form-laporan>.bg-white,#detailMainCard,#detailLeaderColumn>div{padding:15px}
-  #view-form-laporan form{gap:18px}
-  #view-detail-kasus #detailCaseGrid{gap:16px}
-  #detailTitle{overflow-wrap:anywhere;word-break:break-word;font-size:1.3rem;line-height:1.35}
-  #detailEvidence .flex{flex-wrap:wrap}
-  #detailEvidence .flex>div{min-width:0}
-  #view-reports>.flex .flex.gap-2{flex-wrap:wrap}
-  #view-reports button,#view-form-laporan button,#formExtraEvidence button{min-height:44px}
-  #view-reports input[type=date]{max-width:100%}
-  #inputFile,#extraEvidenceFile{max-width:100%;min-width:0;overflow:hidden}
-  input,textarea,select{font-size:16px!important}
-  .swal2-popup{max-width:calc(100vw - 24px)!important}
-}
-@media print{
-  .mobile-bottom-nav,.mobile-signout{display:none!important}
-}
-
-/* STOCKTRACE_MOBILE_NAV_FIX_V1_2_BEGIN */
-
-@media (max-width: 767px) {
-
-  html, body {
-    height: 100%;
-  }
-
-  body {
-    overflow: hidden !important;
-  }
-
-  main {
-    height: 100vh !important;
-    height: 100dvh !important;
-    min-height: 0 !important;
-    width: 100%;
-  }
-
-  main > header {
-    flex: 0 0 auto !important;
-  }
-
-  main > .flex-1.overflow-y-auto {
-    min-height: 0 !important;
-    flex: 1 1 auto !important;
-
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
-
-    padding-bottom:
-      calc(112px + env(safe-area-inset-bottom, 0px))
-      !important;
-
-    scroll-padding-bottom:
-      calc(112px + env(safe-area-inset-bottom, 0px));
-  }
-
-  main > nav.mobile-bottom-nav,
-  nav.mobile-bottom-nav {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-
-    position: fixed !important;
-    z-index: 9999 !important;
-
-    top: auto !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-
-    width: 100% !important;
-    box-sizing: border-box !important;
-
-    align-items: stretch !important;
-    justify-content: space-around !important;
-
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
-
-    min-height: 70px;
-
-    padding: 8px 6px
-      calc(8px + env(safe-area-inset-bottom, 0px))
-      !important;
-
-    background: #ffffff !important;
-    border-top: 1px solid #cbd5e1 !important;
-
-    box-shadow:
-      0 -3px 12px rgba(15,23,42,.08);
-  }
-
-  nav.mobile-bottom-nav > button {
-    min-width: 0 !important;
-    flex: 1 1 0% !important;
-    touch-action: manipulation;
-  }
-}
-
-@media (min-width: 768px) {
-  nav.mobile-bottom-nav {
-    display: none !important;
-  }
-}
-
-/* STOCKTRACE_MOBILE_NAV_FIX_V1_2_END */
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #60a5fa;outline-offset:2px}.bar{height:10px;background:#3b82f6;border-radius:100px}.status-chip{font-size:12px;padding:3px 8px;background:#dbeafe;color:#1e40af;border-radius:100px} @media print{aside,header,.md\:hidden,#view-dashboard,#view-form-laporan,#view-detail-kasus,#view-archive,#view-intake,#view-cashier,#view-account,button{display:none!important}main,main>div{height:auto!important;overflow:visible!important}#view-reports{display:block!important}body{overflow:visible!important;height:auto!important}}
+/* Navigation layout shared between laptop and phone. Legacy bottom-nav rules removed. */
+@media print { .mobile-bottom-nav,.mobile-signout { display:none!important; } }
 </style>
+<link rel="stylesheet" href="stocktrace-professional-rose.css">
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans flex h-screen overflow-hidden">
 
     <!-- SIDEBAR -->
-    <aside class="w-64 bg-npnavy text-white flex-col transition-all duration-300 hidden md:flex">
-        <div class="h-16 flex items-center px-6 border-b border-slate-700">
+    <aside class="st-sidebar w-64 bg-npnavy text-white flex flex-col transition-all duration-300">
+        <div class="st-sidebar-brand h-16 flex items-center px-6 border-b border-slate-700">
             <i class="ph ph-package text-2xl mr-2 text-blue-400"></i><span class="text-lg font-bold tracking-wide">StockTrace</span>
         </div>
-        <nav class="flex-1 px-4 py-6 space-y-2">
-            <button onclick="showView('dashboard')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-squares-four text-lg mr-3"></i> Dashboard</button>
-            <button onclick="showView('form-laporan')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-file-plus text-lg mr-3"></i> Buat Laporan</button>
-            <button onclick="showView('archive')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-folder-open text-lg mr-3"></i> Arsip Bukti</button>
-            <button onclick="showView('reports')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-chart-bar text-lg mr-3"></i> Rekap & Ekspor</button>
+        <nav class="st-sidebar-nav flex-1 px-4 py-6 space-y-2">
+            <button data-nav-view="dashboard" onclick="showView('dashboard')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-squares-four text-lg mr-3"></i><span class="st-nav-label">Dashboard</span></button>
+            <button data-nav-view="form-laporan" onclick="showView('form-laporan')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-file-plus text-lg mr-3"></i><span class="st-nav-label">Buat Laporan</span></button>
+            <button data-nav-view="archive" onclick="showView('archive')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-folder-open text-lg mr-3"></i><span class="st-nav-label">Arsip Bukti</span></button>
+            <button data-nav-view="reports" onclick="showView('reports')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-chart-bar text-lg mr-3"></i><span class="st-nav-label">Rekap & Ekspor</span></button>
+            <button data-nav-view="intake" onclick="showView('intake')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-truck text-lg mr-3"></i><span class="st-nav-label">Penerimaan Barang</span></button>
+            <button data-nav-view="cashier" onclick="showView('cashier')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-clipboard-text text-lg mr-3"></i><span class="st-nav-label">Update Stok Kasir</span></button>
+            <button data-nav-view="account" onclick="showView('account')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-user-circle text-lg mr-3"></i><span class="st-nav-label">Akun Saya</span></button>
         </nav>
-        <div class="p-4 border-t border-slate-700">
+        <div class="st-sidebar-profile p-4 border-t border-slate-700">
             <div class="flex items-center justify-between">
                 <div class="flex items-center">
                     <div class="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center font-bold" id="profilInisial">U</div>
@@ -191,33 +56,23 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
     </aside>
 
     <!-- MAIN CONTENT -->
-    <main class="flex-1 flex flex-col h-screen overflow-hidden">
+    <main class="st-main flex-1 flex flex-col h-screen overflow-hidden">
         <header class="h-16 bg-white shadow-sm flex items-center justify-between px-4 md:px-8 z-10">
             <div class="flex items-center bg-slate-100 rounded-lg px-3 py-2 w-full md:w-96 min-w-0">
                 <i class="ph ph-magnifying-glass text-slate-400" aria-hidden="true"></i>
                 <input type="search" id="searchCases" placeholder="Cari ID kasus, SKU, produk..." aria-label="Cari kasus" class="bg-transparent border-none outline-none text-sm ml-2 w-full min-w-0">
             </div>
-            <button type="button" onclick="logout()" class="mobile-signout md:hidden" aria-label="Keluar dari StockTrace" title="Keluar">
-                <i class="ph ph-sign-out" aria-hidden="true"></i>
-            </button>
-        </header>
-        <nav class="mobile-bottom-nav md:hidden" aria-label="Navigasi utama StockTrace">
-            <button type="button" class="mobile-bottom-item" onclick="showView('dashboard')"><i class="ph ph-squares-four" aria-hidden="true"></i><span>Dashboard</span></button>
-            <button type="button" class="mobile-bottom-item" onclick="showView('form-laporan')"><i class="ph ph-file-plus" aria-hidden="true"></i><span>Laporan</span></button>
-            <button type="button" class="mobile-bottom-item" onclick="showView('archive')"><i class="ph ph-folder-open" aria-hidden="true"></i><span>Arsip</span></button>
-            <button type="button" class="mobile-bottom-item" onclick="showView('reports')"><i class="ph ph-chart-bar" aria-hidden="true"></i><span>Rekap</span></button>
-        </nav>
-
-        <div class="flex-1 overflow-y-auto p-4 md:p-8 relative">
+</header>
+<div class="flex-1 overflow-y-auto p-4 md:p-8 relative">
             
             <!-- DASHBOARD VIEW -->
             <div id="view-dashboard" class="block space-y-6">
-                <div class="flex flex-wrap justify-between items-center gap-3">
-                    <div>
+                <div class="st-dashboard-heading flex justify-between items-center gap-3">
+                    <div class="st-dashboard-heading-text">
                         <h1 class="text-2xl font-bold text-slate-800">Dashboard Utama</h1>
                         <p class="text-sm text-slate-500 mt-1">Dokumentasi dan penanganan selisih stok Nada Puspita Pentacity.</p>
                     </div>
-                    <button onclick="showView('form-laporan')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center">
+                    <button onclick="showView('form-laporan')" class="st-dashboard-action bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center">
                         <i class="ph ph-plus mr-2"></i> Lapor Kasus
                     </button>
                 </div>
@@ -235,7 +90,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                         <button type="button" onclick="loadCases()" class="text-sm text-blue-600 hover:underline">Muat ulang</button>
                     </div>
                     <p id="dashboardNotice" role="status" class="text-sm text-slate-500 mb-3">Memuat data dari Supabase...</p>
-                    <div class="overflow-x-auto"><table class="w-full text-sm text-left">
+                    <p class="st-scroll-hint">Geser tabel ke samping untuk melihat semua kolom.</p>
+                    <div class="overflow-x-auto st-data-table"><table class="w-full text-sm text-left">
                         <thead class="text-xs uppercase text-slate-500 border-b"><tr><th class="py-3 pr-4">ID Kasus</th><th class="py-3 pr-4">Produk / SKU</th><th class="py-3 pr-4">Selisih</th><th class="py-3 pr-4">Pelapor / PIC</th><th class="py-3">Status</th></tr></thead>
                         <tbody id="dashboardCasesBody"></tbody>
                     </table></div>
@@ -267,7 +123,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                             </select>
                             <textarea id="inputKronologi" rows="3" placeholder="Jelaskan tanggal pemeriksaan, kondisi stok, dan bukti pendukung..." minlength="8" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500 resize-none"></textarea>
                             <input type="file" id="inputFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" required class="w-full text-sm p-2 border border-dashed rounded-lg bg-slate-50">
-                            <p class="text-xs text-slate-400">Boleh pilih beberapa berkas (diproses satu per satu), maksimal 4 MB per berkas. Foto, PDF, video, Word, Excel, CSV, atau TXT. Server upload harus mengizinkan jenis file yang dipilih.</p>
+                            <p class="text-xs text-slate-400">Boleh pilih beberapa berkas (diproses satu per satu), maksimal 100 MiB (sekitar 105 MB) per berkas. File besar dikirim langsung ke Google Drive; jangan tutup tab saat proses berlangsung.</p>
+                            <p id="uploadProgressReport" role="status" aria-live="polite" class="text-sm text-blue-700 font-medium" aria-label="Kemajuan upload"></p>
                         </div>
                         <div class="col-span-1 md:col-span-2 pt-4 flex justify-end">
                             <button type="button" onclick="showView('dashboard')" class="px-5 py-2 mr-3 border rounded-lg text-sm">Batal</button>
@@ -293,7 +150,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                         <form id="formExtraEvidence" class="mt-5 border-t pt-4 space-y-2">
                             <label for="extraEvidenceFile" class="text-sm font-semibold block">Tambah bukti ke kasus ini</label>
                             <input type="file" id="extraEvidenceFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" class="w-full text-sm border border-dashed rounded-lg p-2" required>
-                            <p class="text-xs text-slate-400">PDF/foto/video kecil/dokumen ≤4 MB per file. Upload ke Drive dan dicatat pada kasus.</p>
+                            <p class="text-xs text-slate-400">Foto, PDF, video, dan dokumen sampai 100 MiB per file. Upload langsung ke Drive; pertahankan tab terbuka sampai selesai.</p>
+                            <p id="uploadProgressExtra" role="status" aria-live="polite" class="text-sm text-blue-700 font-medium" aria-label="Kemajuan upload"></p>
                             <button id="btnExtraEvidence" class="bg-slate-800 text-white py-2 px-4 rounded-lg text-sm" type="submit">Unggah bukti tambahan</button>
                         </form>
                         <h3 class="font-semibold border-b pb-2 mt-7 mb-3">Timeline & riwayat tindak lanjut</h3>
@@ -330,10 +188,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 
             <!-- ARSIP BUKTI -->
             <section id="view-archive" class="hidden space-y-6">
-                <div class="flex flex-wrap gap-3 justify-between items-center"><div><h1 class="text-2xl font-bold">Arsip Bukti</h1><p class="text-sm text-slate-500">File yang terhubung dengan kasus yang boleh kamu akses.</p></div>
+                <div class="flex flex-wrap gap-3 justify-between items-center"><div><h1 class="text-2xl font-bold">Arsip Bukti</h1><p class="text-sm text-slate-500">File yang terhubung dengan kasus dan penerimaan yang boleh kamu akses.</p></div>
                 <button onclick="loadArchive()" class="px-4 py-2 bg-white border rounded-lg text-sm">Muat ulang</button></div>
                 <div class="bg-white rounded-xl border p-5"><p id="archiveNotice" class="text-sm text-slate-500 pb-3">Memuat arsip...</p>
-                    <div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-500 uppercase border-b"><tr><th class="py-3">Berkas</th><th>Kasus</th><th>Waktu</th><th>Unduh</th></tr></thead><tbody id="archiveBody"></tbody></table></div>
+                    <p class="st-scroll-hint">Geser tabel untuk melihat seluruh detail bukti.</p>
+                    <div class="overflow-x-auto st-data-table"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-500 uppercase border-b"><tr><th class="py-3">Berkas</th><th>Kasus</th><th>Waktu</th><th>Unduh</th></tr></thead><tbody id="archiveBody"></tbody></table></div>
                 </div>
             </section>
             <!-- REKAP DAN ANALITIK -->
@@ -352,9 +211,86 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                 <div class="bg-white border p-5 rounded-xl"><h2 class="font-semibold mb-4">SKU paling banyak dilaporkan</h2><div id="reportSkuBars" class="space-y-3"></div></div></div>
                 <p class="text-xs text-slate-500">Rekap jumlah kasus, bukan estimasi nominal kerugian. Pemuatan maksimal 500 kasus terbaru sesuai akses RLS.</p>
             </section>
+
+            <!-- V2.1 / MODUL PENERIMAAN BARANG: BUKAN PENGUBAHAN INVENTORI RESMI -->
+            <section id="view-intake" class="hidden space-y-5">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div><h1 class="text-2xl font-bold">Penerimaan Barang</h1><p class="text-sm text-slate-500 mt-1">Catat dokumen penerimaan dan bandingkan jumlah tercantum dengan barang fisik untuk setiap SKU.</p></div>
+                <button type="button" id="btnExportIntake" class="px-4 py-2 rounded-lg bg-npnavy text-white text-sm">Ekspor Excel .xlsx</button>
+              </div>
+              <p class="text-xs text-slate-500">Simulasi akademik. Pencatatan tidak mengubah stok kasir atau inventori resmi. Format Excel ini adalah format kerja StockTrace, bukan format pusat yang telah diverifikasi.</p>
+              <div class="bg-white border rounded-xl p-4 md:p-6">
+                <h2 class="font-semibold mb-4">Dokumen penerimaan baru</h2>
+                <form id="formIntake" class="space-y-4">
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div><label class="st-field-label" for="intakeDoc">Nomor dokumen / surat jalan</label><input id="intakeDoc" class="st-field" maxlength="100" required placeholder="Contoh: SJ-2026-0045"/></div>
+                    <div><label class="st-field-label" for="intakeDate">Tanggal terima</label><input id="intakeDate" type="date" class="st-field" required/></div>
+                    <div><label class="st-field-label" for="intakeSupplier">Pengirim / sumber barang</label><input id="intakeSupplier" class="st-field" maxlength="150" required placeholder="Contoh: Gudang pusat"/></div>
+                  </div>
+                  <div><label class="st-field-label" for="intakeNote">Catatan penerimaan (opsional)</label><textarea id="intakeNote" rows="2" maxlength="2000" class="st-field" placeholder="Kondisi paket, waktu tiba, informasi pendukung..."></textarea></div>
+                  <div class="flex gap-3 items-center justify-between flex-wrap"><h3 class="font-semibold">Rincian SKU</h3><button type="button" id="btnAddIntakeRow" class="st-secondary-btn">+ Tambah SKU</button></div>
+                  <p class="st-scroll-hint">Geser tabel untuk melihat seluruh kolom.</p>
+                  <div class="st-data-table overflow-x-auto border rounded-lg"><table class="w-full text-sm st-entry-table"><thead class="bg-slate-50 text-slate-600"><tr><th>SKU</th><th>Produk</th><th>Jumlah dokumen</th><th>Fisik diterima</th><th>Selisih</th><th>Aksi</th></tr></thead><tbody id="intakeItemsBody"></tbody></table></div>
+                  <div><label class="st-field-label" for="intakeFile">Lampiran bukti penerimaan (opsional)</label><input type="file" id="intakeFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" class="st-field"/><p class="text-xs text-slate-500 mt-1">Foto surat jalan/unboxing, hingga 100 MiB tiap file; disimpan ke arsip Google Drive.</p><p id="intakeUploadProgress" role="status" aria-live="polite" class="text-xs text-blue-700 mt-1"></p></div>
+                  <button type="submit" id="btnSaveIntake" class="st-primary-btn">Simpan penerimaan</button>
+                </form>
+              </div>
+              <div class="bg-white border rounded-xl p-4 md:p-6">
+                <div class="flex flex-wrap gap-2 justify-between items-center mb-3"><h2 class="font-semibold">Riwayat penerimaan & selisih SKU</h2><button type="button" id="btnRefreshIntakes" class="st-secondary-btn">Muat ulang</button></div>
+                <p id="intakeNotice" role="status" class="text-sm text-slate-500 mb-3">Buka halaman untuk memuat riwayat.</p>
+                <p class="st-scroll-hint">Geser tabel jika layar sempit.</p>
+                <div class="st-data-table overflow-x-auto"><table class="w-full text-sm st-entry-table"><thead><tr><th>ID / Tanggal</th><th>Dokumen</th><th>SKU</th><th>Jumlah selisih</th><th>Penanggung jawab</th><th>Detail</th></tr></thead><tbody id="intakesBody"></tbody></table></div>
+                <div id="intakeDetail" class="mt-4" aria-live="polite"></div>
+              </div>
+            </section>
+
+            <!-- V2.1 / PERMINTAAN UPDATE KASIR — HANYA MONITORING, TIDAK ADA AKSES TULIS KE KASIR -->
+            <section id="view-cashier" class="hidden space-y-5">
+              <div><h1 class="text-2xl font-bold">Monitoring Update Stok Kasir</h1><p class="text-sm text-slate-500 mt-1">Ajukan dan telusuri permintaan penyesuaian stok. Persetujuan dan perubahan resmi tetap dilakukan pihak berwenang di luar StockTrace.</p></div>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="cashierMetrics">
+                <div class="st-kpi"><p>Total permintaan</p><strong id="cashierTotal">—</strong></div>
+                <div class="st-kpi"><p>Menunggu tindak lanjut</p><strong id="cashierWaiting">—</strong></div>
+                <div class="st-kpi"><p>Dalam proses</p><strong id="cashierProcess">—</strong></div>
+                <div class="st-kpi"><p>Selesai dikonfirmasi</p><strong id="cashierDone">—</strong></div>
+              </div>
+              <div class="bg-white border rounded-xl p-4 md:p-6">
+                <h2 class="font-semibold mb-3">Ajukan permintaan update stok</h2>
+                <form id="formCashierRequest" class="space-y-3">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="cashierSku">SKU</label><input id="cashierSku" class="st-field" maxlength="80" required/></div><div><label class="st-field-label" for="cashierProduct">Nama produk</label><input id="cashierProduct" class="st-field" maxlength="150" required/></div></div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="cashierSystem">Jumlah tercatat di kasir</label><input type="number" id="cashierSystem" class="st-field" min="0" max="999999999" step="1" required/></div><div><label class="st-field-label" for="cashierPhysical">Jumlah hasil pengecekan</label><input type="number" id="cashierPhysical" class="st-field" min="0" max="999999999" step="1" required/></div></div>
+                  <div><label class="st-field-label" for="cashierReason">Alasan permintaan / tindak lanjut</label><textarea id="cashierReason" rows="3" minlength="8" maxlength="2000" class="st-field" required placeholder="Jelaskan sumber data dan tindakan yang diminta..."></textarea></div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="cashierCase">ID kasus R1 terkait (opsional)</label><input id="cashierCase" class="st-field" maxlength="64" placeholder="ST-..."/></div><div><label class="st-field-label" for="cashierIntake">ID penerimaan terkait (opsional)</label><input id="cashierIntake" class="st-field" maxlength="64" placeholder="IN-..."/></div></div>
+                  <button id="btnSubmitCashier" class="st-primary-btn" type="submit">Kirim permintaan</button>
+                </form>
+              </div>
+              <div class="bg-white border rounded-xl p-4 md:p-6">
+                <div class="flex items-center justify-between flex-wrap gap-2 mb-4"><h2 class="font-semibold">Daftar permintaan & status</h2><div class="flex gap-2 flex-wrap"><select id="cashierFilter" class="border rounded-lg px-3 py-2 text-sm"><option value="">Semua status</option><option>Diajukan</option><option>Diteruskan ke Kasir</option><option>Sedang Diproses</option><option>Selesai (Dikonfirmasi)</option><option>Ditolak</option></select><button type="button" id="btnRefreshCashier" class="st-secondary-btn">Muat ulang</button></div></div>
+                <p id="cashierNotice" role="status" class="text-sm text-slate-500 mb-3">Buka halaman untuk memuat permintaan.</p>
+                <p class="st-scroll-hint">Geser tabel jika layar sempit.</p>
+                <div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full text-sm"><thead><tr><th>ID / SKU</th><th>Selisih</th><th>Status</th><th>Pemohon</th><th>Waktu</th><th>Detail</th></tr></thead><tbody id="cashierBody"></tbody></table></div>
+                <div id="cashierDetail" class="mt-4" aria-live="polite"></div>
+              </div>
+            </section>
+
+            <!-- KEAMANAN AKUN: menu sama tersedia di desktop dan HP -->
+            <section id="view-account" class="hidden space-y-5 max-w-2xl mx-auto">
+                <div><h1 class="text-2xl font-bold">Akun Saya</h1><p class="text-sm text-slate-500 mt-1">Kelola keamanan akun StockTrace kamu.</p></div>
+                <div class="bg-white rounded-xl border p-5 md:p-7 space-y-5">
+                    <div><p class="text-xs text-slate-500">ID Pengguna</p><p class="font-semibold" id="accountLoginId">—</p></div>
+                    <form id="passwordChangeForm" class="space-y-4">
+                        <div><label for="currentPassword" class="text-sm font-medium block mb-1">Kata Sandi Saat Ini</label><input id="currentPassword" type="password" autocomplete="current-password" required class="w-full border rounded-lg p-3" minlength="1"/></div>
+                        <div><label for="newPassword" class="text-sm font-medium block mb-1">Kata Sandi Baru</label><input id="newPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="128" class="w-full border rounded-lg p-3"/><p class="text-xs text-slate-500 mt-1">Minimal 12 karakter; gunakan kombinasi huruf, angka, dan simbol.</p></div>
+                        <div><label for="confirmPassword" class="text-sm font-medium block mb-1">Ulangi Kata Sandi Baru</label><input id="confirmPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="128" class="w-full border rounded-lg p-3"/></div>
+                        <button id="savePasswordButton" class="px-5 py-3 rounded-lg bg-slate-800 text-white w-full" type="submit">Ganti Kata Sandi</button>
+                    </form>
+                    <p class="text-xs text-slate-500">Lupa kata sandi lama? Hubungi administrator sistem untuk verifikasi identitas dan reset melalui Supabase. Jangan membagikan password melalui chat.</p>
+                </div>
+            </section>
         </div>
     </main>
 
+    <script defer src="xlsx-export.js"></script>
     <script defer src="app.js"></script>
+    <script defer src="v21.js"></script>
 </body>
 </html>

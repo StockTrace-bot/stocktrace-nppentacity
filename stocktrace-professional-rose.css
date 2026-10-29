@@ -1,0 +1,142 @@
+/* StockTrace V2 | Original Professional Navy/Blue Dashboard (29 Okt 2026)
+ * Intentionally keeps the ORIGINAL desktop dashboard, navy sidebar, 4 KPI cards,
+ * desktop case/archive tables, and all application functionality.
+ * Desktop design from the screenshot is the source of truth; all devices keep LEFT navigation.
+ */
+:root{--st-rose:#2563EB;--st-rose-deep:#1D4ED8;--st-rose-soft:#EFF6FF;--st-rose-line:#BFDBFE;--st-navy:#1E293B}
+body{background:#F8FAFC}
+/* Preserve recognizable original NAVY sidebar; highlight branding and current menu only. */
+aside.bg-npnavy{background:var(--st-navy)!important}
+aside .ph-package.text-blue-400{color:#60A5FA!important}
+aside nav button{border:1px solid transparent}
+aside nav button:hover{background:#334155!important}
+aside nav button.st-active-nav{background:#344154!important;color:#FFF!important;border-color:#475569}
+aside nav button.st-active-nav i{color:#93C5FD}
+/* Keep classic laptop header + desktop-wide search. */
+main>header{background:white;border-bottom:1px solid #E2E8F0;box-shadow:0 1px 3px rgba(15,23,42,.025)}
+/* Original four-KPI design and table remain untouched; subtle hover only. */
+#view-dashboard .grid.grid-cols-2.xl\:grid-cols-4>div{border-color:#E2E8F0;transition:box-shadow .18s,border-color .18s}
+@media(hover:hover){#view-dashboard .grid.grid-cols-2.xl\:grid-cols-4>div:hover{box-shadow:0 5px 18px rgba(30,41,59,.055);border-color:#BFDBFE}}
+#view-dashboard .bg-white.rounded-xl,#view-archive .bg-white.rounded-xl{border-color:#E5E7EB}
+/* Exact professional blue actions/links/badges as in the desktop screenshot. */
+.bg-blue-600{background-color:var(--st-rose)!important}
+.hover\:bg-blue-700:hover{background-color:var(--st-rose-deep)!important}
+.text-blue-600,.text-blue-700{color:var(--st-rose-deep)!important}
+.hover\:text-blue-700:hover{color:var(--st-rose-deep)!important}
+.bg-blue-50{background-color:var(--st-rose-soft)!important}
+.border-blue-200,.border-blue-300{border-color:var(--st-rose-line)!important}
+.status-chip{background:#DBEAFE;color:#1E40AF;border:1px solid #BFDBFE}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline-color:var(--st-rose)!important}
+input:focus,textarea:focus,select:focus{--tw-ring-color:rgba(182,87,120,.24)}
+#view-dashboard .st-data-table table,#view-archive .st-data-table table{border-collapse:collapse}
+#view-dashboard .st-data-table th,#view-archive .st-data-table th{white-space:nowrap}
+#view-dashboard .st-data-table tbody tr:hover,#view-archive .st-data-table tbody tr:hover{background:#F8FAFC}
+.st-scroll-hint{display:none}
+/* Left sidebar is the ONLY navigation on laptop, Android, and iPhone. */
+/* Same left-side navigation on ALL screen widths. Layout scales, navigation never moves to bottom. */
+html,body { min-width:0; }
+body { display:flex; overflow:hidden; }
+.st-sidebar { flex:0 0 256px; width:256px; min-width:0; height:100vh; height:100dvh; overflow:hidden; }
+.st-sidebar-nav { min-height:0; overflow-y:auto; }
+.st-sidebar-nav button { text-align:left; }
+.st-sidebar-nav button .st-nav-label { flex:1; min-width:0; }
+.st-main { min-width:0; height:100vh; height:100dvh; }
+.st-main>header { flex:0 0 64px; }
+.st-main>.flex-1.overflow-y-auto { min-width:0; min-height:0; overflow-x:hidden; overflow-y:auto; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; }
+.mobile-bottom-nav,.mobile-signout { display:none!important; }
+.st-dashboard-heading { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:nowrap!important; gap:12px; }
+.st-dashboard-heading-text { flex:1 1 auto; min-width:0; }
+.st-dashboard-heading-text p { overflow-wrap:anywhere; }
+.st-dashboard-action { flex:0 0 auto; white-space:nowrap; align-self:flex-start; justify-content:center; }
+.st-scroll-hint { display:none; }
+@media(min-width:1024px){#view-dashboard .grid.grid-cols-2.xl\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr));}}
+@media(max-width:1023px){
+  .st-sidebar { flex-basis:185px; width:185px; }
+  .st-sidebar-brand { padding-left:15px; padding-right:10px; }
+  .st-sidebar-nav { padding-left:10px; padding-right:10px; }
+  .st-sidebar-nav button { padding-left:10px; padding-right:8px; }
+  .st-sidebar-nav button i { margin-right:9px; }
+  .st-sidebar-profile { padding:11px 9px; }
+}
+@media(max-width:767px){
+  .st-sidebar { flex-basis:128px; width:128px; }
+  .st-sidebar-brand { height:60px; min-height:60px; padding:8px 8px; gap:3px; }
+  .st-sidebar-brand span { font-size:12px; letter-spacing:-.25px; }
+  .st-sidebar-brand i { font-size:19px; margin-right:3px; }
+  .st-sidebar-nav { padding:11px 6px; }
+  .st-sidebar-nav button { min-height:44px; padding:9px 5px; border-radius:7px; font-size:10px; line-height:1.25; gap:4px; align-items:center; }
+  .st-sidebar-nav button i { font-size:17px; margin-right:0; flex:0 0 17px; }
+  .st-nav-label { overflow-wrap:normal; }
+  .st-sidebar-profile { padding:9px 6px; }
+  .st-sidebar-profile .ml-3 { margin-left:5px; min-width:0; }
+  .st-sidebar-profile #displayUserName { font-size:11px; max-width:62px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .st-sidebar-profile #displayUserRole { font-size:10px; }
+  .st-sidebar-profile #profilInisial { width:25px; height:25px; flex:0 0 25px; font-size:11px; }
+  .st-sidebar-profile button { margin-left:2px; flex:0 0 19px; }
+  .st-sidebar-profile button i { font-size:16px; }
+  .st-main>header { flex-basis:60px; min-height:60px; padding:8px 10px; }
+  .st-main>header>div:first-child { max-width:100%; min-width:0; }
+  .st-main>.flex-1.overflow-y-auto { padding:12px 10px 24px; }
+  .st-dashboard-heading { gap:6px; }
+  .st-dashboard-heading h1 { font-size:16px; line-height:1.22; }
+  .st-dashboard-heading p { font-size:10px; line-height:1.35; }
+  .st-dashboard-action { padding:7px 8px; font-size:10px; line-height:1.2; }
+  .st-dashboard-action i { margin-right:4px; }
+  #view-dashboard { max-width:100%; min-width:0; }
+  #view-dashboard .grid.grid-cols-2 { gap:7px; }
+  #view-dashboard .grid.grid-cols-2>div { min-width:0; padding:11px 9px; }
+  #view-dashboard .grid.grid-cols-2>div p:first-child { font-size:10px; line-height:1.4; overflow-wrap:anywhere; }
+  #view-dashboard .grid.grid-cols-2>div p.text-3xl { font-size:24px; }
+  #view-dashboard .bg-white.rounded-xl.shadow-sm,#view-archive .bg-white.rounded-xl { padding:11px; }
+  #view-dashboard .st-data-table table { min-width:760px; }
+  #view-archive .st-data-table table { min-width:550px; }
+  .st-data-table { overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%; }
+  .st-scroll-hint { display:block; font-size:10px; color:#64748b; margin:3px 0 7px; }
+  #view-dashboard select,#view-reports select,#view-reports input { max-width:100%; min-width:0; }
+  #view-form-laporan>.bg-white,#detailMainCard,#detailLeaderColumn>div { padding:11px; }
+  #detailTitle { overflow-wrap:anywhere; font-size:16px; }
+  #detailEvidence .flex { flex-wrap:wrap; }
+  #view-dashboard button,#view-form-laporan button,#view-reports button { min-height:32px; }
+  #inputFile,#extraEvidenceFile { max-width:100%; min-width:0; }
+  input,textarea,select { font-size:16px!important; }
+  .swal2-popup { max-width:calc(100vw - 20px)!important; }
+}
+@media(max-width:375px){
+  .st-sidebar { flex-basis:110px; width:110px; }
+  .st-sidebar-brand span { font-size:11px; }
+  .st-sidebar-brand i { font-size:16px; }
+  .st-sidebar-nav button { font-size:9px; }
+  .st-dashboard-heading h1 { font-size:15px; }
+  .st-dashboard-action { font-size:9px; padding:6px; }
+}
+@media print { .st-sidebar,.st-scroll-hint { display:none!important; } }
+/* Login remains original neutral card on slate background, with a tiny rose marker. */
+body:has(#loginForm){background:#F8FAFC!important}
+body:has(#loginForm)>div{border:1px solid #E2E8F0;box-shadow:0 12px 32px rgba(30,41,59,.055)}
+body:has(#loginForm) .text-blue-400{color:#60A5FA!important}
+body:has(#loginForm) #btnLogin{background:var(--st-navy)!important}
+body:has(#loginForm) #btnLogin:hover{background:#334155!important}
+body:has(#loginForm) input:focus{border-color:var(--st-rose);box-shadow:0 0 0 2px rgba(182,87,120,.14)}
+@media print{.st-scroll-hint{display:none!important}}
+
+/* Forced temporary password: navigation hidden until renewed. RLS protects underlying data. */
+body.st-password-required .st-sidebar-nav button:not([data-nav-view="account"]){display:none!important}
+body.st-password-required #view-account{display:block!important}
+body.st-password-required #view-account .bg-white{border-color:#F59E0B}
+
+/* V2.1 — use original neutral cards and navy/blue CTAs; leave dashboard untouched. */
+.st-field{display:block;width:100%;padding:10px 12px;border:1px solid #CBD5E1;border-radius:9px;background:white;color:#1E293B;min-width:0}
+.st-field-label{display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:6px}
+.st-primary-btn{border-radius:9px;padding:10px 16px;background:#2563EB;color:white;font-size:13px;font-weight:600}
+.st-primary-btn:disabled{opacity:.55;cursor:wait}
+.st-secondary-btn{border-radius:9px;padding:9px 12px;border:1px solid #CBD5E1;background:white;color:#334155;font-size:13px}
+.st-entry-table{min-width:740px;border-collapse:collapse;text-align:left}
+.st-entry-table th{padding:11px 10px;white-space:nowrap;font-size:11px;color:#64748B;border-bottom:1px solid #E2E8F0;font-weight:600}
+.st-entry-table td{padding:10px;vertical-align:top;border-bottom:1px solid #F1F5F9}
+.st-entry-table tbody tr:hover{background:#F8FAFC}
+.st-kpi{background:white;border:1px solid #E2E8F0;border-radius:12px;padding:14px}
+.st-kpi p{font-size:11px;color:#64748B}
+.st-kpi strong{display:block;font-size:25px;line-height:1.3;margin-top:5px;color:#0F172A}
+.st-detail-box{background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:15px;overflow-wrap:anywhere}
+.st-inline-action{color:#1D4ED8;text-decoration:underline;font-size:12px;font-weight:600}
+@media(max-width:767px){.st-entry-table{min-width:650px}.st-kpi{padding:10px}.st-kpi strong{font-size:22px}}
