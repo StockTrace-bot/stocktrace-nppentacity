@@ -1,3 +1,4 @@
+// STAGING: folder laporan R1 vs penerimaan barang dipilih server-side dari ID dokumen.
 // StockTrace direct-to-Drive resumable uploads. JSON control messages only;
 // no file data travels via Vercel. OAuth refresh token never goes to the browser.
 const MAX_BYTES = 100 * 1024 * 1024;
@@ -11,6 +12,14 @@ const validIntake=id=>/^IN-[0-9]{8}-[A-Z0-9]{12}$/.test(id);
 const cleanName=name=>String(name||'').replace(/[\\/\x00-\x1f<>:"|?*]/g,'_').trim().slice(0,120);
 const validFileId=id=>/^[A-Za-z0-9_-]{10,128}$/.test(id);
 const validSize=n=>Number.isSafeInteger(n)&&n>0&&n<=MAX_BYTES;
+const folderFor=(isIntake)=>{
+ const key=isIntake?'GOOGLE_DRIVE_INTAKE_FOLDER_ID':'GOOGLE_DRIVE_FOLDER_ID';
+ const folder=String(process.env[key]||'').trim();
+ if(!folder)throw driveError('Environment Variables belum lengkap: '+key,503);
+ if(isIntake&&folder===String(process.env.GOOGLE_DRIVE_FOLDER_ID||'').trim())
+  throw driveError('Folder bukti penerimaan harus berbeda dari folder laporan R1.',503);
+ return folder;
+};
 const driveError=(message, status=502)=>Object.assign(new Error(message),{status});
 
 async function authAndCase(req,caseId){
@@ -59,10 +68,11 @@ export default {async fetch(req){
   const body=await req.json();
   const action=String(body.action||'');const caseId=String(body.case_id||'');
   const {user,isIntake}=await authAndCase(req,caseId);
+  const targetFolder=folderFor(isIntake);
   if(action==='start'){
    const {filename,size,type}=fileInput(body);
    const google=await googleToken();
-   const metadata={name:`${caseId}__${filename}`,mimeType:type,parents:[process.env.GOOGLE_DRIVE_FOLDER_ID],description:`StockTrace — bukti ${isIntake?'penerimaan':'kasus'} ${caseId}`,
+   const metadata={name:`${caseId}__${filename}`,mimeType:type,parents:[targetFolder],description:`StockTrace — bukti ${isIntake?'penerimaan':'kasus'} ${caseId}`,
      appProperties:{[isIntake?'stocktrace_intake':'stocktrace_case']:caseId,stocktrace_user:user.id}};
    const api='https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&fields=id,name,mimeType,size,parents,appProperties,webViewLink';
    // In browsers that depend on a matching Origin for CORS, carry the authenticated site's origin into initiation.
@@ -83,7 +93,7 @@ export default {async fetch(req){
    const r=await fetch(url,{headers:{Authorization:`Bearer ${google}`}});
    if(!r.ok)throw driveError('Google Drive belum mengonfirmasi file. Jangan upload ulang sebelum mengecek Drive.');
    const data=await r.json();
-   if(data.trashed||!data.parents?.includes(process.env.GOOGLE_DRIVE_FOLDER_ID)||
+   if(data.trashed||!data.parents?.includes(targetFolder)||
       data.appProperties?.[isIntake?'stocktrace_intake':'stocktrace_case']!==caseId||data.appProperties?.stocktrace_user!==user.id||
       data.name!==`${caseId}__${expected.filename}`||Number(data.size)!==expected.size){
       throw driveError('Metadata bukti tidak cocok dengan sesi upload yang diizinkan.',403);
