@@ -88,7 +88,7 @@ async function syncSheetsNow(){
  }catch(e){await notice('Sinkronisasi gagal',e.message,'error');}
  finally{if(btn){btn.disabled=false;btn.textContent='Sinkronkan Google Sheets';}}
 }
-async function logout(){try{await sb?.auth.signOut();}catch(e){console.warn(e)}localStorage.removeItem('user_role');localStorage.removeItem('user_name');redirectLogin();}
+async function logout(){try{await sb?.auth.signOut();}catch(e){console.warn(e)}sessionStorage.removeItem('user_role');sessionStorage.removeItem('user_name');try{localStorage.removeItem('user_role');localStorage.removeItem('user_name');}catch(_){}redirectLogin();}
 function displayCases(){
  const q=el('searchCases').value.toLowerCase().trim(), filter=el('filterCaseStatus').value, picFilter=el('filterCasePIC').value;
  const list=cachedCases.filter(c=>(!filter||toText(c.status_kasus||statuses[0])===filter)&&(!picFilter||(picFilter==='mine'?c.pic_id===activeUser?.id:picFilter==='reported'?c.id_pelapor===activeUser?.id:picFilter==='unassigned'?!c.pic_id:true))&&[c.id_kasus,c.sku_produk,c.nama_produk].some(x=>toText(x).toLowerCase().includes(q)));
@@ -369,7 +369,17 @@ async function bootstrap(){
   const settings=await response.json().catch(()=>({}));
   if(!response.ok||!settings.supabase_url||!settings.supabase_publishable_key)throw new Error(settings.error||'Konfigurasi publik tidak siap.');
   if(!window.supabase?.createClient)throw new Error('Library Supabase tidak dapat dimuat.');
-  sb=window.supabase.createClient(settings.supabase_url,settings.supabase_publishable_key);
+  // Sesi per tab: login.html dan app.js harus menggunakan sessionStorage yang sama.
+  // Hapus token lama di localStorage hanya untuk project Supabase staging ini.
+  try {
+   const projectRef=new URL(settings.supabase_url).hostname.split('.')[0];
+   localStorage.removeItem(`sb-${projectRef}-auth-token`);
+   localStorage.removeItem('user_role');
+   localStorage.removeItem('user_name');
+  }catch(_){/* Penyimpanan lama mungkin tidak tersedia. */}
+  sb=window.supabase.createClient(settings.supabase_url,settings.supabase_publishable_key,{
+   auth:{storage:window.sessionStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}
+  });
   await checkAuth();
  }catch(e){
   mustChangePassword=true;document.body.classList.add('st-password-required');showView('account');
