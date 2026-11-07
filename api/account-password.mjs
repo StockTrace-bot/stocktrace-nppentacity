@@ -15,7 +15,8 @@ export default {async fetch(req){
  }
  const token=(req.headers.get('authorization')||'').match(/^Bearer\s+(.+)$/i)?.[1];if(!token)return denied();
  const root=process.env.SUPABASE_URL.replace(/\/+$/,'');
- const adm={apikey:process.env.SUPABASE_SERVICE_ROLE_KEY,Authorization:`Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`};
+ const sk=process.env.SUPABASE_SERVICE_ROLE_KEY;
+ const adm=sk.startsWith('sb_secret_')?{apikey:sk}:{apikey:sk,Authorization:`Bearer ${sk}`};
  try{
   const r=await fetch(root+'/auth/v1/user',{headers:{apikey:process.env.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${token}`}});
   if(!r.ok)return denied();const user=await r.json();if(!/^[0-9a-f-]{36}$/i.test(user?.id||''))return denied();

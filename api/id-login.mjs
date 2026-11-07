@@ -17,7 +17,7 @@ export default {async fetch(req){
   if(!ID_RE.test(id)||typeof password!=='string'||password.length<1||password.length>256)return deny();
   const base=process.env.SUPABASE_URL.replace(/\/+$/,'');
   const secret=process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const admin={apikey:secret,Authorization:`Bearer ${secret}`};
+  const admin=secret.startsWith('sb_secret_')?{apikey:secret}:{apikey:secret,Authorization:`Bearer ${secret}`};
   // Durable atomic rate gate, not Vercel in-memory state; deny closed if the gate is unavailable.
   const gate=await fetch(base+'/rest/v1/rpc/stocktrace_login_gate',{method:'POST',headers:{...admin,'Content-Type':'application/json'},body:JSON.stringify({p_login_id:id})});
   if(!gate.ok){console.error('login_gate unavailable',gate.status);return json({error:'Login sementara belum tersedia. Hubungi administrator.'},503);}
