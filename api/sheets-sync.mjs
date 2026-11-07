@@ -1,29 +1,70 @@
-/* StockTrace → Google Sheets (near-real-time Supabase Database Webhook + leader full resync).
+/* StockTrace → Google Sheets.
+ * R1 tables keep using GOOGLE_SHEETS_SPREADSHEET_ID.
+ * V2.1 intake/cashier tables use GOOGLE_SHEETS_PENERIMAAN_SPREADSHEET_ID.
  * Secrets stay on Vercel. Never place service-account JSON in this source.
- * This endpoint reads only Staff/Leader-visible data for manual full resync.
+ * Manual full resync reads only data visible to the authenticated Leader through RLS.
  */
 import { google } from 'googleapis';
 import { timingSafeEqual } from 'node:crypto';
 
 const SHEETS = {
   cases: {
-    tab: 'Kasus', key: 'id_kasus',
+    tab: 'Kasus', key: 'id_kasus', sortTimeKey: 'created_at',
     columns: ['id_kasus','id_pelapor','sku_produk','nama_produk','stok_sistem','stok_fisik','selisih','dugaan_penyebab','kronologi','status_kasus','created_at','pic_id','pic_nama','pic_ditetapkan_pada'],
     labels: ['ID Kasus','ID Pelapor','SKU Produk','Nama Produk','Stok Sistem','Stok Fisik','Selisih','Dugaan Penyebab','Kronologi','Status Kasus','Dibuat Pada','ID PIC','Nama PIC','Ditugaskan Pada']
   },
   evidence_files: {
-    tab: 'Bukti', key: 'id_file',
+    tab: 'Bukti', key: 'id_file', sortTimeKey: 'waktu_unggah',
     columns: ['id_file','id_kasus','nama_file_asli','drive_file_id','drive_view_url','waktu_unggah'],
     labels: ['ID Bukti','ID Kasus','Nama Berkas','Google Drive File ID','Google Drive URL','Waktu Unggah']
   },
   case_logs: {
-    tab: 'Riwayat', key: 'id_log',
+    tab: 'Riwayat', key: 'id_log', sortTimeKey: 'waktu_aksi',
     columns: ['id_log','id_kasus','id_user','aksi','catatan','waktu_aksi'],
     labels: ['ID Log','ID Kasus','ID Pengguna','Aksi','Catatan','Waktu Aksi']
+  },
+
+  // V2.1 — independent intake and cashier-monitoring spreadsheet.
+  // These five tables are routed to GOOGLE_SHEETS_PENERIMAAN_SPREADSHEET_ID,
+  // never to the existing R1 spreadsheet.
+  stocktrace_intakes: {
+    tab: 'Penerimaan', key: 'id_intake', sortTimeKey: 'created_at',
+    columns: ['id_intake','document_no','received_on','supplier','note','created_by','created_at'],
+    labels: ['ID Penerimaan','No. Dokumen','Tanggal Terima','Pengirim / Supplier','Catatan','ID Pembuat','Dibuat Pada']
+  },
+  stocktrace_intake_items: {
+    tab: 'Detail SKU', key: 'id_item', groupSortKey: 'id_intake',
+    columns: ['id_item','id_intake','sku','product_name','qty_document','qty_received','qty_difference'],
+    labels: ['ID Detail','ID Penerimaan','SKU','Nama Produk','Qty Dokumen','Qty Diterima','Selisih (Diterima - Dokumen)']
+  },
+  stocktrace_intake_evidence: {
+    tab: 'Bukti Penerimaan', key: 'id_file', sortTimeKey: 'waktu_unggah',
+    columns: ['id_file','id_intake','nama_file_asli','drive_file_id','drive_view_url','uploaded_by','waktu_unggah'],
+    labels: ['ID Bukti','ID Penerimaan','Nama Berkas','Google Drive File ID','Google Drive URL','ID Pengunggah','Waktu Unggah']
+  },
+  stocktrace_cashier_requests: {
+    tab: 'Permintaan Kasir', key: 'id_request', sortTimeKey: 'created_at',
+    columns: ['id_request','sku','product_name','qty_system','qty_physical','qty_difference','reason','id_kasus','id_intake','status_request','created_by','created_at','updated_at','updated_by'],
+    labels: ['ID Permintaan','SKU','Nama Produk','Qty Sistem','Qty Fisik','Selisih (Fisik - Sistem)','Alasan','ID Kasus R1','ID Penerimaan','Status','ID Pemohon','Dibuat Pada','Diperbarui Pada','ID Pengubah']
+  },
+  stocktrace_cashier_logs: {
+    tab: 'Riwayat Kasir', key: 'id_log', sortTimeKey: 'created_at',
+    columns: ['id_log','id_request','id_user','action','note','created_at'],
+    labels: ['ID Riwayat','ID Permintaan','ID Pengguna','Aksi','Catatan','Waktu Aksi']
+  }
+};
+const TARGETS = {
+  r1: {
+    spreadsheetEnv: 'GOOGLE_SHEETS_SPREADSHEET_ID',
+    tables: ['cases','evidence_files','case_logs']
+  },
+  penerimaan: {
+    spreadsheetEnv: 'GOOGLE_SHEETS_PENERIMAAN_SPREADSHEET_ID',
+    tables: ['stocktrace_intakes','stocktrace_intake_items','stocktrace_intake_evidence','stocktrace_cashier_requests','stocktrace_cashier_logs']
   }
 };
 const FULL_SYNC_LEADER_ROLES=new Set(['leader']);
-const ENV_NAMES=['GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON','GOOGLE_SHEETS_SPREADSHEET_ID','STOCKTRACE_SHEETS_WEBHOOK_SECRET','SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY'];
+const COMMON_ENV_NAMES=['GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON','STOCKTRACE_SHEETS_WEBHOOK_SECRET','SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY'];
 const MAX_BODY_BYTES=512*1024;
 function json(payload,status=200){return Response.json(payload,{status,headers:{'Cache-Control':'no-store'}});}
 function fail(status,code,message){return json({ok:false,code,message},status);}
@@ -40,7 +81,7 @@ function googleValue(x){
 }
 // Convert UTC timestamps from Supabase to readable Balikpapan local time.
 // Google Sheets stores this as readable text; Supabase retains original UTC values.
-const TIMESTAMP_COLUMNS = new Set(['created_at','waktu_unggah','waktu_aksi','pic_ditetapkan_pada']);
+const TIMESTAMP_COLUMNS = new Set(['created_at','updated_at','waktu_unggah','waktu_aksi','pic_ditetapkan_pada']);
 const WITA_FORMATTER = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Makassar',
   year: 'numeric', month: '2-digit', day: '2-digit',
@@ -61,6 +102,15 @@ function encodeRow(rec,schema){
     ? formatWitaTimestamp(rec[k]) : googleValue(rec[k]));
 }
 function colLetter(n){let result='';while(n>0){n--;result=String.fromCharCode(65+n%26)+result;n=Math.floor(n/26);}return result;}
+function getSpreadsheetId(target){
+  const envName=TARGETS[target]?.spreadsheetEnv;
+  const id=envName?process.env[envName]:'';
+  if(!id)throw Object.assign(new Error(`Pengaturan server belum lengkap: ${envName||'spreadsheet target tidak dikenal'}.`),{code:'CONFIG_MISSING',status:503});
+  return id;
+}
+function targetForTable(table){
+  return Object.keys(TARGETS).find(target=>TARGETS[target].tables.includes(table))||null;
+}
 // Keep all webhook-written body text consistent with the existing black, regular rows.
 // Only text formatting is enforced: headers, borders, background colors, widths and
 // conditional-format rules remain unchanged.
@@ -197,28 +247,37 @@ async function fetchAllRows(identity,table){
   }
   // Chronological order: older records above, newer activity at the bottom.
   // For timestamps that match or are absent, use the unique ID as a stable tie-breaker.
-  const timeKey={cases:'created_at',evidence_files:'waktu_unggah',case_logs:'waktu_aksi'}[table];
-  const key=SHEETS[table].key;
+  const schema=SHEETS[table];
+  const timeKey=schema.sortTimeKey;
+  const groupKey=schema.groupSortKey;
+  const key=schema.key;
   all.sort((a,b)=>{
-    const ta=Date.parse(a[timeKey]),tb=Date.parse(b[timeKey]);
-    if(Number.isFinite(ta)&&Number.isFinite(tb)&&ta!==tb)return ta-tb;
-    if(Number.isFinite(ta)!==Number.isFinite(tb))return Number.isFinite(ta)?-1:1;
+    if(timeKey){
+      const ta=Date.parse(a[timeKey]),tb=Date.parse(b[timeKey]);
+      if(Number.isFinite(ta)&&Number.isFinite(tb)&&ta!==tb)return ta-tb;
+      if(Number.isFinite(ta)!==Number.isFinite(tb))return Number.isFinite(ta)?-1:1;
+    }
+    if(groupKey){
+      const grouped=String(a[groupKey]||'').localeCompare(String(b[groupKey]||''));
+      if(grouped)return grouped;
+    }
     return String(a[key]||'').localeCompare(String(b[key]||''));
   });
   return all;
 }
-async function fullSync(client,sid,identity){
+async function fullSync(client,sid,identity,tables){
   const datasets={};
-  for(const table of Object.keys(SHEETS))datasets[table]=await fetchAllRows(identity,table);
+  for(const table of tables)datasets[table]=await fetchAllRows(identity,table);
   // Abort early if any expected tab is missing; don't accidentally create a new tab.
   const metadata=await client.spreadsheets.get({spreadsheetId:sid,fields:'sheets(properties(title))'});
   const names=new Set((metadata.data.sheets||[]).map(s=>s.properties?.title));
-  for(const config of Object.values(SHEETS)){
+  for(const table of tables){
+    const config=SHEETS[table];
     if(!names.has(config.tab))throw Object.assign(new Error(`Buat tab Google Sheets bernama ${config.tab} terlebih dahulu.`),{status:409,code:'SHEET_NOT_FOUND'});
   }
-  const ranges=Object.values(SHEETS).map(c=>a1(c.tab,'A:Z'));
+  const ranges=tables.map(table=>a1(SHEETS[table].tab,'A:Z'));
   await client.spreadsheets.values.batchClear({spreadsheetId:sid,requestBody:{ranges}});
-  const data=Object.entries(SHEETS).map(([table,c])=>({
+  const data=tables.map(table=>[table,SHEETS[table]]).map(([table,c])=>({
     range:a1(c.tab,`A1:${colLetter(c.columns.length)}${datasets[table].length+1}`),
     values:[c.labels,...datasets[table].map(r=>encodeRow(r,c))]
   }));
@@ -227,7 +286,8 @@ async function fullSync(client,sid,identity){
   // a manual resync, including rows inserted by the pre-fix webhook version.
   const metadata2=await client.spreadsheets.get({spreadsheetId:sid,fields:'sheets(properties(sheetId,title))'});
   const formatRequests=[];
-  for(const [table,schema] of Object.entries(SHEETS)){
+  for(const table of tables){
+    const schema=SHEETS[table];
     const rowCount=datasets[table].length;
     if(!rowCount)continue;
     const sheetId=metadata2.data.sheets?.find(s=>s.properties?.title===schema.tab)?.properties?.sheetId;
@@ -243,7 +303,7 @@ export default {
     if(request.method!=='POST')return fail(405,'METHOD_NOT_ALLOWED','POST only. This endpoint is not a public report.');
     if(Number(request.headers.get('content-length'))>MAX_BODY_BYTES)return fail(413,'TOO_LARGE','Body terlalu besar.');
     try{
-      const missing=ENV_NAMES.filter(key=>!process.env[key]);
+      const missing=COMMON_ENV_NAMES.filter(key=>!process.env[key]);
       if(missing.length)return fail(503,'CONFIG_MISSING',`Pengaturan server belum lengkap: ${missing.join(', ')}.`);
       let body;
       try{body=await request.json();}catch{return fail(400,'BAD_JSON','Body harus JSON valid.');}
@@ -254,16 +314,18 @@ export default {
           return fail(400,'EVENT_INVALID','Event webhook tidak dikenali.');
         const record=body.type==='DELETE'?body.old_record:body.record;
         if(!record||typeof record!=='object')return fail(400,'RECORD_INVALID','Record webhook kosong.');
-        const client=getClient(),sid=process.env.GOOGLE_SHEETS_SPREADSHEET_ID,schema=SHEETS[body.table];
+        const target=targetForTable(body.table);
+        const client=getClient(),sid=getSpreadsheetId(target),schema=SHEETS[body.table];
         const action=body.type==='DELETE'?await deleteOne(client,sid,schema,record):await upsertOne(client,sid,schema,record);
-        return json({ok:true,kind:'webhook',table:body.table,action});
+        return json({ok:true,kind:'webhook',target,table:body.table,action});
       }
-      // Backfill / repair all three tabs: requires an authenticated Leader token.
-      if(body?.mode!=='full')return fail(401,'UNAUTHORIZED','Akses hanya untuk webhook terotorisasi atau Leader.');
+      // Existing mode "full" remains R1-only. V2.1 uses a separate explicit mode.
+      const target=body?.mode==='full'?'r1':body?.mode==='full_penerimaan'?'penerimaan':null;
+      if(!target)return fail(401,'UNAUTHORIZED','Akses hanya untuk webhook terotorisasi, Leader (mode full), atau Leader (mode full_penerimaan).');
       const identity=await findLeader(request);
       if(!identity)return fail(403,'LEADER_REQUIRED','Hanya akun Leader aktif yang dapat sinkronisasi penuh.');
-      const client=getClient(),counts=await fullSync(client,process.env.GOOGLE_SHEETS_SPREADSHEET_ID,identity);
-      return json({ok:true,kind:'full',counts});
+      const client=getClient(),sid=getSpreadsheetId(target),counts=await fullSync(client,sid,identity,TARGETS[target].tables);
+      return json({ok:true,kind:'full',target,counts});
     }catch(err){
       const status=err.status&&[400,401,403,409,413,502,503].includes(err.status)?err.status:502;
       const code=err.code||'SYNC_FAILED';
