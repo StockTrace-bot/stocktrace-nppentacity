@@ -87,7 +87,18 @@ export default {async fetch(req){
    const origin=new URL(req.url).origin;
    const r=await fetch(api,{method:'POST',headers:{Authorization:`Bearer ${google}`,'Content-Type':'application/json; charset=UTF-8',
        'X-Upload-Content-Type':type,'X-Upload-Content-Length':String(size),Origin:origin},body:JSON.stringify(metadata)});
-   if(!r.ok){console.error('Drive session start',r.status);throw driveError('Google Drive gagal membuka sesi upload. Periksa Logs dan izin folder.');}
+    if(!r.ok){
+  const googleError = await r.text().catch(() => '');
+
+  console.error('DRIVE SESSION START FAILED:', {
+    status: r.status,
+    response: googleError.slice(0, 2000)
+  });
+
+  throw driveError(
+    `Google Drive gagal membuka sesi upload (HTTP ${r.status}). Periksa Vercel Logs.`
+  );
+}
    const session=r.headers.get('location');
    if(!session||!session.startsWith('https://www.googleapis.com/upload/drive/'))throw driveError('Google tidak mengembalikan URL sesi yang valid.');
    return json({success:true,session_url:session,max_file_bytes:MAX_BYTES});
