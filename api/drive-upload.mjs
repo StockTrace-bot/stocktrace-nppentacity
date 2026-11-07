@@ -1,8 +1,7 @@
 // StockTrace V2.1 STAGING
-// Direct-to-Google-Drive resumable upload.
-// Drive authentication uses the existing Google service account JSON.
-// The service account must have Editor access to BOTH destination folders.
-// JSON control messages only; file bytes travel directly from browser to Drive.
+// Google Drive upload uses the OAuth account that owns/has access to My Drive folders.
+// Google Sheets may continue using GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON separately.
+// JSON control messages only; file bytes travel directly from browser to Google Drive.
 
 const MAX_BYTES = 100 * 1024 * 1024;
 const ALLOWED = new Set([
@@ -13,7 +12,9 @@ const ROLES = new Set(['staff', 'leader', 'admin', 'store leader', 'store_leader
 const VARS = [
   'SUPABASE_URL',
   'SUPABASE_PUBLISHABLE_KEY',
-  'GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON',
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'GOOGLE_REFRESH_TOKEN',
   'GOOGLE_DRIVE_FOLDER_ID',
   'GOOGLE_DRIVE_INTAKE_FOLDER_ID'
 ];
@@ -41,149 +42,91 @@ function folderFor(isIntake) {
   const key = isIntake ? 'GOOGLE_DRIVE_INTAKE_FOLDER_ID' : 'GOOGLE_DRIVE_FOLDER_ID';
   const folder = String(process.env[key] || '').trim();
 
-  if (!folder) {
-    throw driveError(`Environment Variable ${key} belum diisi.`, 503);
-  }
-
-  if (isIntake && folder === String(process.env.GOOGLE_DRIVE_FOLDER_ID || '').trim()) {
-    throw driveError('Folder penerimaan harus berbeda dari folder bukti laporan R1.', 503);
-  }
-
+  if (!folder) throw driveError(`Environment Variable ${key} belum diisi.`, 503);
   if (!validFileId(folder)) {
     throw driveError(`${key} harus berisi ID folder Google Drive saja, bukan URL lengkap.`, 503);
+  }
+
+  const reportFolder = String(process.env.GOOGLE_DRIVE_FOLDER_ID || '').trim();
+  const intakeFolder = String(process.env.GOOGLE_DRIVE_INTAKE_FOLDER_ID || '').trim();
+  if (reportFolder && intakeFolder && reportFolder === intakeFolder) {
+    throw driveError('Folder bukti laporan R1 dan penerimaan harus berbeda.', 503);
   }
 
   return folder;
 }
 
-function base64url(bytes) {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-}
+async function googleToken() {
+  const body = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    client_secret: process.env.GOOGLE_CLIENT_SECRET,
+    refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+    grant_type: 'refresh_token'
+  });
 
-function pemToArrayBuffer(pem) {
-  const normalized = String(pem || '').replace(/\\n/g, '\n');
-  const body = normalized
-    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
-    .replace(/-----END PRIVATE KEY-----/g, '')
-    .replace(/\s/g, '');
-
-  if (!body) throw driveError('private_key tidak ditemukan di GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON.', 503);
-
-  const binary = atob(body);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-}
-
-function readServiceAccount() {
-  let account;
-  try {
-    account = JSON.parse(process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON || '');
-  } catch {
-    throw driveError('GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON bukan JSON Service Account yang valid.', 503);
-  }
-
-  if (!account?.client_email || !account?.private_key) {
-    throw driveError('Service Account JSON harus memiliki client_email dan private_key.', 503);
-  }
-
-  return {
-    clientEmail: String(account.client_email),
-    privateKey: String(account.private_key).replace(/\\n/g, '\n'),
-    tokenUri: String(account.token_uri || 'https://oauth2.googleapis.com/token')
-  };
-}
-
-async function googleDriveToken() {
-  const account = readServiceAccount();
-  const now = Math.floor(Date.now() / 1000);
-
-  const header = { alg: 'RS256', typ: 'JWT' };
-  const claims = {
-    iss: account.clientEmail,
-    scope: 'https://www.googleapis.com/auth/drive',
-    aud: account.tokenUri,
-    iat: now,
-    exp: now + 3600
-  };
-
-  const encoder = new TextEncoder();
-  const unsigned = [
-    base64url(encoder.encode(JSON.stringify(header))),
-    base64url(encoder.encode(JSON.stringify(claims)))
-  ].join('.');
-
-  let signingKey;
-  try {
-    signingKey = await crypto.subtle.importKey(
-      'pkcs8',
-      pemToArrayBuffer(account.privateKey),
-      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-  } catch {
-    throw driveError('private_key Service Account tidak dapat dibaca. Periksa JSON di Vercel.', 503);
-  }
-
-  const signature = new Uint8Array(
-    await crypto.subtle.sign('RSASSA-PKCS1-v1_5', signingKey, encoder.encode(unsigned))
-  );
-  const assertion = `${unsigned}.${base64url(signature)}`;
-
-  const response = await fetch(account.tokenUri, {
+  const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion
-    })
+    body
   });
 
   const result = await response.json().catch(() => ({}));
   if (!response.ok || !result.access_token) {
-    const reason = String(result.error_description || result.error || `HTTP ${response.status}`).slice(0, 240);
-    console.error('StockTrace service-account token exchange failed:', response.status, reason);
-    throw driveError(`Autentikasi Service Account gagal: ${reason}`, 502);
+    const reason = String(result.error_description || result.error || `HTTP ${response.status}`).slice(0, 220);
+    console.error('StockTrace OAuth token refresh failed:', response.status, reason);
+    throw driveError(`OAuth Google gagal: ${reason}. Pastikan refresh token berasal dari akun pemilik folder dan memiliki scope Google Drive.`, 502);
   }
 
   return result.access_token;
 }
 
-async function driveRequest(url, token, options = {}) {
-  const response = await fetch(url, {
+async function googleDriveRequest(url, token, options = {}) {
+  return fetch(url, {
     ...options,
     headers: {
       Authorization: `Bearer ${token}`,
       ...(options.headers || {})
     }
   });
-
-  return response;
 }
 
-async function checkFolderAccess(folderId, token, label) {
+async function googleAccountEmail(token) {
+  try {
+    const response = await googleDriveRequest(
+      'https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',
+      token
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data?.user?.emailAddress || null;
+  } catch {
+    return null;
+  }
+}
+
+async function checkFolderAccess(folderId, token, label, accountEmail) {
   const fields = 'id,name,mimeType,trashed,capabilities(canAddChildren)';
   const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(folderId)}?fields=${encodeURIComponent(fields)}&supportsAllDrives=true`;
-  const response = await driveRequest(url, token);
+  const response = await googleDriveRequest(url, token);
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const googleMessage = String(data?.error?.message || `HTTP ${response.status}`).slice(0, 220);
-    console.error('StockTrace Drive folder access check:', {
-      folder: label,
+    const detail = String(data?.error?.message || `HTTP ${response.status}`).slice(0, 220);
+    console.error('StockTrace OAuth Drive folder check:', {
+      label,
       status: response.status,
-      message: googleMessage
+      accountEmail,
+      folderId,
+      detail
     });
+
     if (response.status === 404) {
       throw driveError(
-        `Service Account ${readServiceAccount().clientEmail} tidak dapat menemukan/mengakses folder ${label}. Pastikan ID folder benar dan Service Account tersebut diberi akses Editor. Detail Google: ${googleMessage}`,
+        `Akun OAuth ${accountEmail || '(email tidak terbaca)'} tidak dapat menemukan folder ${label}. Periksa ID folder dan pastikan akun OAuth memiliki akses ke folder tersebut. Detail Google: ${detail}`,
         404
       );
     }
-    throw driveError(`Google Drive gagal memeriksa folder ${label}: ${googleMessage}`, response.status);
+    throw driveError(`Google Drive gagal memeriksa folder ${label}: ${detail}`, response.status);
   }
 
   if (data.trashed) throw driveError(`Folder ${label} berada di Trash.`, 409);
@@ -191,7 +134,7 @@ async function checkFolderAccess(folderId, token, label) {
     throw driveError(`ID tujuan ${label} bukan folder Google Drive.`, 400);
   }
   if (data.capabilities?.canAddChildren === false) {
-    throw driveError(`Service Account ${readServiceAccount().clientEmail} belum memiliki izin Editor untuk folder ${label}.`, 403);
+    throw driveError(`Akun OAuth ${accountEmail || ''} tidak memiliki izin untuk menambahkan file ke folder ${label}.`, 403);
   }
 
   return data;
@@ -281,10 +224,12 @@ export default {
 
       const targetFolder = folderFor(isIntake);
       const folderLabel = isIntake ? 'penerimaan barang' : 'laporan R1';
-      const driveToken = await googleDriveToken();
+      const google = await googleToken();
+      const accountEmail = await googleAccountEmail(google);
 
-      // Check exact destination folder permissions before opening an upload session.
-      await checkFolderAccess(targetFolder, driveToken, folderLabel);
+      // Validate that the OAuth user (not the Sheets service account) can access
+      // the exact destination folder and add children to it.
+      await checkFolderAccess(targetFolder, google, folderLabel, accountEmail);
 
       if (action === 'start') {
         const { filename, size, type } = fileInput(body);
@@ -300,23 +245,23 @@ export default {
         };
 
         const api = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&fields=id,name,mimeType,size,parents,appProperties,webViewLink';
-        const origin = new URL(req.url).origin;
-        const response = await driveRequest(api, driveToken, {
+        const appOrigin = new URL(req.url).origin;
+        const response = await googleDriveRequest(api, google, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json; charset=UTF-8',
             'X-Upload-Content-Type': type,
             'X-Upload-Content-Length': String(size),
-            Origin: origin
+            Origin: appOrigin
           },
           body: JSON.stringify(metadata)
         });
 
         if (!response.ok) {
           const detail = await response.json().catch(() => ({}));
-          const message = String(detail?.error?.message || `HTTP ${response.status}`).slice(0, 220);
-          console.error('StockTrace Drive session start:', response.status, message);
-          throw driveError(`Google Drive gagal membuka sesi upload: ${message}`, response.status);
+          const reason = String(detail?.error?.message || `HTTP ${response.status}`).slice(0, 220);
+          console.error('StockTrace OAuth Drive session start:', response.status, reason, accountEmail);
+          throw driveError(`Google Drive gagal membuka sesi upload: ${reason}. Akun OAuth: ${accountEmail || 'tidak diketahui'}.`, response.status);
         }
 
         const sessionUrl = response.headers.get('location');
@@ -324,7 +269,12 @@ export default {
           throw driveError('Google tidak mengembalikan URL sesi upload yang valid.');
         }
 
-        return json({ success: true, session_url: sessionUrl, max_file_bytes: MAX_BYTES });
+        return json({
+          success: true,
+          session_url: sessionUrl,
+          max_file_bytes: MAX_BYTES,
+          drive_account: accountEmail
+        });
       }
 
       if (action === 'verify') {
@@ -334,12 +284,12 @@ export default {
         const expected = fileInput(body);
         const fields = 'id,name,size,mimeType,parents,appProperties,trashed,webViewLink';
         const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=${encodeURIComponent(fields)}&supportsAllDrives=true`;
-        const response = await driveRequest(url, driveToken);
+        const response = await googleDriveRequest(url, google);
         const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-          const message = String(data?.error?.message || `HTTP ${response.status}`).slice(0, 220);
-          throw driveError(`Google Drive belum mengonfirmasi file: ${message}. Jangan upload ulang sebelum mengecek Drive.`, response.status);
+          const reason = String(data?.error?.message || `HTTP ${response.status}`).slice(0, 220);
+          throw driveError(`Google Drive belum mengonfirmasi file: ${reason}. Jangan upload ulang sebelum mengecek Drive.`, response.status);
         }
 
         if (
@@ -356,7 +306,8 @@ export default {
         return json({
           success: true,
           drive_file_id: data.id,
-          drive_link: data.webViewLink || `https://drive.google.com/file/d/${encodeURIComponent(data.id)}/view`
+          drive_link: data.webViewLink || `https://drive.google.com/file/d/${encodeURIComponent(data.id)}/view`,
+          drive_account: accountEmail
         });
       }
 
