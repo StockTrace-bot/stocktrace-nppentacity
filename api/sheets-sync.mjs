@@ -61,6 +61,40 @@ function encodeRow(rec,schema){
     ? formatWitaTimestamp(rec[k]) : googleValue(rec[k]));
 }
 function colLetter(n){let result='';while(n>0){n--;result=String.fromCharCode(65+n%26)+result;n=Math.floor(n/26);}return result;}
+// Keep all webhook-written body text consistent with the existing black, regular rows.
+// Only text formatting is enforced: headers, borders, background colors, widths and
+// conditional-format rules remain unchanged.
+const BODY_TEXT_FORMAT={fontFamily:'Arial',fontSize:10,bold:false,italic:false,
+  foregroundColor:{red:0,green:0,blue:0}};
+async function getSheetInfo(client,sid,tab){
+  const r=await client.spreadsheets.get({spreadsheetId:sid,fields:'sheets(properties(sheetId,title,gridProperties(rowCount)))'});
+  const info=r.data.sheets?.find(s=>s.properties?.title===tab)?.properties;
+  if(!Number.isInteger(info?.sheetId))
+    throw Object.assign(new Error(`Tab ${tab} tidak tersedia.`),{status:409,code:'SHEET_NOT_FOUND'});
+  return {sheetId:info.sheetId,rowCount:info.gridProperties?.rowCount||0};
+}
+function bodyFontRequest(sheetId,startRow,endRow,width){
+  return {repeatCell:{range:{sheetId,startRowIndex:startRow-1,endRowIndex:endRow,
+    startColumnIndex:0,endColumnIndex:width},
+    cell:{userEnteredFormat:{textFormat:BODY_TEXT_FORMAT}},
+    fields:'userEnteredFormat.textFormat'}};
+}
+async function formatWrittenRow(client,sid,schema,row,previousRow){
+  const {sheetId,rowCount}=await getSheetInfo(client,sid,schema.tab);
+  const requests=[];
+  // Match the body's existing borders and fills, without copying data or formulas.
+  const sourceRow=previousRow>=2?previousRow:(previousRow===1&&rowCount>=3?3:0);
+  if(sourceRow && sourceRow!==row && sourceRow<=rowCount){
+    requests.push({copyPaste:{
+      source:{sheetId,startRowIndex:sourceRow-1,endRowIndex:sourceRow,
+        startColumnIndex:0,endColumnIndex:schema.columns.length},
+      destination:{sheetId,startRowIndex:row-1,endRowIndex:row,
+        startColumnIndex:0,endColumnIndex:schema.columns.length},
+      pasteType:'PASTE_FORMAT'}});
+  }
+  requests.push(bodyFontRequest(sheetId,row,row,schema.columns.length));
+  await client.spreadsheets.batchUpdate({spreadsheetId:sid,requestBody:{requests}});
+}
 function getClient(){
   let credentials;
   try{credentials=JSON.parse(process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON||'');}
@@ -100,9 +134,24 @@ async function upsertOne(client,sid,schema,record){
   if(rowNumber!==-1){
     const row=rowNumber+2;
     await client.spreadsheets.values.update({spreadsheetId:sid,range:a1(schema.tab,`A${row}:${fullEnd}${row}`),valueInputOption:'RAW',requestBody:{values}});
+    await formatWrittenRow(client,sid,schema,row,0);
     return 'updated';
   }
-  await client.spreadsheets.values.append({spreadsheetId:sid,range:a1(schema.tab,`A:${fullEnd}`),valueInputOption:'RAW',insertDataOption:'INSERT_ROWS',requestBody:{values}});
+  // Do not use values.append + INSERT_ROWS: Google's logical-table detection can
+  // insert directly below the header and shift old rows (and their formatting).
+  // Instead target the first row below the last nonempty record ID explicitly.
+  const lastDataRow=ids.reduce((last,r,i)=>String(r?.[0]||'').trim()?i+2:last,1);
+  const nextRow=lastDataRow+1;
+  const info=await getSheetInfo(client,sid,schema.tab);
+  if(nextRow>info.rowCount){
+    await client.spreadsheets.batchUpdate({spreadsheetId:sid,requestBody:{requests:[
+      {appendDimension:{sheetId:info.sheetId,dimension:'ROWS',length:Math.max(100,nextRow-info.rowCount)}}
+    ]}});
+  }
+  await client.spreadsheets.values.update({spreadsheetId:sid,
+    range:a1(schema.tab,`A${nextRow}:${fullEnd}${nextRow}`),
+    valueInputOption:'RAW',requestBody:{values}});
+  await formatWrittenRow(client,sid,schema,nextRow,lastDataRow);
   return 'inserted';
 }
 async function deleteOne(client,sid,schema,record){
@@ -146,9 +195,16 @@ async function fetchAllRows(identity,table){
     all.push(...page);
     if(page.length<pageSize)break;
   }
-  // Stable order so a re-sync produces deterministic rows.
+  // Chronological order: older records above, newer activity at the bottom.
+  // For timestamps that match or are absent, use the unique ID as a stable tie-breaker.
+  const timeKey={cases:'created_at',evidence_files:'waktu_unggah',case_logs:'waktu_aksi'}[table];
   const key=SHEETS[table].key;
-  all.sort((a,b)=>String(a[key]||'').localeCompare(String(b[key]||'')));
+  all.sort((a,b)=>{
+    const ta=Date.parse(a[timeKey]),tb=Date.parse(b[timeKey]);
+    if(Number.isFinite(ta)&&Number.isFinite(tb)&&ta!==tb)return ta-tb;
+    if(Number.isFinite(ta)!==Number.isFinite(tb))return Number.isFinite(ta)?-1:1;
+    return String(a[key]||'').localeCompare(String(b[key]||''));
+  });
   return all;
 }
 async function fullSync(client,sid,identity){
@@ -167,6 +223,19 @@ async function fullSync(client,sid,identity){
     values:[c.labels,...datasets[table].map(r=>encodeRow(r,c))]
   }));
   await client.spreadsheets.values.batchUpdate({spreadsheetId:sid,requestBody:{valueInputOption:'RAW',data}});
+  // The values API does not change font formatting. Normalize body text after
+  // a manual resync, including rows inserted by the pre-fix webhook version.
+  const metadata2=await client.spreadsheets.get({spreadsheetId:sid,fields:'sheets(properties(sheetId,title))'});
+  const formatRequests=[];
+  for(const [table,schema] of Object.entries(SHEETS)){
+    const rowCount=datasets[table].length;
+    if(!rowCount)continue;
+    const sheetId=metadata2.data.sheets?.find(s=>s.properties?.title===schema.tab)?.properties?.sheetId;
+    if(!Number.isInteger(sheetId))continue;
+    formatRequests.push(bodyFontRequest(sheetId,2,rowCount+1,schema.columns.length));
+  }
+  if(formatRequests.length)
+    await client.spreadsheets.batchUpdate({spreadsheetId:sid,requestBody:{requests:formatRequests}});
   return Object.fromEntries(Object.entries(datasets).map(([name,rows])=>[name,rows.length]));
 }
 export default {
