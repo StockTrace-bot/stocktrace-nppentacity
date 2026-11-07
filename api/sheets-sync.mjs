@@ -22,7 +22,7 @@ const SHEETS = {
     labels: ['ID Log','ID Kasus','ID Pengguna','Aksi','Catatan','Waktu Aksi']
   }
 };
-const FULL_SYNC_LEADER_ROLES=new Set(['leader','admin','store leader','store_leader']);
+const FULL_SYNC_LEADER_ROLES=new Set(['leader']);
 const ENV_NAMES=['GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON','GOOGLE_SHEETS_SPREADSHEET_ID','STOCKTRACE_SHEETS_WEBHOOK_SECRET','SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY'];
 const MAX_BODY_BYTES=512*1024;
 function json(payload,status=200){return Response.json(payload,{status,headers:{'Cache-Control':'no-store'}});}
@@ -189,10 +189,10 @@ export default {
         const action=body.type==='DELETE'?await deleteOne(client,sid,schema,record):await upsertOne(client,sid,schema,record);
         return json({ok:true,kind:'webhook',table:body.table,action});
       }
-      // Backfill / repair all three tabs: requires an authenticated Leader/Admin token.
+      // Backfill / repair all three tabs: requires an authenticated Leader token.
       if(body?.mode!=='full')return fail(401,'UNAUTHORIZED','Akses hanya untuk webhook terotorisasi atau Leader.');
       const identity=await findLeader(request);
-      if(!identity)return fail(403,'LEADER_REQUIRED','Hanya akun Leader/Admin aktif yang dapat sinkronisasi penuh.');
+      if(!identity)return fail(403,'LEADER_REQUIRED','Hanya akun Leader aktif yang dapat sinkronisasi penuh.');
       const client=getClient(),counts=await fullSync(client,process.env.GOOGLE_SHEETS_SPREADSHEET_ID,identity);
       return json({ok:true,kind:'full',counts});
     }catch(err){

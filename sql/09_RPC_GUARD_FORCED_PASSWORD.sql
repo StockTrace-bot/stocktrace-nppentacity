@@ -10,7 +10,7 @@ BEGIN
     RAISE EXCEPTION 'Ubah kata sandi sementara sebelum mengakses laporan' USING ERRCODE='42501';
   END IF;
   IF auth.uid() IS NULL OR NOT public.stocktrace_is_leader() THEN
-    RAISE EXCEPTION 'Hanya Leader/Admin yang boleh memperbarui status' USING ERRCODE='42501';
+    RAISE EXCEPTION 'Hanya Leader yang boleh memperbarui status' USING ERRCODE='42501';
   END IF;
   IF p_status IS NULL OR p_status NOT IN (
     'Baru Dilaporkan','Dalam Pemeriksaan','Menunggu Tindak Lanjut IT/MD','Dalam Penyelesaian','Selesai'
@@ -41,7 +41,7 @@ BEGIN
     RAISE EXCEPTION 'Ubah kata sandi sementara sebelum mengakses laporan' USING ERRCODE='42501';
   END IF;
   IF auth.uid() IS NULL OR NOT public.stocktrace_is_leader() THEN
-    RAISE EXCEPTION 'Hanya Leader/Admin yang boleh menetapkan PIC' USING ERRCODE='42501';
+    RAISE EXCEPTION 'Hanya Leader yang boleh menetapkan PIC' USING ERRCODE='42501';
   END IF;
   IF p_case_id IS NULL OR length(btrim(p_case_id))=0 THEN
     RAISE EXCEPTION 'ID kasus wajib diisi' USING ERRCODE='22023';

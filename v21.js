@@ -149,7 +149,7 @@ async function v21SaveCashier(event){
  finally{btn.disabled=false;btn.textContent='Kirim permintaan';}
 }
 async function v21UpdateCashier(id){
- if(!canManageCases())return notice('Akses ditolak','Hanya Leader/Admin.','warning');
+ if(!canManageCases())return notice('Akses ditolak','Hanya Leader.','warning');
  const status=el('cashierStatus').value,note=el('cashierStatusNote').value.trim();
  if(!cashierStatuses.includes(status)||note.length<8)return notice('Catatan wajib','Isi minimal 8 karakter sebelum memperbarui status.','warning');
  const btn=el('cashierDetail').querySelector('[data-save-cashier]');btn.disabled=true;

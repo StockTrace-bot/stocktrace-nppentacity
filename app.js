@@ -27,7 +27,7 @@ function notice(title,message,icon='info'){
  window.alert(`${title}\n${message}`);return Promise.resolve();
 }
 function redirectLogin(){window.location.replace('login.html');}
-function canManageCases(){return ['leader','admin','store leader','store_leader'].includes(activeRole.toLowerCase().trim());}
+function canManageCases(){return activeRole.toLowerCase().trim()==='leader';}
 function niceDate(value){if(!value)return 'Waktu belum dicatat';let d=new Date(value);if(isNaN(d.getTime()))return 'Waktu tidak valid';return new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Makassar',dateStyle:'medium',timeStyle:'short'}).format(d)+' WITA';}
 function showView(view){
  if(mustChangePassword&&view!=='account'){view='account';}
@@ -73,7 +73,7 @@ async function checkAuth(){
  }catch(e){mustChangePassword=true;document.body.classList.add('st-password-required');showView('account');el('dashboardNotice').textContent=e.message;await notice('Profil belum siap',e.message,'error');}
 }
 async function syncSheetsNow(){
- if(!canManageCases())return notice('Akses ditolak','Hanya Leader/Admin dapat menjalankan sinkronisasi penuh.','warning');
+ if(!canManageCases())return notice('Akses ditolak','Hanya Leader dapat menjalankan sinkronisasi penuh.','warning');
  const btn=el('btnSyncSheets');if(btn){btn.disabled=true;btn.textContent='Sinkronisasi...';}
  try{
   const {data:{session},error}=await sb.auth.getSession();
@@ -140,7 +140,7 @@ async function loadHistory(id){
  el('detailHistory').innerHTML=data.map(log=>`<div class="border-l-2 border-blue-300 pl-4 pb-3"><strong>${htmlEscape(log.aksi)}</strong><p class="text-xs text-slate-400">${htmlEscape(niceDate(log.waktu_aksi))} • ${htmlEscape(displayPerson(log.id_user))}</p><p class="mt-1 break-words whitespace-pre-wrap">${htmlEscape(log.catatan)}</p></div>`).join('');
 }
 async function saveStatus(){
- if(!canManageCases())return notice('Akses tidak diizinkan','Hanya Leader/Admin.','warning');
+ if(!canManageCases())return notice('Akses tidak diizinkan','Hanya Leader.','warning');
  if(!selectedCase)return notice('Kasus belum dipilih','Buka kasus dari daftar.','warning');
  const status=el('selectStatus').value,note=el('inputStatusNote').value.trim(),id=selectedCase.id_kasus;
  if(!statuses.includes(status)||note.length<8)return notice('Data belum lengkap','Pilih status dan isi catatan minimal 8 karakter.','warning');

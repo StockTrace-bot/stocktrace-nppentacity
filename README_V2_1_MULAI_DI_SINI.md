@@ -18,7 +18,7 @@
 | Arsip bukti penerimaan | Lampiran saat input atau tombol **Tambah bukti** pada detail penerimaan | Menggunakan Drive yang sama, tetapi `stocktrace_intake_evidence` terpisah dari bukti R1; unduh melalui otorisasi RLS. Arsip Bukti menampilkan keduanya. |
 | Ekspor Excel **asli `.xlsx`** | Penerimaan Barang → **Ekspor Excel .xlsx** | Worksheet `Penerimaan`, `Detail SKU`, `Permintaan Kasir`, `Keterangan`, format OpenXML; tidak berupa CSV dengan ekstensi XLSX. Aman terhadap formula injection karena semua input teks disimpan sebagai inline string. |
 | Permintaan update stok kasir | Sidebar **Update Stok Kasir** | SKU, produk, jumlah kasir vs hasil pengecekan, alasan; tautan opsional ke R1/penerimaan; status dan riwayat perubahan. |
-| Monitoring kasir | 4 metrik, tabel, filter, detail, riwayat | Staff membuat permintaan; **Leader/Admin** memperbarui status dengan catatan wajib 8 karakter. **Tidak** mengubah sistem kasir resmi. |
+| Monitoring kasir | 4 metrik, tabel, filter, detail, riwayat | Staff membuat permintaan; **Leader** memperbarui status dengan catatan wajib 8 karakter. **Tidak** mengubah sistem kasir resmi. |
 | Keamanan data V2.1 | `sql/10_...sql` | RLS tabel baru, mutasi penting via RPC, validasi server, audit status kasir, tidak ada penghapusan data lama. |
 
 **Penting tentang template Excel:** format kerja `.xlsx` telah dibuat untuk kebutuhan tugas, tetapi **template resmi kantor pusat tidak ada dalam ZIP sumber yang diberikan**. Karena itu kesamaan kolom, urutan, formula dan styling dengan template kantor pusat **belum dapat diklaim**. Jika format resmi tersedia, mapping Excel perlu disesuaikan; jangan menyebut hasil ini sebagai dokumen resmi kantor pusat.

@@ -159,7 +159,7 @@ AS $$
 DECLARE v_old text;
 BEGIN
  IF auth.uid() IS NULL OR NOT public.stocktrace_v21_member() OR NOT public.stocktrace_is_leader() THEN
- RAISE EXCEPTION 'Hanya Leader/Admin' USING ERRCODE='42501';END IF;
+ RAISE EXCEPTION 'Hanya Leader' USING ERRCODE='42501';END IF;
  IF p_status NOT IN ('Diajukan','Diteruskan ke Kasir','Sedang Diproses','Selesai (Dikonfirmasi)','Ditolak') OR
  length(btrim(coalesce(p_note,''))) NOT BETWEEN 8 AND 2000 THEN RAISE EXCEPTION 'Status/catatan tidak valid' USING ERRCODE='22023';END IF;
  SELECT status_request INTO v_old FROM public.stocktrace_cashier_requests WHERE id_request=p_request_id FOR UPDATE;
