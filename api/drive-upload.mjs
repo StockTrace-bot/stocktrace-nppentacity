@@ -4,7 +4,15 @@
 const MAX_BYTES = 100 * 1024 * 1024;
 const ALLOWED = new Set(['jpg','jpeg','png','pdf','mp4','webm','doc','docx','xls','xlsx','csv','txt']);
 const ROLES = new Set(['staff','leader','admin','store leader','store_leader']);
-const VARS = ['SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY','GOOGLE_CLIENT_ID','GOOGLE_CLIENT_SECRET','GOOGLE_REFRESH_TOKEN','GOOGLE_DRIVE_FOLDER_ID'];
+const VARS = [
+  'SUPABASE_URL',
+  'SUPABASE_PUBLISHABLE_KEY',
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'GOOGLE_REFRESH_TOKEN',
+  'GOOGLE_DRIVE_FOLDER_ID',
+  'GOOGLE_DRIVE_INTAKE_FOLDER_ID'
+];
 const json = (data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const fail=(code,error,status)=>json({success:false,code,error},status);
 const validCase=id=>/^ST-[A-Za-z0-9_-]{5,45}$/.test(id);
