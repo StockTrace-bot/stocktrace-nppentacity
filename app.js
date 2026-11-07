@@ -129,7 +129,7 @@ async function loadEvidence(id){
  if(selectedCase?.id_kasus!==id)return;
  if(error){el('detailEvidence').textContent='Gagal membaca bukti: '+error.message;return;}
  if(!data?.length){el('detailEvidence').textContent='Belum ada berkas. Gunakan Tambah Bukti di bawah ini.';return;}
- el('detailEvidence').innerHTML=data.map(f=>`<div class="bg-slate-50 rounded border p-3 mb-2 flex gap-3 justify-between items-center"><div class="break-all"><strong>${htmlEscape(f.nama_file_asli||'Berkas')}</strong><p class="text-xs text-slate-400">${htmlEscape(niceDate(f.waktu_unggah))}</p></div><button type="button" class="text-blue-700 underline text-xs" data-download-case="${htmlEscape(id)}" data-download-id="${htmlEscape(f.drive_file_id)}" data-download-name="${htmlEscape(f.nama_file_asli)}">Unduh aman</button></div>`).join('');
+ el('detailEvidence').innerHTML=data.map(f=>`<div class="bg-slate-50 rounded border p-3 mb-2 flex gap-3 justify-between items-center"><div class="break-all"><strong>${htmlEscape(f.nama_file_asli||'Berkas')}</strong><p class="text-xs text-slate-400">${htmlEscape(niceDate(f.waktu_unggah))}</p></div><button type="button" class="text-blue-700 underline text-xs" data-download-case="${htmlEscape(id)}" data-download-id="${htmlEscape(f.drive_file_id)}" data-download-name="${htmlEscape(f.nama_file_asli)}">Unduh Bukti</button></div>`).join('');
 }
 async function loadHistory(id){
  const {data,error}=await sb.from('case_logs').select('id_user,aksi,catatan,waktu_aksi').eq('id_kasus',id).order('waktu_aksi',{ascending:false}).limit(150);
