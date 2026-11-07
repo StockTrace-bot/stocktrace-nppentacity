@@ -8,6 +8,7 @@ import { google } from 'googleapis';
 import { timingSafeEqual } from 'node:crypto';
 
 const SHEETS = {
+  // R1 — keep the existing spreadsheet and mappings intact.
   cases: {
     tab: 'Kasus', key: 'id_kasus', sortTimeKey: 'created_at',
     columns: ['id_kasus','id_pelapor','sku_produk','nama_produk','stok_sistem','stok_fisik','selisih','dugaan_penyebab','kronologi','status_kasus','created_at','pic_id','pic_nama','pic_ditetapkan_pada'],
@@ -24,33 +25,40 @@ const SHEETS = {
     labels: ['ID Log','ID Kasus','ID Pengguna','Aksi','Catatan','Waktu Aksi']
   },
 
-  // V2.1 — independent intake and cashier-monitoring spreadsheet.
-  // These five tables are routed to GOOGLE_SHEETS_PENERIMAAN_SPREADSHEET_ID,
-  // never to the existing R1 spreadsheet.
+  // V2.1 — exact tab names and visible column order from the user's template.
   stocktrace_intakes: {
     tab: 'Penerimaan', key: 'id_intake', sortTimeKey: 'created_at',
-    columns: ['id_intake','document_no','received_on','supplier','note','created_by','created_at'],
-    labels: ['ID Penerimaan','No. Dokumen','Tanggal Terima','Pengirim / Supplier','Catatan','ID Pembuat','Dibuat Pada']
+    columns: ['id_intake','document_no','received_on','supplier','note','created_by','created_at','jumlah_sku','sku_berselisih','total_selisih'],
+    labels: ['ID Penerimaan','No Dokumen','Tanggal Terima','Pengirim','Catatan','Pembuat','Waktu Dibuat','Jumlah SKU','SKU Berselisih','Total Selisih'],
+    mapRow: (r, summary={}) => [r.id_intake,r.document_no,r.received_on,r.supplier,r.note,r.created_by,formatWitaTimestamp(r.created_at),summary.count||0,summary.diffSkus||0,summary.totalDiff||0]
   },
   stocktrace_intake_items: {
-    tab: 'Detail SKU', key: 'id_item', groupSortKey: 'id_intake',
-    columns: ['id_item','id_intake','sku','product_name','qty_document','qty_received','qty_difference'],
-    labels: ['ID Detail','ID Penerimaan','SKU','Nama Produk','Qty Dokumen','Qty Diterima','Selisih (Diterima - Dokumen)']
+    tab: 'Detail SKU', key: 'id_item', keyFields: ['id_intake','sku'], keyIndexes: [0,1], groupSortKey: 'id_intake',
+    columns: ['id_intake','sku','product_name','qty_document','qty_received','qty_difference','hasil'],
+    labels: ['ID Penerimaan','SKU','Nama Produk','Qty Dokumen','Qty Fisik','Selisih Fisik - Dokumen','Hasil'],
+    mapRow: r => {
+      const difference = Number(r.qty_difference ?? (Number(r.qty_received)-Number(r.qty_document)));
+      return [r.id_intake,r.sku,r.product_name,r.qty_document,r.qty_received,difference,difference===0?'Sesuai':difference<0?'Kurang':'Lebih'];
+    }
   },
   stocktrace_intake_evidence: {
-    tab: 'Bukti Penerimaan', key: 'id_file', sortTimeKey: 'waktu_unggah',
-    columns: ['id_file','id_intake','nama_file_asli','drive_file_id','drive_view_url','uploaded_by','waktu_unggah'],
-    labels: ['ID Bukti','ID Penerimaan','Nama Berkas','Google Drive File ID','Google Drive URL','ID Pengunggah','Waktu Unggah']
+    tab: 'Bukti Penerimaan', key: 'drive_file_id', keyColumnIndex: 2, sortTimeKey: 'waktu_unggah',
+    columns: ['id_intake','nama_file_asli','drive_file_id','drive_view_url','waktu_unggah'],
+    labels: ['ID Penerimaan','Nama Berkas','Google Drive File ID','Google Drive URL','Waktu Unggah'],
+    mapRow: r => [r.id_intake,r.nama_file_asli,r.drive_file_id,r.drive_view_url,formatWitaTimestamp(r.waktu_unggah)]
   },
   stocktrace_cashier_requests: {
     tab: 'Permintaan Kasir', key: 'id_request', sortTimeKey: 'created_at',
-    columns: ['id_request','sku','product_name','qty_system','qty_physical','qty_difference','reason','id_kasus','id_intake','status_request','created_by','created_at','updated_at','updated_by'],
-    labels: ['ID Permintaan','SKU','Nama Produk','Qty Sistem','Qty Fisik','Selisih (Fisik - Sistem)','Alasan','ID Kasus R1','ID Penerimaan','Status','ID Pemohon','Dibuat Pada','Diperbarui Pada','ID Pengubah']
+    columns: ['id_request','sku','product_name','qty_system','qty_physical','qty_difference','reason','status_request','id_kasus','id_intake','created_by','created_at','updated_at'],
+    labels: ['ID Permintaan','SKU','Nama Produk','Qty Sistem','Qty Fisik','Selisih','Alasan','Status','Kasus R1','ID Penerimaan','Pemohon','Dibuat','Pembaruan'],
+    mapRow: r => [r.id_request,r.sku,r.product_name,r.qty_system,r.qty_physical,r.qty_difference,r.reason,r.status_request,r.id_kasus,r.id_intake,r.created_by,formatWitaTimestamp(r.created_at),formatWitaTimestamp(r.updated_at)]
   },
   stocktrace_cashier_logs: {
-    tab: 'Riwayat Kasir', key: 'id_log', sortTimeKey: 'created_at',
-    columns: ['id_log','id_request','id_user','action','note','created_at'],
-    labels: ['ID Riwayat','ID Permintaan','ID Pengguna','Aksi','Catatan','Waktu Aksi']
+    tab: 'Riwayat Permintaan Kasir', key: 'id_log', keyColumnIndex: 5, sortTimeKey: 'created_at',
+    visibleColumns: 5, hiddenColumnIndex: 5,
+    columns: ['id_request','action','note','id_user','created_at','id_log'],
+    labels: ['ID Permintaan','Aksi','Catatan','ID Pengguna','Waktu','_ID_LOG_INTERNAL'],
+    mapRow: r => [r.id_request,r.action,r.note,r.id_user,formatWitaTimestamp(r.created_at),r.id_log]
   }
 };
 const TARGETS = {
@@ -97,9 +105,28 @@ function formatWitaTimestamp(value){
     .map(item => [item.type, item.value]));
   return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}:${parts.second} WITA`;
 }
-function encodeRow(rec,schema){
+function encodeRow(rec,schema,extra={}){
+  if(typeof schema.mapRow==='function')return schema.mapRow(rec,extra);
   return schema.columns.map(k => TIMESTAMP_COLUMNS.has(k)
     ? formatWitaTimestamp(rec[k]) : googleValue(rec[k]));
+}
+function keyFields(schema){return schema.keyFields||[schema.key];}
+function keyIndexes(schema){return schema.keyIndexes||[schema.keyColumnIndex??0];}
+function rowMatches(record,row,schema){
+  const fields=keyFields(schema),indexes=keyIndexes(schema);
+  return fields.every((field,i)=>String(row[indexes[i]]??'')===String(record?.[field]??''));
+}
+function rowHasKey(row,schema){
+  const indexes=keyIndexes(schema);
+  return indexes.every(index=>String(row[index]??'').trim()!=='');
+}
+async function hideInternalColumn(client,sid,schema){
+  if(!Number.isInteger(schema.hiddenColumnIndex))return;
+  const {sheetId}=await getSheetInfo(client,sid,schema.tab);
+  await client.spreadsheets.batchUpdate({spreadsheetId:sid,requestBody:{requests:[{
+    updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:schema.hiddenColumnIndex,endIndex:schema.hiddenColumnIndex+1},
+      properties:{hiddenByUser:true},fields:'hiddenByUser'}
+  }]}});
 }
 function colLetter(n){let result='';while(n>0){n--;result=String.fromCharCode(65+n%26)+result;n=Math.floor(n/26);}return result;}
 function getSpreadsheetId(target){
@@ -161,36 +188,49 @@ async function ensureHeader(client,sid,schema){
   const range=a1(schema.tab,`A1:${colLetter(schema.columns.length)}1`);
   const response=await client.spreadsheets.values.get({spreadsheetId:sid,range});
   const current=response.data.values?.[0]||[];
-  if(!current.length){
+  const visibleCount=schema.visibleColumns??schema.labels.length;
+  const expected=schema.labels.slice(0,visibleCount);
+  const actual=current.slice(0,visibleCount).map(v=>String(v??'').trim());
+  const empty=actual.every(v=>v==='');
+  if(empty){
     await client.spreadsheets.values.update({spreadsheetId:sid,range,valueInputOption:'RAW',requestBody:{values:[schema.labels]}});
-  }else if(schema.tab==='Kasus' && current.length===schema.labels.length-3
-    && current.every((label,i)=>label===schema.labels[i])){
-    // Seamless transition: old Kasus sheet has 11 columns; preserve all existing rows.
-    // A Leader full resync will backfill PIC columns for historical cases.
-    await client.spreadsheets.values.update({spreadsheetId:sid,range,valueInputOption:'RAW',requestBody:{values:[schema.labels]}});
-  }else if(schema.labels.some((label,i)=>current[i]!==label)){
-    throw Object.assign(new Error(`Header tab ${schema.tab} tidak sama dengan StockTrace. Jalankan sinkronisasi penuh dari akun Leader terlebih dahulu.`),{code:'SHEET_HEADER_MISMATCH',status:409});
+  }else if(expected.some((label,i)=>actual[i]!==label)){
+    throw Object.assign(new Error(`Header tab ${schema.tab} tidak sama dengan template. Periksa nama dan urutan kolom.`),{code:'SHEET_HEADER_MISMATCH',status:409});
+  }
+  if(Number.isInteger(schema.hiddenColumnIndex)){
+    const internalIndex=schema.hiddenColumnIndex;
+    const internalCell=`${colLetter(internalIndex+1)}1`;
+    const hiddenHeader=(await client.spreadsheets.values.get({spreadsheetId:sid,range:a1(schema.tab,internalCell)})).data.values?.[0]?.[0];
+    const expectedInternal=schema.labels[internalIndex];
+    if(!hiddenHeader){
+      await client.spreadsheets.values.update({spreadsheetId:sid,range:a1(schema.tab,internalCell),valueInputOption:'RAW',requestBody:{values:[[expectedInternal]]}});
+    }else if(String(hiddenHeader).trim()!==expectedInternal){
+      throw Object.assign(new Error(`Kolom internal tersembunyi pada tab ${schema.tab} sudah digunakan. Jangan isi kolom F secara manual.`),{code:'INTERNAL_KEY_COLUMN_CONFLICT',status:409});
+    }
+    await hideInternalColumn(client,sid,schema);
   }
 }
+async function readSheetRows(client,sid,schema){
+  const last=colLetter(schema.columns.length);
+  return (await client.spreadsheets.values.get({spreadsheetId:sid,range:a1(schema.tab,`A2:${last}`)})).data.values||[];
+}
 async function upsertOne(client,sid,schema,record){
-  const id=String(record?.[schema.key]||'');
-  if(!id||id.length>160)throw Object.assign(new Error('ID record tidak valid.'),{status:400,code:'RECORD_ID_INVALID'});
+  const fields=keyFields(schema);
+  const keyValues=fields.map(field=>String(record?.[field]??''));
+  if(keyValues.some(v=>!v)||keyValues.some(v=>v.length>160))
+    throw Object.assign(new Error('Kunci record tidak valid.'),{status:400,code:'RECORD_ID_INVALID'});
   await ensureHeader(client,sid,schema);
-  const keyRange=a1(schema.tab,'A2:A');
-  const ids=(await client.spreadsheets.values.get({spreadsheetId:sid,range:keyRange})).data.values||[];
-  const rowNumber=ids.findIndex(r=>String(r[0]||'')===id);
+  const rows=await readSheetRows(client,sid,schema);
+  const rowIndex=rows.findIndex(row=>rowMatches(record,row,schema));
   const fullEnd=colLetter(schema.columns.length);
   const values=[encodeRow(record,schema)];
-  if(rowNumber!==-1){
-    const row=rowNumber+2;
+  if(rowIndex!==-1){
+    const row=rowIndex+2;
     await client.spreadsheets.values.update({spreadsheetId:sid,range:a1(schema.tab,`A${row}:${fullEnd}${row}`),valueInputOption:'RAW',requestBody:{values}});
     await formatWrittenRow(client,sid,schema,row,0);
     return 'updated';
   }
-  // Do not use values.append + INSERT_ROWS: Google's logical-table detection can
-  // insert directly below the header and shift old rows (and their formatting).
-  // Instead target the first row below the last nonempty record ID explicitly.
-  const lastDataRow=ids.reduce((last,r,i)=>String(r?.[0]||'').trim()?i+2:last,1);
+  const lastDataRow=rows.reduce((last,row,i)=>rowHasKey(row,schema)?i+2:last,1);
   const nextRow=lastDataRow+1;
   const info=await getSheetInfo(client,sid,schema.tab);
   if(nextRow>info.rowCount){
@@ -205,17 +245,29 @@ async function upsertOne(client,sid,schema,record){
   return 'inserted';
 }
 async function deleteOne(client,sid,schema,record){
-  const id=String(record?.[schema.key]||'');
-  if(!id)return 'ignored';
+  const fields=keyFields(schema);
+  if(fields.some(field=>!String(record?.[field]??'')))return 'ignored';
   await ensureHeader(client,sid,schema);
-  const ids=(await client.spreadsheets.values.get({spreadsheetId:sid,range:a1(schema.tab,'A2:A')})).data.values||[];
-  const index=ids.findIndex(r=>String(r[0]||'')===id);
+  const rows=await readSheetRows(client,sid,schema);
+  const index=rows.findIndex(row=>rowMatches(record,row,schema));
   if(index===-1)return 'already-absent';
   const sheetResponse=await client.spreadsheets.get({spreadsheetId:sid,fields:'sheets(properties(sheetId,title))'});
   const sheetId=sheetResponse.data.sheets?.find(s=>s.properties?.title===schema.tab)?.properties?.sheetId;
   if(!Number.isInteger(sheetId))throw Object.assign(new Error(`Tab ${schema.tab} belum tersedia.`),{status:409,code:'SHEET_NOT_FOUND'});
   await client.spreadsheets.batchUpdate({spreadsheetId:sid,requestBody:{requests:[{deleteDimension:{range:{sheetId,dimension:'ROWS',startIndex:index+1,endIndex:index+2}}}]}});
   return 'deleted';
+}
+async function refreshIntakeSummary(client,sid,intakeId){
+  if(!intakeId)return;
+  const detailRows=(await client.spreadsheets.values.get({spreadsheetId:sid,range:a1('Detail SKU','A2:G')})).data.values||[];
+  const matched=detailRows.filter(row=>String(row[0]||'')===String(intakeId));
+  const differences=matched.map(row=>Number(row[5]||0));
+  const summary=[matched.length,differences.filter(value=>value!==0).length,differences.reduce((sum,value)=>sum+Math.abs(value),0)];
+  const intakeIds=(await client.spreadsheets.values.get({spreadsheetId:sid,range:a1('Penerimaan','A2:A')})).data.values||[];
+  const index=intakeIds.findIndex(row=>String(row[0]||'')===String(intakeId));
+  if(index===-1)return;
+  const row=index+2;
+  await client.spreadsheets.values.update({spreadsheetId:sid,range:a1('Penerimaan',`H${row}:J${row}`),valueInputOption:'RAW',requestBody:{values:[summary]}});
 }
 async function findLeader(request){
   const bearer=(request.headers.get('authorization')||'').match(/^Bearer\s+(.+)$/i)?.[1];
@@ -268,7 +320,19 @@ async function fetchAllRows(identity,table){
 async function fullSync(client,sid,identity,tables){
   const datasets={};
   for(const table of tables)datasets[table]=await fetchAllRows(identity,table);
-  // Abort early if any expected tab is missing; don't accidentally create a new tab.
+  const summaries=new Map();
+  if(tables.includes('stocktrace_intake_items')){
+    for(const item of datasets.stocktrace_intake_items){
+      const id=String(item.id_intake||'');
+      if(!id)continue;
+      const summary=summaries.get(id)||{count:0,diffSkus:0,totalDiff:0};
+      const difference=Number(item.qty_difference??(Number(item.qty_received)-Number(item.qty_document)));
+      summary.count++;
+      if(difference!==0)summary.diffSkus++;
+      summary.totalDiff+=Math.abs(difference);
+      summaries.set(id,summary);
+    }
+  }
   const metadata=await client.spreadsheets.get({spreadsheetId:sid,fields:'sheets(properties(title))'});
   const names=new Set((metadata.data.sheets||[]).map(s=>s.properties?.title));
   for(const table of tables){
@@ -279,23 +343,23 @@ async function fullSync(client,sid,identity,tables){
   await client.spreadsheets.values.batchClear({spreadsheetId:sid,requestBody:{ranges}});
   const data=tables.map(table=>[table,SHEETS[table]]).map(([table,c])=>({
     range:a1(c.tab,`A1:${colLetter(c.columns.length)}${datasets[table].length+1}`),
-    values:[c.labels,...datasets[table].map(r=>encodeRow(r,c))]
+    values:[c.labels,...datasets[table].map(r=>encodeRow(r,c,table==='stocktrace_intakes'?(summaries.get(r.id_intake)||{}):{}))]
   }));
   await client.spreadsheets.values.batchUpdate({spreadsheetId:sid,requestBody:{valueInputOption:'RAW',data}});
-  // The values API does not change font formatting. Normalize body text after
-  // a manual resync, including rows inserted by the pre-fix webhook version.
   const metadata2=await client.spreadsheets.get({spreadsheetId:sid,fields:'sheets(properties(sheetId,title))'});
   const formatRequests=[];
   for(const table of tables){
     const schema=SHEETS[table];
     const rowCount=datasets[table].length;
-    if(!rowCount)continue;
     const sheetId=metadata2.data.sheets?.find(s=>s.properties?.title===schema.tab)?.properties?.sheetId;
-    if(!Number.isInteger(sheetId))continue;
-    formatRequests.push(bodyFontRequest(sheetId,2,rowCount+1,schema.columns.length));
+    if(Number.isInteger(sheetId)){
+      if(rowCount)formatRequests.push(bodyFontRequest(sheetId,2,rowCount+1,schema.columns.length));
+      if(Number.isInteger(schema.hiddenColumnIndex)){
+        formatRequests.push({updateDimensionProperties:{range:{sheetId,dimension:'COLUMNS',startIndex:schema.hiddenColumnIndex,endIndex:schema.hiddenColumnIndex+1},properties:{hiddenByUser:true},fields:'hiddenByUser'}});
+      }
+    }
   }
-  if(formatRequests.length)
-    await client.spreadsheets.batchUpdate({spreadsheetId:sid,requestBody:{requests:formatRequests}});
+  if(formatRequests.length)await client.spreadsheets.batchUpdate({spreadsheetId:sid,requestBody:{requests:formatRequests}});
   return Object.fromEntries(Object.entries(datasets).map(([name,rows])=>[name,rows.length]));
 }
 export default {
@@ -317,6 +381,8 @@ export default {
         const target=targetForTable(body.table);
         const client=getClient(),sid=getSpreadsheetId(target),schema=SHEETS[body.table];
         const action=body.type==='DELETE'?await deleteOne(client,sid,schema,record):await upsertOne(client,sid,schema,record);
+        if(body.table==='stocktrace_intakes')await refreshIntakeSummary(client,sid,record.id_intake);
+        if(body.table==='stocktrace_intake_items')await refreshIntakeSummary(client,sid,record.id_intake);
         return json({ok:true,kind:'webhook',target,table:body.table,action});
       }
       // Existing mode "full" remains R1-only. V2.1 uses a separate explicit mode.
