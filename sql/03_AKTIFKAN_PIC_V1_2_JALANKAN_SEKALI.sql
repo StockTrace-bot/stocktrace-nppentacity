@@ -17,6 +17,22 @@ BEGIN
   END IF;
 END $$;
 
+-- Keputusan akses final: HANYA role Leader boleh mengambil keputusan operasional.
+-- Fungsi ini juga dipakai oleh RPC perubahan status (SQL 01/09)
+-- dan persetujuan/status monitoring kasir (SQL 10).
+-- SQL SECURITY DEFINER memvalidasi profil di database, bukan dari browser.
+CREATE OR REPLACE FUNCTION public.stocktrace_is_leader()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.users u
+    WHERE u.id_user = (SELECT auth.uid())
+      AND lower(btrim(u.role)) = 'leader'
+  );
+$$;
+REVOKE ALL ON FUNCTION public.stocktrace_is_leader() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.stocktrace_is_leader() TO authenticated;
+
 ALTER TABLE public.cases
   ADD COLUMN IF NOT EXISTS pic_id uuid,
   ADD COLUMN IF NOT EXISTS pic_nama text,
@@ -68,7 +84,7 @@ AS $$
 DECLARE old_pic uuid; old_name text; new_name text;
 BEGIN
   IF auth.uid() IS NULL OR NOT public.stocktrace_is_leader() THEN
-    RAISE EXCEPTION 'Hanya Leader/Admin yang boleh menetapkan PIC' USING ERRCODE='42501';
+    RAISE EXCEPTION 'Hanya Leader yang boleh menetapkan PIC' USING ERRCODE='42501';
   END IF;
   IF p_case_id IS NULL OR length(btrim(p_case_id))=0 THEN
     RAISE EXCEPTION 'ID kasus wajib diisi' USING ERRCODE='22023';

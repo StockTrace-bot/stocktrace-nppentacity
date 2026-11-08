@@ -48,7 +48,7 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
 AS $$ SELECT EXISTS (
     SELECT 1 FROM public.users u
     WHERE u.id_user=(SELECT auth.uid())
-    AND lower(btrim(u.role)) IN ('leader','admin','store leader','store_leader')
+    AND lower(btrim(u.role)) = 'leader'
 ); $$;
 REVOKE ALL ON FUNCTION public.stocktrace_is_leader() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.stocktrace_is_leader() TO authenticated;
@@ -72,10 +72,10 @@ ALTER TABLE public.cases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.evidence_files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.case_logs ENABLE ROW LEVEL SECURITY;
 
--- User boleh membaca profilnya sendiri; Leader/Admin untuk menampilkan identitas pemeriksa.
+-- User boleh membaca profilnya sendiri; Leader dapat membaca profil lain untuk tindak lanjut.
 CREATE POLICY st_users_read ON public.users FOR SELECT TO authenticated
 USING (id_user=(SELECT auth.uid()) OR (SELECT public.stocktrace_is_leader()));
--- Staff: kasus miliknya sendiri. Leader/Admin: seluruh kasus.
+-- Sebelum SQL 02: Staff membaca kasus sendiri; Leader membaca seluruh kasus.
 CREATE POLICY st_cases_read ON public.cases FOR SELECT TO authenticated
 USING (id_pelapor=(SELECT auth.uid()) OR (SELECT public.stocktrace_is_leader()));
 CREATE POLICY st_cases_insert ON public.cases FOR INSERT TO authenticated
@@ -125,14 +125,14 @@ GRANT SELECT,INSERT ON public.cases TO authenticated;
 GRANT SELECT,INSERT ON public.evidence_files TO authenticated;
 GRANT SELECT ON public.case_logs TO authenticated;
 
--- RPC tunggal: memvalidasi Leader/Admin, menyimpan status_kasus dan log waktu_aksi atomik.
+-- RPC tunggal: memvalidasi Leader saja, menyimpan status_kasus dan log waktu_aksi atomik.
 CREATE OR REPLACE FUNCTION public.stocktrace_update_case_status(p_case_id text,p_status text,p_note text)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
 AS $$
 DECLARE old_status text;
 BEGIN
   IF auth.uid() IS NULL OR NOT public.stocktrace_is_leader() THEN
-    RAISE EXCEPTION 'Hanya Leader/Admin yang boleh memperbarui status' USING ERRCODE='42501';
+    RAISE EXCEPTION 'Hanya Leader yang boleh memperbarui status' USING ERRCODE='42501';
   END IF;
   IF p_status IS NULL OR p_status NOT IN (
     'Baru Dilaporkan','Dalam Pemeriksaan','Menunggu Tindak Lanjut IT/MD','Dalam Penyelesaian','Selesai'
