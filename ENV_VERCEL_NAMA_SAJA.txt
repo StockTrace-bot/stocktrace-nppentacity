@@ -6,12 +6,16 @@ GOOGLE_CLIENT_ID
 GOOGLE_CLIENT_SECRET
 GOOGLE_REFRESH_TOKEN
 GOOGLE_DRIVE_FOLDER_ID
+GOOGLE_DRIVE_INTAKE_FOLDER_ID
 GOOGLE_SHEETS_SPREADSHEET_ID
+GOOGLE_SHEETS_PENERIMAAN_SPREADSHEET_ID
 GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON
 STOCKTRACE_SHEETS_WEBHOOK_SECRET
 
-Proyek: stocktrace-nppentacity; Production (dan Preview bila memang perlu)
+Project Vercel: stocktrace-nppentacity. Isi nilai sesuai environment masing-masing; variabel staging hanya pada Preview branch v2-1-staging. Jangan salin folder ID, spreadsheet ID, atau kredensial staging ke Production.
 
 Tidak ada secret/JSON pribadi di dalam paket ini. Key publik Supabase di frontend adalah publishable key,
 BUKAN service-role secret. Jangan menaruh secret Google di HTML/JS browser.
 Konfigurasi Service Account Google Sheets memerlukan akses Editor ke spreadsheet yang benar.
+
+Untuk V2.1 staging, pastikan kedua variabel INTAKE di atas diisi pada Preview branch v2-1-staging. Jangan gunakan ID folder atau spreadsheet Production.

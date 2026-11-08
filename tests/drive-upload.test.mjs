@@ -12,6 +12,7 @@ process.env.GOOGLE_CLIENT_ID='client-test';
 process.env.GOOGLE_CLIENT_SECRET='never-real';
 process.env.GOOGLE_REFRESH_TOKEN='never-real';
 process.env.GOOGLE_DRIVE_FOLDER_ID='folder-test';
+process.env.GOOGLE_DRIVE_INTAKE_FOLDER_ID='intake-folder-test';
 const u='https://stocktrace-nppentacity.vercel.app/api/drive-upload';
 const auth={'Content-Type':'application/json','Authorization':'Bearer test-token'};
 const body=(action,add={})=>JSON.stringify({action,case_id:caseId,filename:'video.mp4',size:15*1024*1024,type:'video/mp4',...add});
@@ -23,6 +24,8 @@ function mock(handler){globalThis.fetch=async (url,init={})=>{
  if(s.includes('/rest/v1/users'))return Response.json([{role:'Staff'}]);
  if(s.includes('/rest/v1/cases'))return Response.json([{id_kasus:caseId}]);
  if(s.includes('oauth2.googleapis.com/token'))return Response.json({access_token:'google-test'});
+ if(s.includes('/drive/v3/about'))return Response.json({user:{emailAddress:'staging@example.test'}});
+ if(s.includes('/drive/v3/files/folder-test')||s.includes('/drive/v3/files/intake-folder-test'))return Response.json({id:s.includes('intake-folder-test')?'intake-folder-test':'folder-test',name:'Staging folder',mimeType:'application/vnd.google-apps.folder',trashed:false,capabilities:{canAddChildren:true}});
  return handler(s,init);
 };}
 test.afterEach(()=>globalThis.fetch=originalFetch);

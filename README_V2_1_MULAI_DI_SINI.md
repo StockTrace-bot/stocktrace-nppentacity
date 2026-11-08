@@ -7,7 +7,7 @@
 - Desain dashboard profesional **sidebar navy di sebelah kiri** pada laptop, Android dan iPhone; tombol **Lapor Kasus** tetap di sisi kanan judul. Tidak ada navbar/tombol mengambang bawah.
 - Empat KPI dashboard, daftar kasus R1, laporan selisih stok sistem–fisik, bukti dan riwayat kasus, penugasan PIC, keputusan/status Leader, pencarian/filter, rekap/cetak, dan ekspor CSV lama.
 - Login melalui **ID akun** `NP-LDR-001` dan `NP-STF-001` sampai `NP-STF-004`, penggantian password, reset lokal administrator (bukan reset publik), pembatasan akses Staff/Leader.
-- Supabase Auth/DB, `/api/drive-upload` berbasis resumable upload ke Google Drive sampai 100 MiB per file, unduhan terautentikasi, serta sinkronisasi Google Sheets lama (tab `Kasus`, `Bukti`, `Riwayat`). Tidak ada kredensial dalam ZIP.
+- Supabase Auth/DB, `/api/drive-upload` berbasis resumable upload ke Google Drive sampai 100 MiB per file, unduhan terautentikasi, serta sinkronisasi Google Sheets R1 dan V2.1 melalui dua spreadsheet terpisah. Tidak ada kredensial dalam ZIP.
 
 ## 2. Tambahan yang benar-benar diimplementasikan di V2.1
 
@@ -30,7 +30,7 @@
 3. Setelah V2 siap dan sudah backup, jalankan **hanya SQL tambahan** `sql/10_V2_1_PENERIMAAN_DAN_MONITORING_KASIR_STAGING.sql` pada Supabase STAGING melalui SQL Editor. Ini membuat 5 tabel V2.1, pembatasan RLS, dan 3 RPC; tidak menyentuh isi tabel `cases`, `case_logs`, `evidence_files` lama.
 4. Di Vercel Preview, pasang environment variables **STAGING** yang disebut di `ENV_VERCEL_NAMA_SAJA.txt` dan `README_DEPLOY_STAGING.md`; semua secret tetap di Vercel, tidak pernah masuk GitHub/browser. Gunakan folder Google Drive dan Spreadsheet uji, jangan sumber asli bisnis.
 5. Publish branch untuk Preview; uji login 5 akun, peran Staff/Leader, menu kiri desktop dan HP, R1, PIC, 100 MiB direct upload, arsip dan unduhan, migrasi, penerimaan dengan beberapa SKU, kasus selisih −1/+1/0, request kasir, riwayat status dan ekspor `.xlsx`.
-6. Jalankan **sinkronisasi Google Sheets tiga tab lama** sebagai Leader, cek webhook di Sheets setelah perubahan kasus R1. Modul V2.1 baru menyimpan data di Supabase dan menyediakan ekspor Excel; **belum otomatis dibuatkan tab tambahan** pada Google Sheets lama supaya sinkronisasi yang telah berjalan tidak rusak.
+6. Konfigurasikan dua spreadsheet staging sesuai `README_SHEETS_SYNC.txt`. R1 memakai tiga tab lama; V2.1 memakai lima tab tambahan pada spreadsheet penerimaan terpisah. Pastikan kedelapan webhook mengarah ke endpoint Preview `/api/sheets-sync` dengan secret yang sama, lalu uji full sync Leader dan event webhook di staging.
 7. Lanjutkan uji semua skenario dari `README_UJI_TERIMA.md`, termasuk versi browser Chrome Android dan Safari iPhone, baru putuskan apakah kode boleh digabungkan ke `main`.
 
 ## 4. Hak akses yang sengaja dibatasi
@@ -44,30 +44,37 @@
 | Mengunggah/mengunduh bukti penerimaan | Ya | Ya |
 | Mengajukan permintaan update kasir | Ya | Ya |
 | Mengubah status permintaan kasir (wajib catatan) | Tidak | Ya |
-| Sinkronisasi penuh Google Sheets 3 tab lama | Tidak | Ya |
+| Sinkronisasi penuh Google Sheets R1 dan V2.1 | Tidak | Ya |
 
 **Tidak ada role kasir/IT/MD yang memperoleh akses menulis langsung ke POS.** Kolom `status_request='Selesai (Dikonfirmasi)'` hanya merepresentasikan konfirmasi tindak lanjut yang dicatat Leader dalam simulasi, bukan bukti perubahan di POS perusahaan.
 
 ## 5. Pengujian lokal yang sudah dilaksanakan
 
 - `node --check` semua source JS utama dan API terkait, serta `python -m py_compile scripts/*.py`.
-- `node --test tests/*.test.mjs` (37 test lulus pada pemeriksaan paket, termasuk uji receipt Drive yang dimock).
+- `node --test tests/*.test.mjs` (**47 test lulus** pada pemeriksaan lokal, termasuk uji endpoint Drive DELETE dengan Google API yang dimock).
 - Uji **browser Chromium dengan Supabase yang dimock**: tambah/hapus baris SKU, hitung selisih, buat dokumen, buat request kasir, ubah status oleh Leader; ekspor file yang berhasil dibuka di `openpyxl` dengan selisih −1 dan sheet status terisi. Ini **bukan** pengujian kredensial, jaringan dan file sungguhan.
 - File `.xlsx` diuji sebagai workbook OpenXML sah (bukan ekstensi palsu).
 
-## 6. Hal yang belum bisa diklaim lulus dari arsip kode saja
+## 6. Integrasi DELETE Google Drive (tambahan staging)
+
+Baca `README_DRIVE_DELETE_STAGING.md`. Setelah endpoint Preview `api/drive-delete.mjs` ter-deploy, jalankan satu kali `sql/11_DRIVE_DELETE_WEBHOOKS_STAGING.sql` di Supabase staging. Script tersebut menambahkan dua trigger DELETE untuk metadata bukti R1 dan bukti penerimaan, menyalin URL/header webhook yang sudah ada, dan tidak mengubah delapan webhook Google Sheets. Penghapusan file hanya memindahkan file yang terverifikasi ke Trash.
+
+Catatan penting: webhook `pg_net` bersifat asynchronous, bukan transaksi atomik lintas Supabase dan Drive. Tabel penerimaan memakai `ON DELETE RESTRICT`; jangan menghapus parent intake tanpa alur cascade terpisah. Endpoint ini menangani event penghapusan metadata bukti, bukan menyediakan tombol hapus pada UI.
+
+## 7. Hal yang belum bisa diklaim lulus dari arsip kode saja
 
 - Eksekusi SQL 10 pada **database staging aktual**, peran/RLS dengan seluruh lima akun, tidak ada backup pribadi di dalam ZIP, dan penyambungan Vercel Preview ke staging.
 - **Google Drive resumable browser upload CORS** pada Chrome Android/Safari iPhone dan upload/unduh file besar yang sesungguhnya, bukan simulasi HTTP. Jangan mengulang file yang gagal tanpa memeriksa Drive karena dapat membuat duplikat.
-- Webhook Google Sheets live; sistem baru **tidak** menjanjikan tab tambahan ke Spreadsheet lama.
+- Respons webhook Google Sheets dan Drive secara live pada deployment Preview belum diuji; uji unit/mocked tidak membuktikan akses OAuth, konfigurasi secret, atau jaringan sebenarnya.
 - Keseragaman piksel dengan screenshot laptop untuk setiap model HP dan kesesuaian template pusat; perlu QA perangkat dan template asli.
 - Pemakaian oleh toko secara operasional, keamanan eksternal/pen-test, persetujuan perusahaan, dan disaster-recovery/restore drill.
 
-## 7. File utama untuk diperhatikan
+## 8. File utama untuk diperhatikan
 
 - `index.html`, `app.js`, `v21.js`, `xlsx-export.js`, `stocktrace-professional-rose.css`: antarmuka dan logika.
-- `api/drive-upload.mjs`, `api/evidence.mjs`: bukti kasus R1 dan penerimaan, tetap lewat endpoint yang sama.
+- `api/drive-upload.mjs`, `api/drive-delete.mjs`, `api/evidence.mjs`: upload, pemindahan bukti ke Trash, dan unduhan terotorisasi.
 - `sql/10_V2_1_PENERIMAAN_DAN_MONITORING_KASIR_STAGING.sql`: migrasi tambahan V2.1. **Tidak boleh dijalankan di Supabase produksi tanpa uji dan backup.**
+- `sql/11_DRIVE_DELETE_WEBHOOKS_STAGING.sql`: menambahkan dua trigger DELETE bukti pada staging; jalankan hanya setelah endpoint Preview siap.
 - `README_RESET_DATA.md`: prosedur bersifat manual dan tidak otomatis. **Tidak ada penghapusan database/Drive/Sheets saat deployment.**
 
 Untuk kembali ke versi lama: rollback source code di Vercel/branch. **Jangan DROP** tabel/data V2.1 untuk rollback; tabel baru dapat dibiarkan sementara hingga ada keputusan migrasi data yang aman.

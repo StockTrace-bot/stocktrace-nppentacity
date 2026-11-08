@@ -220,6 +220,8 @@ export default {
       const body = await req.json();
       const action = String(body.action || '');
       const caseId = String(body.case_id || '');
+      // Validate file metadata before network/auth calls; reject oversized or invalid uploads early.
+      const expectedFile = (action === 'start' || action === 'verify') ? fileInput(body) : null;
       const { user, isIntake } = await authAndCase(req, caseId);
 
       const targetFolder = folderFor(isIntake);
@@ -232,7 +234,7 @@ export default {
       await checkFolderAccess(targetFolder, google, folderLabel, accountEmail);
 
       if (action === 'start') {
-        const { filename, size, type } = fileInput(body);
+        const { filename, size, type } = expectedFile;
         const metadata = {
           name: `${caseId}__${filename}`,
           mimeType: type,
@@ -281,7 +283,7 @@ export default {
         const fileId = String(body.file_id || '');
         if (!validFileId(fileId)) throw driveError('ID file tidak valid.', 400);
 
-        const expected = fileInput(body);
+        const expected = expectedFile;
         const fields = 'id,name,size,mimeType,parents,appProperties,trashed,webViewLink';
         const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=${encodeURIComponent(fields)}&supportsAllDrives=true`;
         const response = await googleDriveRequest(url, google);
