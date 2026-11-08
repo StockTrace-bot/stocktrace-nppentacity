@@ -28,9 +28,57 @@ function notice(title,message,icon='info'){
 }
 function redirectLogin(){window.location.replace('login.html');}
 function canManageCases(){return activeRole.toLowerCase().trim()==='leader';}
+
+function isMobileNavViewport(){return window.matchMedia('(max-width: 767px)').matches;}
+function setMobileNavOpen(open,{restoreFocus=false}={}){
+ const mobile=isMobileNavViewport();
+ if(!mobile)open=false;
+ document.body.classList.toggle('st-mobile-nav-open',open);
+ const toggle=el('mobileNavToggle');
+ const sidebar=el('appSidebar');
+ if(toggle){
+  toggle.setAttribute('aria-expanded',String(open));
+  toggle.setAttribute('aria-label',open?'Tutup menu navigasi':'Buka menu navigasi');
+  const icon=toggle.querySelector('i');
+  if(icon){icon.classList.toggle('ph-list',!open);icon.classList.toggle('ph-x',open);}
+ }
+ if(sidebar)sidebar.setAttribute('aria-hidden',String(mobile&&!open));
+ if(open&&mobile&&sidebar){const first=sidebar.querySelector('[data-nav-view]');if(first)first.focus({preventScroll:true});}
+ if(!open&&restoreFocus&&mobile&&toggle)toggle.focus({preventScroll:true});
+}
+function toggleMobileNav(){
+ if(!isMobileNavViewport())return;
+ setMobileNavOpen(!document.body.classList.contains('st-mobile-nav-open'));
+}
+function closeMobileNav(options={}){
+ setMobileNavOpen(false,options);
+}
+setMobileNavOpen(false);
+document.addEventListener('keydown',event=>{
+ if(event.key==='Escape'&&document.body.classList.contains('st-mobile-nav-open')){
+  closeMobileNav({restoreFocus:true});
+ }
+});
+window.addEventListener('resize',()=>{
+ const sidebar=el('appSidebar');
+ if(!isMobileNavViewport()){
+  document.body.classList.remove('st-mobile-nav-open');
+  if(sidebar)sidebar.setAttribute('aria-hidden','false');
+  const toggle=el('mobileNavToggle');
+  if(toggle){
+   toggle.setAttribute('aria-expanded','false');
+   toggle.setAttribute('aria-label','Buka menu navigasi');
+   const icon=toggle.querySelector('i');
+   if(icon){icon.classList.add('ph-list');icon.classList.remove('ph-x');}
+  }
+ }else if(sidebar&&!document.body.classList.contains('st-mobile-nav-open')){
+  sidebar.setAttribute('aria-hidden','true');
+ }
+});
 function niceDate(value){if(!value)return 'Waktu belum dicatat';let d=new Date(value);if(isNaN(d.getTime()))return 'Waktu tidak valid';return new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Makassar',dateStyle:'medium',timeStyle:'short'}).format(d)+' WITA';}
 function showView(view){
  if(mustChangePassword&&view!=='account'){view='account';}
+ closeMobileNav({restoreFocus:true});
  for(const name of ['dashboard','form-laporan','detail-kasus','archive','reports','intake','cashier','account']){
   const node=el('view-'+name); if(node){node.classList.toggle('hidden',view!==name);node.classList.toggle('block',view===name);}
  }
@@ -88,7 +136,7 @@ async function syncSheetsNow(){
  }catch(e){await notice('Sinkronisasi gagal',e.message,'error');}
  finally{if(btn){btn.disabled=false;btn.textContent='Sinkronkan Google Sheets';}}
 }
-async function logout(){try{await sb?.auth.signOut();}catch(e){console.warn(e)}sessionStorage.removeItem('user_role');sessionStorage.removeItem('user_name');try{localStorage.removeItem('user_role');localStorage.removeItem('user_name');}catch(_){}redirectLogin();}
+async function logout(){try{await sb?.auth.signOut();}catch(e){console.warn(e)}localStorage.removeItem('user_role');localStorage.removeItem('user_name');redirectLogin();}
 function displayCases(){
  const q=el('searchCases').value.toLowerCase().trim(), filter=el('filterCaseStatus').value, picFilter=el('filterCasePIC').value;
  const list=cachedCases.filter(c=>(!filter||toText(c.status_kasus||statuses[0])===filter)&&(!picFilter||(picFilter==='mine'?c.pic_id===activeUser?.id:picFilter==='reported'?c.id_pelapor===activeUser?.id:picFilter==='unassigned'?!c.pic_id:true))&&[c.id_kasus,c.sku_produk,c.nama_produk].some(x=>toText(x).toLowerCase().includes(q)));
@@ -129,7 +177,7 @@ async function loadEvidence(id){
  if(selectedCase?.id_kasus!==id)return;
  if(error){el('detailEvidence').textContent='Gagal membaca bukti: '+error.message;return;}
  if(!data?.length){el('detailEvidence').textContent='Belum ada berkas. Gunakan Tambah Bukti di bawah ini.';return;}
- el('detailEvidence').innerHTML=data.map(f=>`<div class="bg-slate-50 rounded border p-3 mb-2 flex gap-3 justify-between items-center"><div class="break-all"><strong>${htmlEscape(f.nama_file_asli||'Berkas')}</strong><p class="text-xs text-slate-400">${htmlEscape(niceDate(f.waktu_unggah))}</p></div><button type="button" class="text-blue-700 underline text-xs" data-download-case="${htmlEscape(id)}" data-download-id="${htmlEscape(f.drive_file_id)}" data-download-name="${htmlEscape(f.nama_file_asli)}">Unduh Bukti</button></div>`).join('');
+ el('detailEvidence').innerHTML=data.map(f=>`<div class="bg-slate-50 rounded border p-3 mb-2 flex gap-3 justify-between items-center"><div class="break-all"><strong>${htmlEscape(f.nama_file_asli||'Berkas')}</strong><p class="text-xs text-slate-400">${htmlEscape(niceDate(f.waktu_unggah))}</p></div><button type="button" class="text-blue-700 underline text-xs" data-download-case="${htmlEscape(id)}" data-download-id="${htmlEscape(f.drive_file_id)}" data-download-name="${htmlEscape(f.nama_file_asli)}">Unduh aman</button></div>`).join('');
 }
 async function loadHistory(id){
  const {data,error}=await sb.from('case_logs').select('id_user,aksi,catatan,waktu_aksi').eq('id_kasus',id).order('waktu_aksi',{ascending:false}).limit(150);
@@ -369,17 +417,7 @@ async function bootstrap(){
   const settings=await response.json().catch(()=>({}));
   if(!response.ok||!settings.supabase_url||!settings.supabase_publishable_key)throw new Error(settings.error||'Konfigurasi publik tidak siap.');
   if(!window.supabase?.createClient)throw new Error('Library Supabase tidak dapat dimuat.');
-  // Sesi per tab: login.html dan app.js harus menggunakan sessionStorage yang sama.
-  // Hapus token lama di localStorage hanya untuk project Supabase staging ini.
-  try {
-   const projectRef=new URL(settings.supabase_url).hostname.split('.')[0];
-   localStorage.removeItem(`sb-${projectRef}-auth-token`);
-   localStorage.removeItem('user_role');
-   localStorage.removeItem('user_name');
-  }catch(_){/* Penyimpanan lama mungkin tidak tersedia. */}
-  sb=window.supabase.createClient(settings.supabase_url,settings.supabase_publishable_key,{
-   auth:{storage:window.sessionStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}
-  });
+  sb=window.supabase.createClient(settings.supabase_url,settings.supabase_publishable_key);
   await checkAuth();
  }catch(e){
   mustChangePassword=true;document.body.classList.add('st-password-required');showView('account');

@@ -28,9 +28,14 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 <body class="bg-slate-50 text-slate-800 font-sans flex h-screen overflow-hidden">
 
     <!-- SIDEBAR -->
-    <aside class="st-sidebar w-64 bg-npnavy text-white flex flex-col transition-all duration-300">
+    <aside class="st-sidebar w-64 bg-npnavy text-white flex flex-col transition-all duration-300" id="appSidebar" aria-label="Navigasi utama" aria-hidden="false">
         <div class="st-sidebar-brand h-16 flex items-center px-6 border-b border-slate-700">
-            <i class="ph ph-package text-2xl mr-2 text-blue-400"></i><span class="text-lg font-bold tracking-wide">StockTrace</span>
+            <div class="flex items-center min-w-0">
+                <i class="ph ph-package text-2xl mr-2 text-blue-400"></i><span class="text-lg font-bold tracking-wide">StockTrace</span>
+            </div>
+            <button type="button" class="st-mobile-nav-close" onclick="closeMobileNav({restoreFocus:true})" aria-label="Tutup menu navigasi">
+                <i class="ph ph-x text-xl" aria-hidden="true"></i>
+            </button>
         </div>
         <nav class="st-sidebar-nav flex-1 px-4 py-6 space-y-2">
             <button data-nav-view="dashboard" onclick="showView('dashboard')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-squares-four text-lg mr-3"></i><span class="st-nav-label">Dashboard</span></button>
@@ -54,11 +59,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
             </div>
         </div>
     </aside>
+    <button type="button" class="st-mobile-nav-backdrop" onclick="closeMobileNav()" aria-label="Tutup menu navigasi"></button>
 
     <!-- MAIN CONTENT -->
     <main class="st-main flex-1 flex flex-col h-screen overflow-hidden">
         <header class="h-16 bg-white shadow-sm flex items-center justify-between px-4 md:px-8 z-10">
-            <div class="flex items-center bg-slate-100 rounded-lg px-3 py-2 w-full md:w-96 min-w-0">
+            <button type="button" id="mobileNavToggle" class="st-mobile-nav-toggle" onclick="toggleMobileNav()" aria-label="Buka menu navigasi" aria-controls="appSidebar" aria-expanded="false">
+                <i class="ph ph-list text-xl" aria-hidden="true"></i>
+            </button>
+            <div class="st-header-search flex items-center bg-slate-100 rounded-lg px-3 py-2 w-full md:w-96 min-w-0">
                 <i class="ph ph-magnifying-glass text-slate-400" aria-hidden="true"></i>
                 <input type="search" id="searchCases" placeholder="Cari ID kasus, SKU, produk..." aria-label="Cari kasus" class="bg-transparent border-none outline-none text-sm ml-2 w-full min-w-0">
             </div>
