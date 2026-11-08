@@ -48,10 +48,46 @@ function showView(view){
  if(view==='cashier'&&activeUser)loadCashier();
  if(view==='account'&&activeUser){const p=el('passwordChangeForm');if(p)p.reset();}
 }
+function showAuthDiagnostic(code,message,sessionFound){
+ const sidebar=document.querySelector('.st-sidebar');
+ const main=document.querySelector('.st-main');
+ const backdrop=document.querySelector('.st-mobile-nav-backdrop');
+ if(sidebar)sidebar.style.display='none';
+ if(main)main.style.display='none';
+ if(backdrop)backdrop.style.display='none';
+ document.body.classList.remove('st-mobile-nav-open');
+ let panel=document.getElementById('authDiagnosticPanel');
+ if(!panel){
+  panel=document.createElement('main');
+  panel.id='authDiagnosticPanel';
+  panel.setAttribute('role','alert');
+  panel.style.cssText='max-width:560px;margin:8vh auto;padding:24px;border:1px solid #cbd5e1;border-radius:16px;background:#fff;color:#0f172a;font:14px/1.6 system-ui,sans-serif;box-shadow:0 12px 36px rgba(15,23,42,.10)';
+  document.body.appendChild(panel);
+ }
+ const storageKeys=(()=>{try{return Object.keys(localStorage).filter(k=>/^sb-.+-auth-token$/.test(k));}catch(_){return []}})();
+ panel.innerHTML=`<div style="font-size:12px;font-weight:700;letter-spacing:.08em;color:#64748b">STOCKTRACE · DIAGNOSTIK LOGIN</div>
+  <h1 style="font-size:21px;font-weight:700;margin:8px 0">Sesi belum dapat diverifikasi</h1>
+  <p style="margin:8px 0 14px;color:#475569">Aplikasi menghentikan pembukaan dashboard karena pemeriksaan sesi Supabase gagal. Ini bukan logout manual.</p>
+  <div style="padding:12px;border-radius:10px;background:#f1f5f9;margin:12px 0">
+   <div><strong>Kode:</strong> ${htmlEscape(code)}</div>
+   <div><strong>Sesi tersimpan:</strong> ${sessionFound?'Ya':'Tidak terdeteksi'}</div>
+   <div><strong>Storage key Supabase:</strong> ${storageKeys.length?htmlEscape(storageKeys.join(', ')):'Tidak ditemukan'}</div>
+   <div style="margin-top:8px"><strong>Detail:</strong><br>${htmlEscape(message||'Tidak ada detail dari Supabase.')}</div>
+  </div>
+  <p style="font-size:12px;color:#64748b">Informasi ini tidak menampilkan access token, refresh token, cookie, atau password.</p>
+  <a href="login.html" style="display:inline-block;margin-top:8px;padding:10px 16px;border-radius:9px;background:#1e293b;color:#fff;text-decoration:none;font-weight:600">Kembali ke halaman login</a>`;
+ console.error('StockTrace auth diagnostic', {code,message,sessionFound,storageKeys});
+}
 async function checkAuth(){
  if(!sb)return notice('Koneksi Supabase gagal','Pustaka Supabase tidak bisa dimuat.','error');
  try{
-  const {data:{user},error}=await sb.auth.getUser();if(error||!user)return redirectLogin();
+  const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+  if(sessionError){showAuthDiagnostic('GET_SESSION_ERROR',sessionError.message,false);return;}
+  const session=sessionData?.session||null;
+  if(!session?.access_token){showAuthDiagnostic('SESSION_NOT_FOUND','Supabase tidak menemukan sesi yang tersimpan pada halaman dashboard.',false);return;}
+  const {data:userData,error}=await sb.auth.getUser();
+  const user=userData?.user||null;
+  if(error||!user){showAuthDiagnostic('GET_USER_FAILED',error?.message||'Supabase tidak mengembalikan user meskipun sesi ditemukan.',true);return;}
   activeUser=user;
   const {data:profile,error:profileError}=await sb.from('users').select('role,nama_lengkap,login_id').eq('id_user',user.id).single();
   if(profileError||!profile)throw new Error('Akun tidak memiliki profil atau izin SELECT public.users: '+(profileError?.message||''));
