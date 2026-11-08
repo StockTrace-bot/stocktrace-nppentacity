@@ -11,6 +11,22 @@
 
   if (!sidebar || !toggle || !backdrop) return;
 
+  // app.js owns view logic. Wrap only the view switch so mobile starts each
+  // screen at its heading instead of retaining the previous screen's scroll.
+  const originalShowView = window.showView;
+  if (typeof originalShowView === 'function' && !originalShowView.__stMobileScrollReset) {
+    const showViewWithScrollReset = function () {
+      const result = originalShowView.apply(this, arguments);
+      if (mobileQuery.matches) {
+        const scroller = document.querySelector('.st-main > .flex-1.overflow-y-auto');
+        if (scroller) scroller.scrollTop = 0;
+      }
+      return result;
+    };
+    showViewWithScrollReset.__stMobileScrollReset = true;
+    window.showView = showViewWithScrollReset;
+  }
+
   function setOpen(open, restoreFocus) {
     const isMobile = mobileQuery.matches;
     if (!isMobile) open = false;

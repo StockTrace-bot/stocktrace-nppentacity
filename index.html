@@ -64,7 +64,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
     <!-- MAIN CONTENT -->
     <main class="st-main flex-1 flex flex-col h-screen overflow-hidden">
         <header class="h-16 bg-white shadow-sm flex items-center justify-between px-4 md:px-8 z-10">
-            <button type="button" id="mobileNavToggle" class="st-mobile-nav-toggle" onclick="toggleMobileNav()" aria-label="Buka menu navigasi" aria-controls="appSidebar" aria-expanded="false">
+            <button type="button" id="mobileNavToggle" class="st-mobile-nav-toggle" aria-label="Buka menu navigasi" aria-controls="appSidebar" aria-expanded="false">
                 <i class="ph ph-list text-xl" aria-hidden="true"></i>
             </button>
             <div class="st-header-search flex items-center bg-slate-100 rounded-lg px-3 py-2 w-full md:w-96 min-w-0">
@@ -113,29 +113,44 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                 <h1 class="text-2xl font-bold text-slate-800">Form Laporan Selisih Stok</h1>
                 <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
                     <form id="formLaporanLengkap" class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div class="space-y-4">
+                        <div class="space-y-4 st-form-section">
                             <h3 class="font-semibold text-slate-800 border-b pb-2">Informasi Produk</h3>
-                            <input type="text" id="inputSKU" placeholder="SKU (ex: NP-SC-BLU)" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
-                            <input type="text" id="inputNama" placeholder="Nama Produk" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
-                            <div class="flex gap-4">
-                                <div class="w-1/2"><label class="text-xs text-slate-500">Stok Sistem</label><input type="number" id="inputSistem" value="0" min="0" step="1" required class="w-full p-2 border rounded text-center"></div>
-                                <div class="w-1/2"><label class="text-xs text-slate-500">Stok Fisik</label><input type="number" id="inputFisik" value="0" min="0" step="1" required class="w-full p-2 border rounded text-center"></div>
+                            <div class="st-form-field">
+                                <label class="st-form-label" for="inputSKU">SKU Produk</label>
+                                <input type="text" id="inputSKU" placeholder="Contoh: NP-SC-BLU" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
+                            </div>
+                            <div class="st-form-field">
+                                <label class="st-form-label" for="inputNama">Nama Produk</label>
+                                <input type="text" id="inputNama" placeholder="Masukkan nama produk" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
+                            </div>
+                            <div class="flex gap-4 st-stock-fields">
+                                <div class="st-stock-field"><label class="text-xs text-slate-500" for="inputSistem">Stok Sistem</label><input type="number" id="inputSistem" value="0" min="0" step="1" required class="w-full p-2 border rounded text-center"></div>
+                                <div class="st-stock-field"><label class="text-xs text-slate-500" for="inputFisik">Stok Fisik</label><input type="number" id="inputFisik" value="0" min="0" step="1" required class="w-full p-2 border rounded text-center"></div>
                             </div>
                         </div>
-                        <div class="space-y-4">
+                        <div class="space-y-4 st-form-section">
                             <h3 class="font-semibold text-slate-800 border-b pb-2">Kronologi & Bukti</h3>
-                            <select id="inputPenyebab" class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
-                                <option>Belum diketahui / perlu penelusuran</option>
-                                <option>Kesalahan Input Kasir</option>
-                                <option>Selisih Penerimaan dari Pusat</option>
-                                <option>Retur Pelanggan</option><option>Selisih Dokumen Penerimaan</option><option>Perlu Pemeriksaan IT/MD</option><option>Lainnya</option>
-                            </select>
-                            <textarea id="inputKronologi" rows="3" placeholder="Jelaskan tanggal pemeriksaan, kondisi stok, dan bukti pendukung..." minlength="8" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500 resize-none"></textarea>
-                            <input type="file" id="inputFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" required class="w-full text-sm p-2 border border-dashed rounded-lg bg-slate-50">
-                            <p class="text-xs text-slate-400">Boleh pilih beberapa berkas (diproses satu per satu), maksimal 100 MiB (sekitar 105 MB) per berkas. File besar dikirim langsung ke Google Drive; jangan tutup tab saat proses berlangsung.</p>
+                            <div class="st-form-field">
+                                <label class="st-form-label" for="inputPenyebab">Dugaan Penyebab</label>
+                                <select id="inputPenyebab" class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
+                                    <option>Belum diketahui / perlu penelusuran</option>
+                                    <option>Kesalahan Input Kasir</option>
+                                    <option>Selisih Penerimaan dari Pusat</option>
+                                    <option>Retur Pelanggan</option><option>Selisih Dokumen Penerimaan</option><option>Perlu Pemeriksaan IT/MD</option><option>Lainnya</option>
+                                </select>
+                            </div>
+                            <div class="st-form-field">
+                                <label class="st-form-label" for="inputKronologi">Kronologi Pemeriksaan</label>
+                                <textarea id="inputKronologi" rows="3" placeholder="Jelaskan tanggal pemeriksaan, kondisi stok, dan bukti pendukung..." minlength="8" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500 resize-none"></textarea>
+                            </div>
+                            <div class="st-form-field">
+                                <label class="st-form-label" for="inputFile">Bukti Pendukung</label>
+                                <input type="file" id="inputFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" required class="w-full text-sm p-2 border border-dashed rounded-lg bg-slate-50">
+                                <p class="st-file-help text-xs text-slate-400">Boleh pilih beberapa berkas (diproses satu per satu), maksimal 100 MiB per berkas. File besar dikirim langsung ke Google Drive; jangan tutup tab saat proses berlangsung.</p>
+                            </div>
                             <p id="uploadProgressReport" role="status" aria-live="polite" class="text-sm text-blue-700 font-medium" aria-label="Kemajuan upload"></p>
                         </div>
-                        <div class="col-span-1 md:col-span-2 pt-4 flex justify-end">
+                        <div class="col-span-1 md:col-span-2 pt-4 flex justify-end st-form-actions">
                             <button type="button" onclick="showView('dashboard')" class="px-5 py-2 mr-3 border rounded-lg text-sm">Batal</button>
                             <button type="submit" id="btnSubmitLaporan" class="px-5 py-2 bg-npnavy text-white rounded-lg text-sm">Kirim Laporan</button>
                         </div>
