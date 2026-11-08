@@ -28,57 +28,9 @@ function notice(title,message,icon='info'){
 }
 function redirectLogin(){window.location.replace('login.html');}
 function canManageCases(){return activeRole.toLowerCase().trim()==='leader';}
-
-function isMobileNavViewport(){return window.matchMedia('(max-width: 767px)').matches;}
-function setMobileNavOpen(open,{restoreFocus=false}={}){
- const mobile=isMobileNavViewport();
- if(!mobile)open=false;
- document.body.classList.toggle('st-mobile-nav-open',open);
- const toggle=el('mobileNavToggle');
- const sidebar=el('appSidebar');
- if(toggle){
-  toggle.setAttribute('aria-expanded',String(open));
-  toggle.setAttribute('aria-label',open?'Tutup menu navigasi':'Buka menu navigasi');
-  const icon=toggle.querySelector('i');
-  if(icon){icon.classList.toggle('ph-list',!open);icon.classList.toggle('ph-x',open);}
- }
- if(sidebar)sidebar.setAttribute('aria-hidden',String(mobile&&!open));
- if(open&&mobile&&sidebar){const first=sidebar.querySelector('[data-nav-view]');if(first)first.focus({preventScroll:true});}
- if(!open&&restoreFocus&&mobile&&toggle)toggle.focus({preventScroll:true});
-}
-function toggleMobileNav(){
- if(!isMobileNavViewport())return;
- setMobileNavOpen(!document.body.classList.contains('st-mobile-nav-open'));
-}
-function closeMobileNav(options={}){
- setMobileNavOpen(false,options);
-}
-setMobileNavOpen(false);
-document.addEventListener('keydown',event=>{
- if(event.key==='Escape'&&document.body.classList.contains('st-mobile-nav-open')){
-  closeMobileNav({restoreFocus:true});
- }
-});
-window.addEventListener('resize',()=>{
- const sidebar=el('appSidebar');
- if(!isMobileNavViewport()){
-  document.body.classList.remove('st-mobile-nav-open');
-  if(sidebar)sidebar.setAttribute('aria-hidden','false');
-  const toggle=el('mobileNavToggle');
-  if(toggle){
-   toggle.setAttribute('aria-expanded','false');
-   toggle.setAttribute('aria-label','Buka menu navigasi');
-   const icon=toggle.querySelector('i');
-   if(icon){icon.classList.add('ph-list');icon.classList.remove('ph-x');}
-  }
- }else if(sidebar&&!document.body.classList.contains('st-mobile-nav-open')){
-  sidebar.setAttribute('aria-hidden','true');
- }
-});
 function niceDate(value){if(!value)return 'Waktu belum dicatat';let d=new Date(value);if(isNaN(d.getTime()))return 'Waktu tidak valid';return new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Makassar',dateStyle:'medium',timeStyle:'short'}).format(d)+' WITA';}
 function showView(view){
  if(mustChangePassword&&view!=='account'){view='account';}
- closeMobileNav({restoreFocus:true});
  for(const name of ['dashboard','form-laporan','detail-kasus','archive','reports','intake','cashier','account']){
   const node=el('view-'+name); if(node){node.classList.toggle('hidden',view!==name);node.classList.toggle('block',view===name);}
  }

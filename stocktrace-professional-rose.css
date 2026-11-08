@@ -32,7 +32,7 @@ input:focus,textarea:focus,select:focus{--tw-ring-color:rgba(182,87,120,.24)}
 #view-dashboard .st-data-table th,#view-archive .st-data-table th{white-space:nowrap}
 #view-dashboard .st-data-table tbody tr:hover,#view-archive .st-data-table tbody tr:hover{background:#F8FAFC}
 .st-scroll-hint{display:none}
-/* Responsive application shell: full sidebar on desktop, off-canvas drawer on phones. */
+/* Responsive application shell: desktop sidebar, mobile off-canvas drawer. */
 html,body { min-width:0; }
 body { display:flex; overflow:hidden; }
 .st-sidebar {
@@ -48,7 +48,7 @@ body { display:flex; overflow:hidden; }
 .st-sidebar-nav { min-height:0; overflow-y:auto; overscroll-behavior:contain; }
 .st-sidebar-nav button { text-align:left; }
 .st-sidebar-nav button .st-nav-label { flex:1; min-width:0; }
-.st-main { flex:1 1 auto; min-width:0; width:0; height:100vh; height:100dvh; }
+.st-main { min-width:0; height:100vh; height:100dvh; }
 .st-main>header { flex:0 0 64px; }
 .st-main>.flex-1.overflow-y-auto {
   min-width:0;
@@ -71,6 +71,7 @@ body { display:flex; overflow:hidden; }
 .st-dashboard-heading-text p { overflow-wrap:anywhere; }
 .st-dashboard-action { flex:0 0 auto; white-space:nowrap; align-self:flex-start; justify-content:center; }
 .st-scroll-hint { display:none; }
+
 @media(min-width:1024px) {
   #view-dashboard .grid.grid-cols-2.xl\:grid-cols-4 { grid-template-columns:repeat(4,minmax(0,1fr)); }
 }
@@ -86,7 +87,6 @@ body { display:flex; overflow:hidden; }
   body { width:100%; }
   body.st-mobile-nav-open { overflow:hidden; }
 
-  /* Sidebar is removed from the page layout and slides in only on demand. */
   .st-sidebar {
     position:fixed;
     inset:0 auto 0 0;
