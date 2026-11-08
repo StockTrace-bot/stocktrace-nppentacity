@@ -262,7 +262,7 @@ async function refreshIntakeSummary(client,sid,intakeId){
   const detailRows=(await client.spreadsheets.values.get({spreadsheetId:sid,range:a1('Detail SKU','A2:G')})).data.values||[];
   const matched=detailRows.filter(row=>String(row[0]||'')===String(intakeId));
   const differences=matched.map(row=>Number(row[5]||0));
-  const summary=[matched.length,differences.filter(value=>value!==0).length,differences.reduce((sum,value)=>sum+Math.abs(value),0)];
+  const summary=[matched.length,differences.filter(value=>value!==0).length,differences.reduce((sum,value)=>sum+value,0)];
   const intakeIds=(await client.spreadsheets.values.get({spreadsheetId:sid,range:a1('Penerimaan','A2:A')})).data.values||[];
   const index=intakeIds.findIndex(row=>String(row[0]||'')===String(intakeId));
   if(index===-1)return;
@@ -329,7 +329,7 @@ async function fullSync(client,sid,identity,tables){
       const difference=Number(item.qty_difference??(Number(item.qty_received)-Number(item.qty_document)));
       summary.count++;
       if(difference!==0)summary.diffSkus++;
-      summary.totalDiff+=Math.abs(difference);
+      summary.totalDiff+=difference;
       summaries.set(id,summary);
     }
   }
