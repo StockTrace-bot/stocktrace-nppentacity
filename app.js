@@ -64,13 +64,22 @@ function showAuthDiagnostic(code,message,sessionFound){
   panel.style.cssText='max-width:560px;margin:8vh auto;padding:24px;border:1px solid #cbd5e1;border-radius:16px;background:#fff;color:#0f172a;font:14px/1.6 system-ui,sans-serif;box-shadow:0 12px 36px rgba(15,23,42,.10)';
   document.body.appendChild(panel);
  }
- const storageKeys=(()=>{try{return Object.keys(localStorage).filter(k=>/^sb-.+-auth-token$/.test(k));}catch(_){return []}})();
+ const storageKeys=(()=>{try{return Object.keys(localStorage).filter(k=>k.startsWith('sb-')&&k.endsWith('-auth-token'));}catch(_){return []}})();
+ const authDebug=window.__stocktraceAuthDebug||{};
+ const storageReadable=(()=>{try{void localStorage.length;return true;}catch(_){return false;}})();
+ const expectedKey=authDebug.expectedStorageKey||'Tidak diketahui';
+ const expectedKeyExists=(()=>{try{return expectedKey!=='Tidak diketahui'&&localStorage.getItem(expectedKey)!==null;}catch(_){return false;}})();
  panel.innerHTML=`<div style="font-size:12px;font-weight:700;letter-spacing:.08em;color:#64748b">STOCKTRACE · DIAGNOSTIK LOGIN</div>
   <h1 style="font-size:21px;font-weight:700;margin:8px 0">Sesi belum dapat diverifikasi</h1>
   <p style="margin:8px 0 14px;color:#475569">Aplikasi menghentikan pembukaan dashboard karena pemeriksaan sesi Supabase gagal. Ini bukan logout manual.</p>
   <div style="padding:12px;border-radius:10px;background:#f1f5f9;margin:12px 0">
    <div><strong>Kode:</strong> ${htmlEscape(code)}</div>
    <div><strong>Sesi tersimpan:</strong> ${sessionFound?'Ya':'Tidak terdeteksi'}</div>
+   <div><strong>Origin dashboard:</strong> ${htmlEscape(window.location.origin)}</div>
+   <div><strong>Project ref dashboard:</strong> ${htmlEscape(authDebug.projectRef||'Tidak diketahui')}</div>
+   <div><strong>Storage key yang diharapkan:</strong> ${htmlEscape(expectedKey)}</div>
+   <div><strong>localStorage dapat dibaca:</strong> ${storageReadable?'Ya':'Tidak'}</div>
+   <div><strong>Key yang diharapkan ditemukan:</strong> ${expectedKeyExists?'Ya':'Tidak'}</div>
    <div><strong>Storage key Supabase:</strong> ${storageKeys.length?htmlEscape(storageKeys.join(', ')):'Tidak ditemukan'}</div>
    <div style="margin-top:8px"><strong>Detail:</strong><br>${htmlEscape(message||'Tidak ada detail dari Supabase.')}</div>
   </div>
@@ -404,6 +413,8 @@ async function bootstrap(){
   const response=await fetch('/api/public-config',{cache:'no-store'});
   const settings=await response.json().catch(()=>({}));
   if(!response.ok||!settings.supabase_url||!settings.supabase_publishable_key)throw new Error(settings.error||'Konfigurasi publik tidak siap.');
+  const projectRef=new URL(settings.supabase_url).hostname.split('.')[0];
+  window.__stocktraceAuthDebug={origin:window.location.origin,projectRef,expectedStorageKey:`sb-${projectRef}-auth-token`};
   if(!window.supabase?.createClient)throw new Error('Library Supabase tidak dapat dimuat.');
   sb=window.supabase.createClient(settings.supabase_url,settings.supabase_publishable_key);
   await checkAuth();
