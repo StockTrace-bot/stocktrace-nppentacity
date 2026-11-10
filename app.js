@@ -353,9 +353,10 @@ async function loadArchive(){
    ...(cashierRes.data||[]).map(x=>({type:'cashier_request',id:x.id_request,label:'Permintaan kasir',detail:`${x.sku} · ${x.product_name} · ${x.status_request}`,when:x.deleted_at,reason:x.delete_reason}))
   ].sort((a,b)=>toText(b.when).localeCompare(toText(a.when)));
   el('archiveBody').innerHTML=rows.map(x=>`<tr class="border-b"><td class="py-3 pr-3">${htmlEscape(x.label)}</td><td class="py-3 pr-3 break-all"><strong>${htmlEscape(x.id)}</strong><span class="block text-xs text-slate-500">${htmlEscape(x.detail)}</span></td><td class="py-3 pr-3 whitespace-nowrap">${htmlEscape(niceDate(x.when))}</td><td class="py-3 pr-3">${htmlEscape(x.reason||'—')}</td><td class="py-3"><div class="flex flex-wrap gap-3">${x.download?`<button type="button" class="text-blue-700 underline text-xs" data-download-case="${htmlEscape(x.download.caseId)}" data-download-id="${htmlEscape(x.download.fileId)}" data-download-name="${htmlEscape(x.download.name)}">Unduh</button>`:''}<button type="button" class="st-restore-action" data-restore-type="${htmlEscape(x.type)}" data-restore-id="${htmlEscape(x.id)}">Pulihkan</button></div></td></tr>`).join('')||'<tr><td colspan="5" class="py-6 text-center text-slate-500">Belum ada data di Arsip & Sampah.</td></tr>';
-  el('archiveNotice').textContent=`${rows.length} item berada di Arsip & Sampah. File Drive tetap dipertahankan dan ditandai sebagai diarsipkan; pemulihan tersedia untuk Leader.`;
+  el('archiveNotice').textContent=`Total arsip: ${rows.length} item.`;
  }catch(error){
-  el('archiveNotice').textContent='Arsip belum siap: '+error.message+'. Pastikan migrasi soft delete StockTrace sudah dijalankan.';
+  console.error('StockTrace archive load failed:',error);
+  el('archiveNotice').textContent='Gagal memuat arsip. Coba lagi.';
  }
 }
 
@@ -389,7 +390,7 @@ async function archiveRecord(type,id){
   else if(type==='intake_evidence')await loadIntakes();
   else if(type==='cashier_request')await loadCashier();
   if(canManageCases())await loadArchive();
-  await notice('Data masuk Arsip & Sampah',`${label} berhasil diarsipkan. Data dan file tetap dapat dipulihkan oleh Leader.`,'success');
+  await notice('Berhasil diarsipkan',`${label} berhasil diarsipkan.`,'success');
  }catch(error){await notice('Pengarsipan gagal',error.message,'error');}
 }
 async function restoreArchiveRecord(type,id){
@@ -400,7 +401,7 @@ async function restoreArchiveRecord(type,id){
   const {data,error}=await sb.rpc('stocktrace_restore_record',{p_entity_type:type,p_entity_id:String(id),p_reason:reason});
   if(error)throw new Error(error.message);if(!data?.ok)throw new Error(data?.message||'Database belum mengonfirmasi pemulihan.');
   await Promise.all([loadCases(),loadIntakesSafe(),loadCashierSafe(),loadArchive()]);
-  await notice('Data berhasil dipulihkan',`${label} kembali tersedia di aplikasi. Sinkronisasi Sheets dan Drive berjalan melalui webhook.`, 'success');
+  await notice('Berhasil dipulihkan',`${label} kembali tersedia.`, 'success');
  }catch(error){await notice('Pemulihan gagal',error.message,'error');}
 }
 async function loadIntakesSafe(){if(typeof loadIntakes==='function')await loadIntakes();}

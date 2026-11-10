@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 const sql = read('sql/12_SOFT_DELETE_ARCHIVE_FINAL.sql');
+const driveArchiveMigration = read('sql/13_DRIVE_ARCHIVE_FOLDER_MIGRATION.sql');
 const app = read('app.js');
 const v21 = read('v21.js');
 const login = read('login.html');
@@ -34,10 +35,21 @@ test('archive RPC is protected and role-limited; restore is Leader-only', () => 
 
 test('soft archive preserves Drive files and sends reversible status updates', () => {
   assert.match(drive, /body\.type === 'UPDATE'/);
-  assert.match(drive, /stocktrace_status: action === 'archive' \? 'archived' : 'active'/);
+  assert.match(drive, /stocktrace_status = 'archived'/);
+  assert.match(drive, /addParents/);
+  assert.match(drive, /removeParents/);
   assert.match(drive, /trashed: false/);
   assert.match(sql, /AFTER UPDATE OF deleted_at/);
   assert.match(sql, /stocktrace_soft_archive_drive_evidence/);
+});
+
+test('Drive archive patch creates a managed folder and reconciles previously archived evidence', () => {
+  assert.match(drive, /ARSIP STOCKTRACE/);
+  assert.match(drive, /findOrCreateArchiveFolder/);
+  assert.match(drive, /stocktrace_original_parent/);
+  assert.match(driveArchiveMigration, /UPDATE public\.evidence_files[\s\S]*SET deleted_at = deleted_at/);
+  assert.match(driveArchiveMigration, /UPDATE public\.stocktrace_intake_evidence[\s\S]*SET deleted_at = deleted_at/);
+  assert.match(driveArchiveMigration, /NEW\.deleted_at IS NOT NULL/);
 });
 
 test('Google Sheets marks archived records and appends the status header safely', () => {

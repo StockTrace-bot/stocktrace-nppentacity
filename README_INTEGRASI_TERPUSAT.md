@@ -62,7 +62,7 @@ Jika JSON pusat sudah terpasang, nilainya menjadi prioritas. Empat variabel lama
 
 ## 4. Webhook tidak perlu dibuat satu per satu lagi
 
-Semua webhook tabel Google Sheets memakai endpoint yang sama, `/api/sheets-sync`. Endpoint menentukan spreadsheet tujuan dari nama tabel. Dua trigger DELETE bukti memakai `/api/drive-delete`, yang menentukan folder dari tabel bukti.
+Semua webhook tabel Google Sheets memakai endpoint yang sama, `/api/sheets-sync`. Endpoint menentukan spreadsheet tujuan dari nama tabel. Trigger UPDATE/DELETE bukti memakai `/api/drive-delete`, yang menentukan folder dari tabel bukti. Saat arsip pertama kali dipakai, endpoint membuat subfolder `ARSIP STOCKTRACE` secara otomatis; pemulihan memindahkan file kembali ke folder induk aktif. Tidak ada ID folder arsip tambahan atau environment variable baru.
 
 Jangan membuat webhook duplikat. Jangan jalankan ulang SQL migrasi/reset. Jika webhook Production saat ini sudah ENABLED dan mengarah ke domain utama, biarkan tetap seperti itu.
 
@@ -72,7 +72,7 @@ Jangan membuat webhook duplikat. Jangan jalankan ulang SQL migrasi/reset. Jika w
 
 ## 6. Keamanan dan batasan
 
-- Tidak ada data Supabase, file Drive, atau baris spreadsheet yang dihapus oleh perubahan ini.
+- Tidak ada data Supabase atau file Drive yang dihapus permanen oleh pengarsipan. File hanya dipindahkan antara folder aktif dan subfolder arsip; event DELETE fisik terverifikasi tetap menggunakan Trash.
 - Tidak ada SQL reset atau migrasi database baru dalam paket integrasi terpusat.
 - Tidak ada kredensial rahasia yang dimasukkan ke source code atau ZIP.
 - Sinkronisasi Sheets tetap asynchronous melalui Supabase Database Webhooks; Supabase tetap sumber data utama.

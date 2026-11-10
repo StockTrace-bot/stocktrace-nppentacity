@@ -1,6 +1,6 @@
-# StockTrace V2.2 — catatan versi terbaru
+# StockTrace V2.2 — catatan versi sebelumnya
 
-Panduan deployment utama ada di `README_FINAL_STOCKTRACE_V22.md`. Dokumen ini dipertahankan sebagai catatan V2 sebelumnya.
+Panduan deployment utama ada di `README_FINAL_STOCKTRACE_V22.md` (V2.2.1). Dokumen ini dipertahankan sebagai catatan V2 sebelumnya.
 
 ---
 
