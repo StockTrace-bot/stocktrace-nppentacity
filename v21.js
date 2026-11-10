@@ -33,7 +33,7 @@ async function loadIntakes(){
  el('intakeNotice').textContent='Memuat penerimaan & rincian...';
  try{
   const [headers,items,evid]=await Promise.all([v21ReadPaged('stocktrace_intakes'),v21ReadPaged('stocktrace_intake_items','id_intake'),v21ReadPaged('stocktrace_intake_evidence','waktu_unggah')]);
-  v21Intakes=headers.rows;v21Items=items.rows;v21IntakeEvidence=evid.rows;
+  v21Intakes=headers.rows.filter(x=>!x.deleted_at);v21Items=items.rows.filter(x=>!x.deleted_at);v21IntakeEvidence=evid.rows.filter(x=>!x.deleted_at);
   v21RenderIntakes();el('intakeNotice').textContent=`${v21Intakes.length} dokumen, ${v21Items.length} baris SKU. ${headers.truncated||items.truncated||evid.truncated?'Batas 5.000 baris tercapai; ekspor hanya data yang termuat.':''}`;
   if(v21SelectedIntake)v21OpenIntake(v21SelectedIntake);
  }catch(e){el('intakeNotice').textContent='Gagal memuat penerimaan: '+e.message;}
@@ -54,13 +54,13 @@ function v21OpenIntake(id){
  v21SelectedIntake=id;const h=v21Intakes.find(x=>x.id_intake===id);if(!h)return;
  const items=v21Items.filter(x=>x.id_intake===id);const files=v21IntakeEvidence.filter(x=>x.id_intake===id);
  const lines=items.map(x=>`<tr><td>${htmlEscape(x.sku)}</td><td>${htmlEscape(x.product_name)}</td><td>${x.qty_document}</td><td>${x.qty_received}</td><td><strong>${x.qty_difference>0?'+':''}${x.qty_difference}</strong></td></tr>`).join('');
- const links=files.map(f=>`<div class="text-xs py-2 border-b flex justify-between gap-3"><span class="break-all">${htmlEscape(f.nama_file_asli)} · ${htmlEscape(niceDate(f.waktu_unggah))}</span><button type="button" class="st-inline-action" data-download-case="${htmlEscape(id)}" data-download-id="${htmlEscape(f.drive_file_id)}" data-download-name="${htmlEscape(f.nama_file_asli)}">Unduh</button></div>`).join('');
+ const links=files.map(f=>`<div class="text-xs py-2 border-b flex justify-between gap-3 flex-wrap"><span class="break-all">${htmlEscape(f.nama_file_asli)} · ${htmlEscape(niceDate(f.waktu_unggah))}</span><span class="flex gap-3"><button type="button" class="st-inline-action" data-download-case="${htmlEscape(id)}" data-download-id="${htmlEscape(f.drive_file_id)}" data-download-name="${htmlEscape(f.nama_file_asli)}">Unduh</button>${canManageCases()?`<button type="button" class="st-archive-action" data-archive-record="intake_evidence" data-archive-id="${htmlEscape(f.id_file)}">Arsipkan</button>`:''}</span></div>`).join('');
  el('intakeDetail').innerHTML=`<div class="st-detail-box space-y-3"><div class="flex flex-wrap justify-between gap-2"><h3 class="font-semibold">Rincian ${htmlEscape(id)}</h3><button type="button" class="st-inline-action" data-close-intake="1">Tutup</button></div>
  <p class="text-xs">Dokumen: <strong>${htmlEscape(h.document_no)}</strong> · Tanggal: ${htmlEscape(h.received_on)} · Pengirim: ${htmlEscape(h.supplier)} · Dicatat: ${htmlEscape(niceDate(h.created_at))}</p>
  <p class="text-xs whitespace-pre-wrap">Catatan: ${htmlEscape(h.note||'—')}</p><div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full text-sm"><thead><tr><th>SKU</th><th>Produk</th><th>Dokumen</th><th>Diterima</th><th>Selisih</th></tr></thead><tbody>${lines}</tbody></table></div>
  <h4 class="font-semibold text-sm">Bukti penerimaan (${files.length})</h4>${links||'<p class="text-xs text-slate-500">Belum ada lampiran.</p>'}
  <div class="border-t pt-3 space-y-2"><label class="st-field-label" for="intakeDetailFiles">Tambah bukti setelah dokumen disimpan</label><input id="intakeDetailFiles" type="file" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" class="st-field"/><p id="intakeDetailProgress" class="text-xs text-blue-700" role="status" aria-live="polite"></p><button type="button" class="st-secondary-btn" data-upload-intake="${htmlEscape(id)}">Unggah lampiran</button></div>
- <button type="button" class="st-primary-btn" data-intake-to-cashier="${htmlEscape(id)}">Buat permintaan stok kasir terkait</button></div>`;
+  <div class="flex flex-wrap gap-2"><button type="button" class="st-primary-btn" data-intake-to-cashier="${htmlEscape(id)}">Buat permintaan stok kasir terkait</button>${canManageCases()?`<button type="button" class="st-archive-action" data-archive-intake="${htmlEscape(id)}">Arsipkan dokumen</button>`:''}</div></div>`;
 }
 async function v21AttachFiles(files,id,progress){
  if(!files.length)return {count:0,errors:[]};
@@ -114,7 +114,7 @@ function v21Export(){
 async function loadCashier(){
  if(!activeUser||mustChangePassword)return;
  el('cashierNotice').textContent='Memuat permintaan update stok...';
- try{const data=await v21ReadPaged('stocktrace_cashier_requests');v21Cashier=data.rows;v21RenderCashier();el('cashierNotice').textContent=`${v21Cashier.length} permintaan termuat. ${data.truncated?'Batas 5.000 baris tercapai.':''}`;if(v21SelectedCashier)await v21OpenCashier(v21SelectedCashier);}
+ try{const data=await v21ReadPaged('stocktrace_cashier_requests');v21Cashier=data.rows.filter(x=>!x.deleted_at);v21RenderCashier();el('cashierNotice').textContent=`${v21Cashier.length} permintaan termuat. ${data.truncated?'Batas 5.000 baris tercapai.':''}`;if(v21SelectedCashier)await v21OpenCashier(v21SelectedCashier);}
  catch(e){el('cashierNotice').textContent='Gagal memuat permintaan: '+e.message;}
 }
 function v21RenderCashier(){
@@ -129,10 +129,12 @@ async function v21OpenCashier(id){
  v21SelectedCashier=id;const r=v21Cashier.find(x=>x.id_request===id);if(!r)return;
  const {data,error}=await sb.from('stocktrace_cashier_logs').select('action,note,id_user,created_at').eq('id_request',id).order('created_at',{ascending:false}).limit(150);
  const history=error?'<p class="text-xs text-red-700">Gagal membaca riwayat: '+htmlEscape(error.message)+'</p>':(data||[]).map(x=>`<div class="border-l-2 border-blue-300 pl-3 py-1 mb-3 text-xs"><strong>${htmlEscape(x.action)}</strong><p>${htmlEscape(niceDate(x.created_at))} · ${htmlEscape(displayPerson(x.id_user))}</p><p class="whitespace-pre-wrap">${htmlEscape(x.note)}</p></div>`).join('')||'<p class="text-xs">Belum ada riwayat.</p>';
+  const canArchive=canManageCases()||(r.created_by===activeUser?.id&&r.status_request==='Diajukan');
+  const archiveAction=canArchive?`<button type="button" class="st-archive-action" data-archive-cashier="${htmlEscape(id)}">Arsipkan permintaan</button>`:'';
  const management=canManageCases()?`<div class="border-t pt-3 space-y-2"><h4 class="font-semibold text-sm">Tindak lanjut Leader</h4><label class="st-field-label" for="cashierStatus">Ubah status monitoring</label><select id="cashierStatus" class="st-field">${cashierStatuses.map(s=>`<option ${s===r.status_request?'selected':''}>${htmlEscape(s)}</option>`).join('')}</select><label class="st-field-label" for="cashierStatusNote">Catatan wajib (minimal 8 karakter)</label><textarea id="cashierStatusNote" class="st-field" rows="3" maxlength="2000"></textarea><button type="button" class="st-primary-btn" data-save-cashier="${htmlEscape(id)}">Simpan status & riwayat</button></div>`:'';
  el('cashierDetail').innerHTML=`<div class="st-detail-box space-y-3"><div class="flex flex-wrap justify-between gap-2"><h3 class="font-semibold">${htmlEscape(id)} — ${htmlEscape(r.sku)}</h3><button type="button" data-close-cashier="1" class="st-inline-action">Tutup</button></div>
  <div class="text-xs grid grid-cols-1 md:grid-cols-2 gap-3"><p>Nama: ${htmlEscape(r.product_name)}<br>Kasir: ${r.qty_system} · Fisik: ${r.qty_physical} · Selisih: ${r.qty_difference}</p><p>Kasus R1: ${htmlEscape(r.id_kasus||'—')}<br>Penerimaan: ${htmlEscape(r.id_intake||'—')}<br>Status: ${htmlEscape(r.status_request)}</p></div>
- <p class="text-xs whitespace-pre-wrap">Alasan: ${htmlEscape(r.reason)}</p><h4 class="font-semibold text-sm">Riwayat permintaan</h4>${history}${management}</div>`;
+ <p class="text-xs whitespace-pre-wrap">Alasan: ${htmlEscape(r.reason)}</p><h4 class="font-semibold text-sm">Riwayat permintaan</h4>${history}<div class="flex flex-wrap gap-2">${archiveAction}</div>${management}</div>`;
 }
 async function v21SaveCashier(event){
  event.preventDefault();const system=v21Int(el('cashierSystem')),physical=v21Int(el('cashierPhysical'));
@@ -172,6 +174,8 @@ el('intakeDetail').addEventListener('click',async e=>{
  const target=e.target.closest('button');if(!target)return;
  if(target.dataset.closeIntake){v21SelectedIntake=null;el('intakeDetail').replaceChildren();return;}
  if(target.dataset.downloadId){downloadClick(e);return;}
+  if(target.dataset.archiveIntake){archiveRecord('intake',target.dataset.archiveIntake);return;}
+  if(target.dataset.archiveRecord){archiveRecord(target.dataset.archiveRecord,target.dataset.archiveId);return;}
  if(target.dataset.intakeToCashier){showView('cashier');el('cashierIntake').value=target.dataset.intakeToCashier;return;}
  if(target.dataset.uploadIntake){const files=[...el('intakeDetailFiles').files];if(!files.length)return notice('Pilih bukti','Pilih berkas dahulu.','warning');target.disabled=true;
   try{const r=await v21AttachFiles(files,target.dataset.uploadIntake,el('intakeDetailProgress'));await loadIntakes();await notice(r.errors.length?'Unggah sebagian':'Bukti tersimpan',`${r.count}/${files.length} bukti dicatat. ${r.errors.join('; ')}` ,r.errors.length?'warning':'success');}
@@ -182,5 +186,5 @@ el('formCashierRequest').addEventListener('submit',v21SaveCashier);
 el('btnRefreshCashier').addEventListener('click',loadCashier);
 el('cashierFilter').addEventListener('change',v21RenderCashier);
 el('cashierBody').addEventListener('click',e=>{const btn=e.target.closest('[data-open-cashier]');if(btn)v21OpenCashier(btn.dataset.openCashier);});
-el('cashierDetail').addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;if(t.dataset.closeCashier){v21SelectedCashier=null;el('cashierDetail').replaceChildren();}else if(t.dataset.saveCashier)v21UpdateCashier(t.dataset.saveCashier);});
+el('cashierDetail').addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;if(t.dataset.closeCashier){v21SelectedCashier=null;el('cashierDetail').replaceChildren();}else if(t.dataset.saveCashier)v21UpdateCashier(t.dataset.saveCashier);else if(t.dataset.archiveCashier)archiveRecord('cashier_request',t.dataset.archiveCashier);});
 if(!el('intakeItemsBody').rows.length)v21Row();el('intakeDate').value=v21DateBalikpapan();

@@ -1,3 +1,9 @@
+# StockTrace V2.2 — catatan versi terbaru
+
+Panduan deployment utama ada di `README_FINAL_STOCKTRACE_V22.md`. Dokumen ini dipertahankan sebagai catatan V2 sebelumnya.
+
+---
+
 # Versi dasar V2 (tanpa modul tambahan)
 
 **Jika menggunakan ZIP V2.1, baca `README_V2_1_MULAI_DI_SINI.md` terlebih dahulu.** Dokumen ini menjelaskan fitur dasar V2, bukan daftar fitur V2.1.

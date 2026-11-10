@@ -453,3 +453,36 @@ body.st-password-required #view-account .bg-white{border-color:#F59E0B}
     padding:16px !important;
   }
 }
+
+
+/* StockTrace final safety actions + consistent responsive behavior. */
+.st-archive-action,.st-restore-action{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  min-height:36px;padding:8px 11px;border:1px solid #CBD5E1;border-radius:9px;
+  background:#fff;color:#334155;font-size:12px;font-weight:650;line-height:1.25;
+  white-space:normal;touch-action:manipulation;
+}
+.st-archive-action{border-color:#F1C7A8;color:#9A3412;background:#FFF7ED}
+.st-archive-action:hover{background:#FFEDD5}
+.st-restore-action{border-color:#BFDBFE;color:#1D4ED8;background:#EFF6FF}
+.st-restore-action:hover{background:#DBEAFE}
+.st-archive-action:disabled,.st-restore-action:disabled{opacity:.55;cursor:wait}
+#view-archive .st-data-table table{min-width:760px}
+#view-archive .st-data-table td{vertical-align:top;overflow-wrap:anywhere}
+#view-intake,#view-cashier,#view-reports,#view-archive,#view-detail-kasus{min-width:0;max-width:100%}
+#view-intake .st-detail-box,#view-cashier .st-detail-box{min-width:0}
+#view-intake .st-detail-box .flex,#view-cashier .st-detail-box .flex{min-width:0}
+@media(max-width:767px){
+  #view-archive .bg-white{padding:13px}
+  #view-archive h1,#view-intake h1,#view-cashier h1,#view-reports h1{font-size:20px;line-height:1.3}
+  #view-archive .st-data-table table{min-width:720px}
+  #view-intake .st-entry-table,#view-cashier .st-entry-table{min-width:650px}
+  #view-intake .st-primary-btn,#view-intake .st-secondary-btn,
+  #view-cashier .st-primary-btn,#view-cashier .st-secondary-btn{min-height:44px}
+  #detailEvidence .st-archive-action,#intakeDetail .st-archive-action,
+  #cashierDetail .st-archive-action{min-height:40px}
+}
+@media(max-width:390px){
+  .st-archive-action,.st-restore-action{padding:8px 9px;font-size:11px}
+  #view-archive .st-data-table table{min-width:680px}
+}

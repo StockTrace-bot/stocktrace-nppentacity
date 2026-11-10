@@ -67,7 +67,14 @@
         const cfg=await resp.json().catch(()=>({}));
         if(!resp.ok||!cfg.supabase_url||!cfg.supabase_publishable_key)throw new Error(cfg.error||'Konfigurasi aplikasi tidak siap.');
         supabaseConfig=cfg;
-        sb=window.supabase.createClient(cfg.supabase_url,cfg.supabase_publishable_key);
+        try{
+          const projectRef=new URL(cfg.supabase_url).hostname.split('.')[0];
+          localStorage.removeItem(`sb-${projectRef}-auth-token`);
+          localStorage.removeItem('user_role');localStorage.removeItem('user_name');
+        }catch(_){}
+        sb=window.supabase.createClient(cfg.supabase_url,cfg.supabase_publishable_key,{
+          auth:{storage:window.sessionStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}
+        });
         btn.disabled=false;
       }catch(e){showStatus('Koneksi aplikasi gagal: '+e.message);btn.disabled=true;}
     }
@@ -86,8 +93,8 @@
         let supabaseKeys = [];
         try {
             storageReadable = true;
-            expectedKeyExists = localStorage.getItem(expectedStorageKey) !== null;
-            supabaseKeys = Object.keys(localStorage).filter(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+            expectedKeyExists = sessionStorage.getItem(expectedStorageKey) !== null;
+            supabaseKeys = Object.keys(sessionStorage).filter(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
         } catch (_) {}
         return {
             origin: window.location.origin,
@@ -115,7 +122,7 @@
             `Origin: ${snapshot.origin}`,
             `Project ref: ${snapshot.projectRef}`,
             `getSession menemukan sesi: ${sessionFound ? 'YA' : 'TIDAK'}`,
-            `localStorage dapat dibaca: ${snapshot.storageReadable ? 'YA' : 'TIDAK'}`,
+            `sessionStorage dapat dibaca: ${snapshot.storageReadable ? 'YA' : 'TIDAK'}`,
             `Storage key yang diharapkan: ${snapshot.expectedStorageKey}`,
             `Key ditemukan: ${snapshot.expectedKeyExists ? 'YA' : 'TIDAK'}`,
             `Key Supabase yang ditemukan: ${snapshot.supabaseKeys.length ? snapshot.supabaseKeys.join(', ') : 'Tidak ada'}`,
@@ -196,9 +203,9 @@
             if (!userData.role) {
                 throw new Error('Profil ditemukan tetapi kolom role kosong. Atur role akun di public.users terlebih dahulu.');
             }
-            // Data localStorage hanya untuk tampilan. Akses sebenarnya harus dijaga oleh RLS/backend.
-            localStorage.setItem('user_role', String(userData.role));
-            localStorage.setItem('user_name', String(userData.nama_lengkap || 'Pengguna'));
+            // Data sessionStorage hanya untuk tampilan. Akses sebenarnya harus dijaga oleh RLS/backend.
+            sessionStorage.setItem('user_role', String(userData.role));
+            sessionStorage.setItem('user_name', String(userData.nama_lengkap || 'Pengguna'));
             const beforeRedirect = await showSessionTrace('tepat sebelum pindah ke dashboard');
             if (!beforeRedirect.sessionFound || !beforeRedirect.snapshot.expectedKeyExists) {
                 showStatus('DIAGNOSTIK: sesi hilang sebelum dashboard dibuka.\n' + beforeRedirect.detail);

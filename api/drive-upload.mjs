@@ -233,7 +233,8 @@ export default {
           description: `StockTrace — bukti ${isIntake ? 'penerimaan' : 'kasus'} ${caseId}`,
           appProperties: {
             [isIntake ? 'stocktrace_intake' : 'stocktrace_case']: caseId,
-            stocktrace_user: user.id
+            stocktrace_user: user.id,
+            stocktrace_status: 'active'
           }
         };
 

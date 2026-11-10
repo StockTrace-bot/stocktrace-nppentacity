@@ -40,7 +40,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
         <nav class="st-sidebar-nav flex-1 px-4 py-6 space-y-2">
             <button data-nav-view="dashboard" onclick="showView('dashboard')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-squares-four text-lg mr-3"></i><span class="st-nav-label">Dashboard</span></button>
             <button data-nav-view="form-laporan" onclick="showView('form-laporan')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-file-plus text-lg mr-3"></i><span class="st-nav-label">Buat Laporan</span></button>
-            <button data-nav-view="archive" onclick="showView('archive')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-folder-open text-lg mr-3"></i><span class="st-nav-label">Arsip Bukti</span></button>
+            <button data-nav-view="archive" onclick="showView('archive')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-folder-open text-lg mr-3"></i><span class="st-nav-label">Arsip & Sampah</span></button>
             <button data-nav-view="reports" onclick="showView('reports')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-chart-bar text-lg mr-3"></i><span class="st-nav-label">Rekap & Ekspor</span></button>
             <button data-nav-view="intake" onclick="showView('intake')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-truck text-lg mr-3"></i><span class="st-nav-label">Penerimaan Barang</span></button>
             <button data-nav-view="cashier" onclick="showView('cashier')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-clipboard-text text-lg mr-3"></i><span class="st-nav-label">Update Stok Kasir</span></button>
@@ -163,7 +163,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                 <div class="flex flex-wrap justify-between items-center gap-3">
                     <div><button onclick="showView('dashboard')" class="text-blue-600 underline text-sm mb-2">← Kembali ke Dashboard</button>
                     <h1 id="detailTitle" class="text-2xl font-bold text-slate-800">Detail Kasus</h1></div>
-                    <button onclick="window.print()" class="px-4 py-2 bg-white border rounded-lg text-sm"><i class="ph ph-printer mr-2"></i> Cetak</button>
+                    <div class="flex flex-wrap gap-2">
+                     <button id="btnArchiveCase" type="button" onclick="archiveCurrentCase()" class="st-archive-action" style="display:none"><i class="ph ph-archive mr-1"></i> Arsipkan laporan</button>
+                     <button onclick="window.print()" class="px-4 py-2 bg-white border rounded-lg text-sm"><i class="ph ph-printer mr-2"></i> Cetak</button>
+                    </div>
                 </div>
                 <div id="detailCaseGrid" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div id="detailMainCard" class="lg:col-span-2 bg-white p-6 rounded-xl border">
@@ -212,11 +215,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 
             <!-- ARSIP BUKTI -->
             <section id="view-archive" class="hidden space-y-6">
-                <div class="flex flex-wrap gap-3 justify-between items-center"><div><h1 class="text-2xl font-bold">Arsip Bukti</h1><p class="text-sm text-slate-500">File yang terhubung dengan kasus dan penerimaan yang boleh kamu akses.</p></div>
+                <div class="flex flex-wrap gap-3 justify-between items-center"><div><h1 class="text-2xl font-bold">Arsip & Sampah</h1><p class="text-sm text-slate-500">Data yang diarsipkan tidak dihapus permanen. Leader dapat memulihkannya setelah pemeriksaan.</p></div>
                 <button onclick="loadArchive()" class="px-4 py-2 bg-white border rounded-lg text-sm">Muat ulang</button></div>
-                <div class="bg-white rounded-xl border p-5"><p id="archiveNotice" class="text-sm text-slate-500 pb-3">Memuat arsip...</p>
-                    <p class="st-scroll-hint">Geser tabel untuk melihat seluruh detail bukti.</p>
-                    <div class="overflow-x-auto st-data-table"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-500 uppercase border-b"><tr><th class="py-3">Berkas</th><th>Kasus</th><th>Waktu</th><th>Unduh</th></tr></thead><tbody id="archiveBody"></tbody></table></div>
+                <div class="bg-white rounded-xl border p-5"><p id="archiveNotice" class="text-sm text-slate-500 pb-3">Memuat data arsip...</p>
+                    <p class="st-scroll-hint">Geser tabel untuk melihat seluruh detail arsip.</p>
+                    <div class="overflow-x-auto st-data-table"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-500 uppercase border-b"><tr><th class="py-3">Jenis</th><th>ID / Detail</th><th>Waktu Diarsipkan</th><th>Alasan</th><th>Aksi</th></tr></thead><tbody id="archiveBody"></tbody></table></div>
                 </div>
             </section>
             <!-- REKAP DAN ANALITIK -->

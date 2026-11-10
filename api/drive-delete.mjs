@@ -1,5 +1,5 @@
-// StockTrace V2.1 — delete Drive evidence after an authenticated Supabase DELETE webhook.
-// This endpoint only moves verified StockTrace evidence to Drive Trash; it never permanently deletes.
+// StockTrace V2.2 — reversible Drive evidence archive/restore plus legacy verified DELETE-to-Trash.
+// Soft archive updates appProperties only; files remain in their original Drive folder.
 import { timingSafeEqual } from 'node:crypto';
 import { getDriveFolderId, getGoogleOAuthConfig, getWebhookSecret } from './_lib/stocktrace-config.mjs';
 
@@ -102,21 +102,38 @@ export default {
       try { body = await request.json(); }
       catch { return fail('BAD_JSON', 'Payload webhook bukan JSON valid.', 400); }
 
-      if (body?.schema !== 'public' || body?.type !== 'DELETE' || !TABLES[body?.table]) {
-        return fail('EVENT_NOT_SUPPORTED', 'Hanya event DELETE pada tabel bukti StockTrace yang diterima.', 400);
+      if (body?.schema !== 'public' || !['DELETE','UPDATE'].includes(body?.type) || !TABLES[body?.table]) {
+        return fail('EVENT_NOT_SUPPORTED', 'Hanya event DELETE atau perubahan status arsip pada tabel bukti StockTrace yang diterima.', 400);
       }
 
       const config = TABLES[body.table];
-      const record = body.old_record;
+      let action = 'delete';
+      let record = body.old_record;
+
+      if (body.type === 'UPDATE') {
+        const oldRecord = body.old_record;
+        const newRecord = body.record;
+        if (!oldRecord || typeof oldRecord !== 'object' || !newRecord || typeof newRecord !== 'object') {
+          return fail('UPDATE_RECORD_MISSING', 'Payload UPDATE harus memuat record dan old_record.', 400);
+        }
+        const wasArchived = Boolean(oldRecord.deleted_at);
+        const isArchived = Boolean(newRecord.deleted_at);
+        if (wasArchived === isArchived) {
+          return json({ ok: true, kind: 'drive_archive', table: body.table, action: 'no_status_change' });
+        }
+        action = isArchived ? 'archive' : 'restore';
+        record = newRecord;
+      }
+
       if (!record || typeof record !== 'object' || Array.isArray(record)) {
-        return fail('OLD_RECORD_MISSING', 'Payload DELETE tidak memuat old_record.', 400);
+        return fail('OLD_RECORD_MISSING', 'Payload webhook tidak memuat record yang valid.', 400);
       }
 
       const recordId = String(record[config.idField] || '').trim();
-      if (!config.idPattern.test(recordId)) return fail('RECORD_ID_INVALID', 'ID kasus/penerimaan pada old_record tidak valid.', 400);
+      if (!config.idPattern.test(recordId)) return fail('RECORD_ID_INVALID', 'ID kasus/penerimaan pada record tidak valid.', 400);
 
       const fileId = String(record.drive_file_id || '').trim();
-      if (!fileId) return json({ ok: true, kind: 'drive_delete', table: body.table, action: 'no_drive_file_id' });
+      if (!fileId) return json({ ok: true, kind: action === 'delete' ? 'drive_delete' : 'drive_archive', table: body.table, action: 'no_drive_file_id' });
       if (!FILE_ID_PATTERN.test(fileId)) return fail('FILE_ID_INVALID', 'ID file Google Drive tidak valid.', 400);
 
       const folderId = folderFor(config);
@@ -126,9 +143,8 @@ export default {
       metadataUrl.searchParams.set('supportsAllDrives', 'true');
       const metadataResponse = await driveRequest(metadataUrl.toString(), token);
 
-      // Idempotent: a missing or already-trashed file is already in the desired state.
       if (metadataResponse.status === 404 || metadataResponse.status === 410) {
-        return json({ ok: true, kind: 'drive_delete', table: body.table, action: 'already_missing' });
+        return json({ ok: true, kind: action === 'delete' ? 'drive_delete' : 'drive_archive', table: body.table, action: 'already_missing' });
       }
       const metadata = await metadataResponse.json().catch(() => ({}));
       if (!metadataResponse.ok) {
@@ -137,8 +153,12 @@ export default {
           code: 'DRIVE_METADATA_FAILED'
         });
       }
-      if (metadata.trashed) {
+
+      if (action === 'delete' && metadata.trashed) {
         return json({ ok: true, kind: 'drive_delete', table: body.table, action: 'already_trashed' });
+      }
+      if (action === 'archive' && metadata.trashed) {
+        return json({ ok: true, kind: 'drive_archive', table: body.table, action: 'already_trashed' });
       }
 
       const expectedProperty = metadata.appProperties?.[config.appProperty];
@@ -147,39 +167,59 @@ export default {
       const validDescription = String(metadata.description || '').includes('StockTrace');
       const validProperty = expectedProperty === undefined || expectedProperty === recordId;
       const validParent = Array.isArray(metadata.parents) && metadata.parents.includes(folderId);
-      if (!validParent || !validStockTraceName || !validDescription || !validProperty) {
-        console.error('StockTrace Drive delete refused: metadata mismatch', {
-          table: body.table,
-          fileId,
-          recordId,
-          parentMatches: validParent,
-          nameMatches: validStockTraceName,
-          descriptionMatches: validDescription,
-          appPropertyMatches: validProperty
+      const restoreFromTrash = action === 'restore' && metadata.trashed === true;
+      if ((!validParent && !restoreFromTrash) || !validStockTraceName || !validDescription || !validProperty) {
+        console.error('StockTrace Drive operation refused: metadata mismatch', {
+          table: body.table, fileId, recordId, action,
+          parentMatches: validParent, nameMatches: validStockTraceName,
+          descriptionMatches: validDescription, appPropertyMatches: validProperty
         });
-        return fail('DRIVE_FILE_NOT_OWNED', 'File tidak cocok dengan folder dan metadata StockTrace; penghapusan dibatalkan.', 403);
+        return fail('DRIVE_FILE_NOT_OWNED', 'File tidak cocok dengan folder dan metadata StockTrace; tindakan dibatalkan.', 403);
       }
 
-      const trashUrl = new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}`);
-      trashUrl.searchParams.set('supportsAllDrives', 'true');
-      trashUrl.searchParams.set('fields', 'id,trashed');
-      const trashResponse = await driveRequest(trashUrl.toString(), token, {
+      const updateUrl = new URL(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}`);
+      updateUrl.searchParams.set('supportsAllDrives', 'true');
+      updateUrl.searchParams.set('fields', 'id,trashed,appProperties,parents');
+      if (restoreFromTrash && !validParent) updateUrl.searchParams.set('addParents', folderId);
+
+      if (action === 'delete') {
+        const response = await driveRequest(updateUrl.toString(), token, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trashed: true })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.trashed !== true) {
+          throw Object.assign(new Error(`Google Drive gagal memindahkan file ke Bin (HTTP ${response.status}).`), {
+            status: 502, code: 'DRIVE_TRASH_FAILED'
+          });
+        }
+        return json({ ok: true, kind: 'drive_delete', table: body.table, action: 'moved_to_trash' });
+      }
+
+      const nextProperties = { ...(metadata.appProperties || {}), stocktrace_status: action === 'archive' ? 'archived' : 'active' };
+      const patchBody = {
+        ...(action === 'restore' ? { trashed: false } : {}),
+        appProperties: nextProperties
+      };
+      const response = await driveRequest(updateUrl.toString(), token, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trashed: true })
+        body: JSON.stringify(patchBody)
       });
-      const trashed = await trashResponse.json().catch(() => ({}));
-      if (!trashResponse.ok || trashed.trashed !== true) {
-        throw Object.assign(new Error(`Google Drive gagal memindahkan file ke Bin (HTTP ${trashResponse.status}).`), {
-          status: 502,
-          code: 'DRIVE_TRASH_FAILED'
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || (action === 'restore' && result.trashed === true)) {
+        throw Object.assign(new Error(`Google Drive gagal memperbarui status arsip file (HTTP ${response.status}).`), {
+          status: 502, code: 'DRIVE_ARCHIVE_UPDATE_FAILED'
         });
       }
-
-      return json({ ok: true, kind: 'drive_delete', table: body.table, action: 'moved_to_trash' });
+      return json({
+        ok: true, kind: 'drive_archive', table: body.table,
+        action: action === 'archive' ? 'marked_archived' : 'restored_active'
+      });
     } catch (error) {
       const status = Number(error.status) || 502;
-      console.error('StockTrace Drive DELETE failed:', error.code || 'UNEXPECTED', error.message);
+      console.error('StockTrace Drive archive/delete operation failed:', error.code || 'UNEXPECTED', error.message);
       return fail(error.code || 'DRIVE_DELETE_FAILED',
         status === 500 ? 'Server gagal memproses penghapusan Drive. Periksa Vercel Logs.' : error.message,
         status);

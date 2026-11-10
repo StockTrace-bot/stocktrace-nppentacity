@@ -1,6 +1,22 @@
-StockTrace V1.2 — 4 Staff individual + 1 Leader, fitur penugasan PIC.
-Basis: sumber master V1.1 yang telah dipakai sebelumnya.
-Pemeriksaan statis: sintaks Node app.js, api/*.mjs; keberadaan elemen ID HTML; ZIP CRC; source secrets tidak ditambahkan.
-Migrasi SQL baru ada di sql/03_...; tidak dijalankan pada Supabase live.
-Akun tidak dibuat otomatis: perlu invitation Auth + profil public.users.
-Konektivitas live Google Drive/Sheets dan perangkat iPhone harus dites setelah deployment.
+StockTrace V2.2 FINAL — source audit
+
+Basis: user-provided GitHub repository ZIP stocktrace-nppentacity-main.zip.
+Changes:
+- Per-tab Supabase Auth session storage (sessionStorage) in login and dashboard.
+- Soft-delete/archive and Leader restore RPC migration for cases, evidence, intakes, and cashier requests.
+- Archive audit event table and role-scoped policies.
+- Google Sheets Status Data columns (AKTIF / DIARSIPKAN), with append-only header extension.
+- Reversible Drive appProperties status updates for evidence archive/restore.
+- Archive & Sampah UI controls and restore workflow.
+- Responsive action and archive table refinements; existing navy/blue desktop identity and mobile left drawer retained.
+
+Automated checks at build time:
+- Node syntax checks: all 28 JavaScript/MJS source files passed.
+- Automated test suite: 60 passed, 0 failed.
+- No service-role key, OAuth secret, refresh token, or service-account JSON was added.
+
+Important:
+- SQL migration sql/12_SOFT_DELETE_ARCHIVE_FINAL.sql was NOT executed against the user's live Supabase database.
+- Vercel Production deployment and live Google Drive/Sheets behavior were NOT executed from this environment.
+- Deploy the source to Production first, then run SQL 12 once in the correct Production Supabase project as documented in README_FINAL_STOCKTRACE_V22.md.
+- A 60/60 automated test result is not a substitute for the controlled live acceptance tests in the README.

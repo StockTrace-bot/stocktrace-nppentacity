@@ -30,6 +30,10 @@ function redirectLogin(){window.location.replace('login.html');}
 function canManageCases(){return activeRole.toLowerCase().trim()==='leader';}
 function niceDate(value){if(!value)return 'Waktu belum dicatat';let d=new Date(value);if(isNaN(d.getTime()))return 'Waktu tidak valid';return new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Makassar',dateStyle:'medium',timeStyle:'short'}).format(d)+' WITA';}
 function showView(view){
+ if(view==='archive'&&!canManageCases()){
+  notice('Akses terbatas','Menu Arsip & Sampah hanya dapat dibuka oleh Leader.','warning');
+  view='dashboard';
+ }
  if(mustChangePassword&&view!=='account'){view='account';}
  for(const name of ['dashboard','form-laporan','detail-kasus','archive','reports','intake','cashier','account']){
   const node=el('view-'+name); if(node){node.classList.toggle('hidden',view!==name);node.classList.toggle('block',view===name);}
@@ -66,6 +70,8 @@ async function checkAuth(){
   document.body.classList.toggle('st-password-required',mustChangePassword);
   if(mustChangePassword){showView('account');await notice('Perbarui kata sandi','Akun menggunakan kata sandi sementara. Ganti kata sandi terlebih dahulu untuk mengakses laporan.','warning');return;}
   el('panelTindakLanjutLeader').style.display=canManageCases()?'':'none';
+  const archiveNav=document.querySelector('[data-nav-view="archive"]');
+  if(archiveNav)archiveNav.style.display=canManageCases()?'':'none';
   el('view-detail-kasus').classList.toggle('staff-detail-centered',!canManageCases());
   el('btnSyncSheets').style.display=canManageCases()?'':'none';
   try{await loadStaffDirectory();}catch(dirError){console.warn(dirError.message);el('picFormHint').textContent='Daftar Staff belum tersedia. Jalankan migrasi PIC terlebih dahulu.';}
@@ -100,7 +106,7 @@ async function syncSheetsNow(){
   await notice('Sinkronisasi belum lengkap',partial+e.message,'error');
  }finally{if(btn){btn.disabled=false;btn.textContent='Sinkronkan Semua Google Sheets';}}
 }
-async function logout(){try{await sb?.auth.signOut();}catch(e){console.warn(e)}localStorage.removeItem('user_role');localStorage.removeItem('user_name');redirectLogin();}
+async function logout(){try{await sb?.auth.signOut();}catch(e){console.warn(e)}try{sessionStorage.removeItem('user_role');sessionStorage.removeItem('user_name');}catch(_){}redirectLogin();}
 function displayCases(){
  const q=el('searchCases').value.toLowerCase().trim(), filter=el('filterCaseStatus').value, picFilter=el('filterCasePIC').value;
  const list=cachedCases.filter(c=>(!filter||toText(c.status_kasus||statuses[0])===filter)&&(!picFilter||(picFilter==='mine'?c.pic_id===activeUser?.id:picFilter==='reported'?c.id_pelapor===activeUser?.id:picFilter==='unassigned'?!c.pic_id:true))&&[c.id_kasus,c.sku_produk,c.nama_produk].some(x=>toText(x).toLowerCase().includes(q)));
@@ -112,7 +118,7 @@ async function loadCases(){
  el('dashboardNotice').textContent='Memuat laporan...';
  const {data,error}=await sb.from('cases').select('*').order('created_at',{ascending:false}).limit(500);
  if(error){el('dashboardNotice').textContent='Gagal membaca kasus: '+error.message;return;}
- cachedCases=data||[];
+  cachedCases=(data||[]).filter(c=>!c.deleted_at);
  el('countTotal').textContent=cachedCases.length;
  el('countClosed').textContent=cachedCases.filter(c=>(c.status_kasus||statuses[0])==='Selesai').length;
  el('countOpen').textContent=cachedCases.filter(c=>(c.status_kasus||statuses[0])!=='Selesai').length;
@@ -123,6 +129,7 @@ async function openCase(id){
  selectedCase=cachedCases.find(c=>c.id_kasus===id)||null;
  if(!selectedCase)return notice('Kasus tidak ditemukan','Refresh daftar kasus lalu coba lagi.','warning');
  const c=selectedCase;el('detailTitle').textContent='Kasus: '+c.id_kasus;
+  const archiveButton=el('btnArchiveCase');if(archiveButton){const canArchive=canManageCases()||(c.id_pelapor===activeUser?.id&&c.status_kasus==='Baru Dilaporkan'&&!c.pic_id);archiveButton.style.display=canArchive?'':'none';}
  const pairs=[['ID kasus',c.id_kasus],['Produk',c.nama_produk],['SKU',c.sku_produk],['Stok sistem',c.stok_sistem],['Stok fisik',c.stok_fisik],['Selisih fisik−sistem',c.selisih],['Dugaan penyebab',c.dugaan_penyebab],['Kronologi',c.kronologi],['Pelapor',displayPerson(c.id_pelapor)],['PIC penanganan',c.pic_nama||'Belum ditugaskan'],['Penugasan PIC',c.pic_ditetapkan_pada?niceDate(c.pic_ditetapkan_pada):'—'],['Status',c.status_kasus||statuses[0]],['Dibuat',niceDate(c.created_at)]];
  el('detailInfo').innerHTML='<dl class="grid grid-cols-1 sm:grid-cols-2 gap-3">'+pairs.map(([k,v])=>`<div class="bg-slate-50 p-3 rounded"><dt class="text-xs uppercase text-slate-500">${htmlEscape(k)}</dt><dd class="text-sm whitespace-pre-wrap break-words mt-1">${htmlEscape(v)}</dd></div>`).join('')+'</dl>';
  el('selectStatus').value=statuses.includes(c.status_kasus)?c.status_kasus:statuses[0];el('inputStatusNote').value='';
@@ -137,11 +144,12 @@ async function openCase(id){
  await Promise.all([loadEvidence(id),loadHistory(id)]);
 }
 async function loadEvidence(id){
- const {data,error}=await sb.from('evidence_files').select('id_kasus,nama_file_asli,drive_file_id,waktu_unggah').eq('id_kasus',id).order('waktu_unggah',{ascending:false}).limit(150);
+  const {data,error}=await sb.from('evidence_files').select('id_file,id_kasus,nama_file_asli,drive_file_id,drive_view_url,waktu_unggah,uploaded_by,deleted_at').eq('id_kasus',id).order('waktu_unggah',{ascending:false}).limit(150);
  if(selectedCase?.id_kasus!==id)return;
  if(error){el('detailEvidence').textContent='Gagal membaca bukti: '+error.message;return;}
- if(!data?.length){el('detailEvidence').textContent='Belum ada berkas. Gunakan Tambah Bukti di bawah ini.';return;}
- el('detailEvidence').innerHTML=data.map(f=>`<div class="bg-slate-50 rounded border p-3 mb-2 flex gap-3 justify-between items-center"><div class="break-all"><strong>${htmlEscape(f.nama_file_asli||'Berkas')}</strong><p class="text-xs text-slate-400">${htmlEscape(niceDate(f.waktu_unggah))}</p></div><button type="button" class="text-blue-700 underline text-xs" data-download-case="${htmlEscape(id)}" data-download-id="${htmlEscape(f.drive_file_id)}" data-download-name="${htmlEscape(f.nama_file_asli)}">Unduh aman</button></div>`).join('');
+  const activeFiles=(data||[]).filter(f=>!f.deleted_at);
+  if(!activeFiles.length){el('detailEvidence').textContent='Belum ada berkas aktif. Gunakan Tambah Bukti di bawah ini.';return;}
+  el('detailEvidence').innerHTML=activeFiles.map(f=>{const canArchive=canManageCases()||(f.uploaded_by===activeUser?.id&&selectedCase?.id_pelapor===activeUser?.id&&selectedCase?.status_kasus==='Baru Dilaporkan'&&!selectedCase?.pic_id);return `<div class="bg-slate-50 rounded border p-3 mb-2 flex gap-3 justify-between items-center flex-wrap"><div class="break-all min-w-0"><strong>${htmlEscape(f.nama_file_asli||'Berkas')}</strong><p class="text-xs text-slate-400">${htmlEscape(niceDate(f.waktu_unggah))}</p></div><div class="flex gap-3 items-center"><button type="button" class="text-blue-700 underline text-xs" data-download-case="${htmlEscape(id)}" data-download-id="${htmlEscape(f.drive_file_id)}" data-download-name="${htmlEscape(f.nama_file_asli)}">Unduh aman</button>${canArchive?`<button type="button" class="st-archive-action" data-archive-record="evidence" data-archive-id="${htmlEscape(f.id_file)}">Arsipkan</button>`:''}</div></div>`;}).join('');
 }
 async function loadHistory(id){
  const {data,error}=await sb.from('case_logs').select('id_user,aksi,catatan,waktu_aksi').eq('id_kasus',id).order('waktu_aksi',{ascending:false}).limit(150);
@@ -271,7 +279,7 @@ async function uploadFiles(files,id,session,button){
   if(progress)progress.textContent=`Berkas ${i+1}/${files.length}: ${file.name} — memulai...`;
   try{
    const d=await uploadToBackend(file,id,session.access_token,pct=>{if(progress)progress.textContent=`Berkas ${i+1}/${files.length}: ${file.name} — ${pct}%`;});
-   const {error}=await sb.from('evidence_files').insert([{id_kasus:id,nama_file_asli:file.name,drive_file_id:d.drive_file_id,drive_view_url:d.drive_link}]);
+   const {error}=await sb.from('evidence_files').insert([{id_kasus:id,nama_file_asli:file.name,drive_file_id:d.drive_file_id,drive_view_url:d.drive_link,uploaded_by:activeUser.id}]);
    if(error)throw new Error('File mungkin sudah masuk Drive, tetapi metadata gagal: '+error.message);
    count++;
    // Trigger database mencatat penambahan bukti secara otomatis.
@@ -322,19 +330,83 @@ async function downloadEvidence(id,fileId,filename){
 }
 async function loadArchive(){
  if(!activeUser)return;
- el('archiveNotice').textContent='Memuat bukti arsip...';
- const [{data,error},{data:intakeFiles,error:intakeError}]=await Promise.all([
-  sb.from('evidence_files').select('id_kasus,nama_file_asli,drive_file_id,waktu_unggah').order('waktu_unggah',{ascending:false}).limit(500),
-  sb.from('stocktrace_intake_evidence').select('id_intake,nama_file_asli,drive_file_id,waktu_unggah').order('waktu_unggah',{ascending:false}).limit(500)
- ]);
- if(error){el('archiveNotice').textContent='Gagal membaca arsip kasus: '+error.message;return;}
- const rows=[...(data||[]).map(f=>({...f,kind:'Kasus',target:f.id_kasus})),
-  ...(intakeFiles||[]).map(f=>({...f,kind:'Penerimaan',target:f.id_intake}))]
-  .sort((a,b)=>toText(b.waktu_unggah).localeCompare(toText(a.waktu_unggah)));
- const cases=new Map(cachedCases.map(c=>[c.id_kasus,c]));
- el('archiveBody').innerHTML=rows.map(f=>`<tr class="border-b"><td class="py-3 pr-4 break-all">${htmlEscape(f.nama_file_asli)}</td><td class="pr-4">${htmlEscape(f.target)}<span class="block text-xs text-slate-400">${htmlEscape(f.kind)} ${htmlEscape(cases.get(f.id_kasus)?.nama_produk||'')}</span></td><td class="pr-4">${htmlEscape(niceDate(f.waktu_unggah))}</td><td><button class="text-blue-600 underline" data-download-case="${htmlEscape(f.target)}" data-download-id="${htmlEscape(f.drive_file_id)}" data-download-name="${htmlEscape(f.nama_file_asli)}">Unduh</button></td></tr>`).join('');
- el('archiveNotice').textContent=`${rows.length} berkas dari kasus dan penerimaan (maks. 500 masing-masing).${intakeError?' Modul penerimaan belum siap: '+intakeError.message:''}`;
+ if(!canManageCases()){el('archiveNotice').textContent='Arsip & Sampah hanya dapat dibuka oleh Leader.';return;}
+ el('archiveNotice').textContent='Memuat data yang diarsipkan...';
+ try{
+  const [casesRes,evidenceRes,intakesRes,intakeEvidenceRes,cashierRes]=await Promise.all([
+   sb.from('cases').select('id_kasus,nama_produk,sku_produk,deleted_at,delete_reason,archive_batch_id').not('deleted_at','is',null).order('deleted_at',{ascending:false}).limit(300),
+   sb.from('evidence_files').select('id_file,id_kasus,nama_file_asli,drive_file_id,waktu_unggah,deleted_at,delete_reason,archive_batch_id').not('deleted_at','is',null).order('deleted_at',{ascending:false}).limit(500),
+   sb.from('stocktrace_intakes').select('id_intake,document_no,supplier,deleted_at,delete_reason,archive_batch_id').not('deleted_at','is',null).order('deleted_at',{ascending:false}).limit(300),
+   sb.from('stocktrace_intake_evidence').select('id_file,id_intake,nama_file_asli,drive_file_id,waktu_unggah,deleted_at,delete_reason,archive_batch_id').not('deleted_at','is',null).order('deleted_at',{ascending:false}).limit(500),
+   sb.from('stocktrace_cashier_requests').select('id_request,sku,product_name,status_request,deleted_at,delete_reason').not('deleted_at','is',null).order('deleted_at',{ascending:false}).limit(300)
+  ]);
+  const firstError=[casesRes.error,evidenceRes.error,intakesRes.error,intakeEvidenceRes.error,cashierRes.error].find(Boolean);
+  if(firstError)throw new Error(firstError.message);
+  const cases=casesRes.data||[],intakes=intakesRes.data||[];
+  const archivedCaseIds=new Set(cases.map(x=>String(x.id_kasus)));
+  const archivedIntakeIds=new Set(intakes.map(x=>String(x.id_intake)));
+  const rows=[
+   ...cases.map(x=>({type:'case',id:x.id_kasus,label:'Laporan kasus',detail:`${x.sku_produk||''} · ${x.nama_produk||''}`,when:x.deleted_at,reason:x.delete_reason})),
+   ...(evidenceRes.data||[]).filter(x=>!archivedCaseIds.has(String(x.id_kasus))).map(x=>({type:'evidence',id:x.id_file,label:'Bukti kasus',detail:`${x.id_kasus} · ${x.nama_file_asli}`,when:x.deleted_at,reason:x.delete_reason,download:{caseId:x.id_kasus,fileId:x.drive_file_id,name:x.nama_file_asli}})),
+   ...intakes.map(x=>({type:'intake',id:x.id_intake,label:'Dokumen penerimaan',detail:`${x.document_no} · ${x.supplier}`,when:x.deleted_at,reason:x.delete_reason})),
+   ...(intakeEvidenceRes.data||[]).filter(x=>!archivedIntakeIds.has(String(x.id_intake))).map(x=>({type:'intake_evidence',id:x.id_file,label:'Bukti penerimaan',detail:`${x.id_intake} · ${x.nama_file_asli}`,when:x.deleted_at,reason:x.delete_reason,download:{caseId:x.id_intake,fileId:x.drive_file_id,name:x.nama_file_asli}})),
+   ...(cashierRes.data||[]).map(x=>({type:'cashier_request',id:x.id_request,label:'Permintaan kasir',detail:`${x.sku} · ${x.product_name} · ${x.status_request}`,when:x.deleted_at,reason:x.delete_reason}))
+  ].sort((a,b)=>toText(b.when).localeCompare(toText(a.when)));
+  el('archiveBody').innerHTML=rows.map(x=>`<tr class="border-b"><td class="py-3 pr-3">${htmlEscape(x.label)}</td><td class="py-3 pr-3 break-all"><strong>${htmlEscape(x.id)}</strong><span class="block text-xs text-slate-500">${htmlEscape(x.detail)}</span></td><td class="py-3 pr-3 whitespace-nowrap">${htmlEscape(niceDate(x.when))}</td><td class="py-3 pr-3">${htmlEscape(x.reason||'—')}</td><td class="py-3"><div class="flex flex-wrap gap-3">${x.download?`<button type="button" class="text-blue-700 underline text-xs" data-download-case="${htmlEscape(x.download.caseId)}" data-download-id="${htmlEscape(x.download.fileId)}" data-download-name="${htmlEscape(x.download.name)}">Unduh</button>`:''}<button type="button" class="st-restore-action" data-restore-type="${htmlEscape(x.type)}" data-restore-id="${htmlEscape(x.id)}">Pulihkan</button></div></td></tr>`).join('')||'<tr><td colspan="5" class="py-6 text-center text-slate-500">Belum ada data di Arsip & Sampah.</td></tr>';
+  el('archiveNotice').textContent=`${rows.length} item berada di Arsip & Sampah. File Drive tetap dipertahankan dan ditandai sebagai diarsipkan; pemulihan tersedia untuk Leader.`;
+ }catch(error){
+  el('archiveNotice').textContent='Arsip belum siap: '+error.message+'. Pastikan migrasi soft delete StockTrace sudah dijalankan.';
+ }
 }
+
+async function askArchiveReason(action,label){
+ const title=action==='restore'?'Pulihkan '+label:'Arsipkan '+label;
+ if(window.Swal?.fire){
+  const result=await window.Swal.fire({
+   title,input:'textarea',inputLabel:action==='restore'?'Alasan pemulihan':'Alasan pengarsipan',
+   inputPlaceholder:action==='restore'?'Contoh: Salah arsip, data perlu digunakan kembali...':'Contoh: Data duplikat atau salah input...',
+   inputAttributes:{'aria-label':'Alasan tindakan',maxlength:500},
+   showCancelButton:true,confirmButtonText:action==='restore'?'Pulihkan':'Arsipkan',
+   cancelButtonText:'Batal',confirmButtonColor:action==='restore'?'#1D4ED8':'#475569',
+   preConfirm:value=>{const text=String(value||'').trim();if(text.length<8){window.Swal.showValidationMessage('Alasan minimal 8 karakter.');return false;}return text;}
+  });
+  return result.isConfirmed?String(result.value||'').trim():null;
+ }
+ const value=window.prompt(title+' — alasan minimal 8 karakter:');
+ return value&&value.trim().length>=8?value.trim():null;
+}
+async function archiveRecord(type,id){
+ if(!activeUser||!id)return;
+ const label=({case:'laporan kasus',evidence:'bukti kasus',intake:'dokumen penerimaan',intake_evidence:'bukti penerimaan',cashier_request:'permintaan kasir'})[type]||'data';
+ const reason=await askArchiveReason('archive',label);if(!reason)return;
+ try{
+  const {data,error}=await sb.rpc('stocktrace_archive_record',{p_entity_type:type,p_entity_id:String(id),p_reason:reason});
+  if(error)throw new Error(error.message);if(!data?.ok)throw new Error(data?.message||'Database belum mengonfirmasi pengarsipan.');
+  await Promise.all([loadCases(),loadIntakesSafe(),loadCashierSafe()]);
+  if(type==='case'&&selectedCase?.id_kasus===id){selectedCase=null;showView('dashboard');}
+  else if(type==='evidence'&&selectedCase)await loadEvidence(selectedCase.id_kasus);
+  else if(type==='intake')await loadIntakes();
+  else if(type==='intake_evidence')await loadIntakes();
+  else if(type==='cashier_request')await loadCashier();
+  if(canManageCases())await loadArchive();
+  await notice('Data masuk Arsip & Sampah',`${label} berhasil diarsipkan. Data dan file tetap dapat dipulihkan oleh Leader.`,'success');
+ }catch(error){await notice('Pengarsipan gagal',error.message,'error');}
+}
+async function restoreArchiveRecord(type,id){
+ if(!canManageCases())return notice('Akses ditolak','Hanya Leader dapat memulihkan data.','warning');
+ const label=({case:'laporan kasus',evidence:'bukti kasus',intake:'dokumen penerimaan',intake_evidence:'bukti penerimaan',cashier_request:'permintaan kasir'})[type]||'data';
+ const reason=await askArchiveReason('restore',label);if(!reason)return;
+ try{
+  const {data,error}=await sb.rpc('stocktrace_restore_record',{p_entity_type:type,p_entity_id:String(id),p_reason:reason});
+  if(error)throw new Error(error.message);if(!data?.ok)throw new Error(data?.message||'Database belum mengonfirmasi pemulihan.');
+  await Promise.all([loadCases(),loadIntakesSafe(),loadCashierSafe(),loadArchive()]);
+  await notice('Data berhasil dipulihkan',`${label} kembali tersedia di aplikasi. Sinkronisasi Sheets dan Drive berjalan melalui webhook.`, 'success');
+ }catch(error){await notice('Pemulihan gagal',error.message,'error');}
+}
+async function loadIntakesSafe(){if(typeof loadIntakes==='function')await loadIntakes();}
+async function loadCashierSafe(){if(typeof loadCashier==='function')await loadCashier();}
+async function archiveCurrentCase(){if(selectedCase)await archiveRecord('case',selectedCase.id_kasus);}
+
 
 function selectedReportCases(){const from=el('reportFrom').value,to=el('reportTo').value;return cachedCases.filter(c=>{const day=toText(c.created_at).slice(0,10);return (!from||(day&&day>=from))&&(!to||(day&&day<=to));});}
 function reportBars(id,items,total){el(id).innerHTML=items.length?items.map(([label,n])=>`<div><div class="flex gap-2 justify-between text-sm"><span>${htmlEscape(label)}</span><strong>${n}</strong></div><div class="bg-slate-100 rounded-full overflow-hidden"><div class="bar" style="width:${total?Math.max(2,Math.round(100*n/total)):0}%"></div></div></div>`).join(''):'<p class="text-slate-400">Tidak ada data</p>';}
@@ -373,7 +445,15 @@ el('filterCaseStatus').addEventListener('change',displayCases);
 el('filterCasePIC').addEventListener('change',displayCases);
 el('dashboardCasesBody').addEventListener('click',e=>{const btn=e.target.closest('button[data-case-id]');if(btn)openCase(btn.dataset.caseId);});
 el('detailEvidence').addEventListener('click',downloadClick);
-el('archiveBody').addEventListener('click',downloadClick);
+el('archiveBody').addEventListener('click',e=>{
+ const restore=e.target.closest('button[data-restore-type]');
+ if(restore){restoreArchiveRecord(restore.dataset.restoreType,restore.dataset.restoreId);return;}
+ downloadClick(e);
+});
+el('detailEvidence').addEventListener('click',e=>{
+ const archive=e.target.closest('button[data-archive-record]');
+ if(archive)archiveRecord(archive.dataset.archiveRecord,archive.dataset.archiveId);
+});
 el('passwordChangeForm').addEventListener('submit',submitPasswordChange);
 async function bootstrap(){
  try{
@@ -381,7 +461,10 @@ async function bootstrap(){
   const settings=await response.json().catch(()=>({}));
   if(!response.ok||!settings.supabase_url||!settings.supabase_publishable_key)throw new Error(settings.error||'Konfigurasi publik tidak siap.');
   if(!window.supabase?.createClient)throw new Error('Library Supabase tidak dapat dimuat.');
-  sb=window.supabase.createClient(settings.supabase_url,settings.supabase_publishable_key);
+   try{const projectRef=new URL(settings.supabase_url).hostname.split('.')[0];localStorage.removeItem(`sb-${projectRef}-auth-token`);localStorage.removeItem('user_role');localStorage.removeItem('user_name');}catch(_){}
+   sb=window.supabase.createClient(settings.supabase_url,settings.supabase_publishable_key,{
+    auth:{storage:window.sessionStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}
+   });
   await checkAuth();
  }catch(e){
   mustChangePassword=true;document.body.classList.add('st-password-required');showView('account');

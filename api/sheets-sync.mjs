@@ -12,13 +12,13 @@ const SHEETS = {
   // R1 — keep the existing spreadsheet and mappings intact.
   cases: {
     tab: 'Kasus', key: 'id_kasus', sortTimeKey: 'created_at',
-    columns: ['id_kasus','id_pelapor','sku_produk','nama_produk','stok_sistem','stok_fisik','selisih','dugaan_penyebab','kronologi','status_kasus','created_at','pic_id','pic_nama','pic_ditetapkan_pada'],
-    labels: ['ID Kasus','ID Pelapor','SKU Produk','Nama Produk','Stok Sistem','Stok Fisik','Selisih','Dugaan Penyebab','Kronologi','Status Kasus','Dibuat Pada','ID PIC','Nama PIC','Ditugaskan Pada']
+    columns: ['id_kasus','id_pelapor','sku_produk','nama_produk','stok_sistem','stok_fisik','selisih','dugaan_penyebab','kronologi','status_kasus','created_at','pic_id','pic_nama','pic_ditetapkan_pada','status_data'],
+    labels: ['ID Kasus','ID Pelapor','SKU Produk','Nama Produk','Stok Sistem','Stok Fisik','Selisih','Dugaan Penyebab','Kronologi','Status Kasus','Dibuat Pada','ID PIC','Nama PIC','Ditugaskan Pada','Status Data']
   },
   evidence_files: {
     tab: 'Bukti', key: 'id_file', sortTimeKey: 'waktu_unggah',
-    columns: ['id_file','id_kasus','nama_file_asli','drive_file_id','drive_view_url','waktu_unggah'],
-    labels: ['ID Bukti','ID Kasus','Nama Berkas','Google Drive File ID','Google Drive URL','Waktu Unggah']
+    columns: ['id_file','id_kasus','nama_file_asli','drive_file_id','drive_view_url','waktu_unggah','status_data'],
+    labels: ['ID Bukti','ID Kasus','Nama Berkas','Google Drive File ID','Google Drive URL','Waktu Unggah','Status Data']
   },
   case_logs: {
     tab: 'Riwayat', key: 'id_log', sortTimeKey: 'waktu_aksi',
@@ -29,30 +29,30 @@ const SHEETS = {
   // V2.1 — exact tab names and visible column order from the user's template.
   stocktrace_intakes: {
     tab: 'Penerimaan', key: 'id_intake', sortTimeKey: 'created_at',
-    columns: ['id_intake','document_no','received_on','supplier','note','created_by','created_at','jumlah_sku','sku_berselisih','total_selisih'],
-    labels: ['ID Penerimaan','No Dokumen','Tanggal Terima','Pengirim','Catatan','Pembuat','Waktu Dibuat','Jumlah SKU','SKU Berselisih','Total Selisih'],
-    mapRow: (r, summary={}) => [r.id_intake,r.document_no,r.received_on,r.supplier,r.note,r.created_by,formatWitaTimestamp(r.created_at),summary.count||0,summary.diffSkus||0,summary.totalDiff||0]
+    columns: ['id_intake','document_no','received_on','supplier','note','created_by','created_at','jumlah_sku','sku_berselisih','total_selisih','status_data'],
+    labels: ['ID Penerimaan','No Dokumen','Tanggal Terima','Pengirim','Catatan','Pembuat','Waktu Dibuat','Jumlah SKU','SKU Berselisih','Total Selisih','Status Data'],
+    mapRow: (r, summary={}) => [r.id_intake,r.document_no,r.received_on,r.supplier,r.note,r.created_by,formatWitaTimestamp(r.created_at),summary.count||0,summary.diffSkus||0,summary.totalDiff||0,r.deleted_at?'DIARSIPKAN':'AKTIF']
   },
   stocktrace_intake_items: {
     tab: 'Detail SKU', key: 'id_item', keyFields: ['id_intake','sku'], keyIndexes: [0,1], groupSortKey: 'id_intake',
-    columns: ['id_intake','sku','product_name','qty_document','qty_received','qty_difference','hasil'],
-    labels: ['ID Penerimaan','SKU','Nama Produk','Qty Dokumen','Qty Fisik','Selisih Fisik - Dokumen','Hasil'],
+    columns: ['id_intake','sku','product_name','qty_document','qty_received','qty_difference','hasil','status_data'],
+    labels: ['ID Penerimaan','SKU','Nama Produk','Qty Dokumen','Qty Fisik','Selisih Fisik - Dokumen','Hasil','Status Data'],
     mapRow: r => {
       const difference = Number(r.qty_difference ?? (Number(r.qty_received)-Number(r.qty_document)));
-      return [r.id_intake,r.sku,r.product_name,r.qty_document,r.qty_received,difference,difference===0?'Sesuai':difference<0?'Kurang':'Lebih'];
+      return [r.id_intake,r.sku,r.product_name,r.qty_document,r.qty_received,difference,difference===0?'Sesuai':difference<0?'Kurang':'Lebih',r.deleted_at?'DIARSIPKAN':'AKTIF'];
     }
   },
   stocktrace_intake_evidence: {
     tab: 'Bukti Penerimaan', key: 'drive_file_id', keyColumnIndex: 2, sortTimeKey: 'waktu_unggah',
-    columns: ['id_intake','nama_file_asli','drive_file_id','drive_view_url','waktu_unggah'],
-    labels: ['ID Penerimaan','Nama Berkas','Google Drive File ID','Google Drive URL','Waktu Unggah'],
-    mapRow: r => [r.id_intake,r.nama_file_asli,r.drive_file_id,r.drive_view_url,formatWitaTimestamp(r.waktu_unggah)]
+    columns: ['id_intake','nama_file_asli','drive_file_id','drive_view_url','waktu_unggah','status_data'],
+    labels: ['ID Penerimaan','Nama Berkas','Google Drive File ID','Google Drive URL','Waktu Unggah','Status Data'],
+    mapRow: r => [r.id_intake,r.nama_file_asli,r.drive_file_id,r.drive_view_url,formatWitaTimestamp(r.waktu_unggah),r.deleted_at?'DIARSIPKAN':'AKTIF']
   },
   stocktrace_cashier_requests: {
     tab: 'Permintaan Kasir', key: 'id_request', sortTimeKey: 'created_at',
-    columns: ['id_request','sku','product_name','qty_system','qty_physical','qty_difference','reason','status_request','id_kasus','id_intake','created_by','created_at','updated_at'],
-    labels: ['ID Permintaan','SKU','Nama Produk','Qty Sistem','Qty Fisik','Selisih','Alasan','Status','Kasus R1','ID Penerimaan','Pemohon','Dibuat','Pembaruan'],
-    mapRow: r => [r.id_request,r.sku,r.product_name,r.qty_system,r.qty_physical,r.qty_difference,r.reason,r.status_request,r.id_kasus,r.id_intake,r.created_by,formatWitaTimestamp(r.created_at),formatWitaTimestamp(r.updated_at)]
+    columns: ['id_request','sku','product_name','qty_system','qty_physical','qty_difference','reason','status_request','id_kasus','id_intake','created_by','created_at','updated_at','status_data'],
+    labels: ['ID Permintaan','SKU','Nama Produk','Qty Sistem','Qty Fisik','Selisih','Alasan','Status','Kasus R1','ID Penerimaan','Pemohon','Dibuat','Pembaruan','Status Data'],
+    mapRow: r => [r.id_request,r.sku,r.product_name,r.qty_system,r.qty_physical,r.qty_difference,r.reason,r.status_request,r.id_kasus,r.id_intake,r.created_by,formatWitaTimestamp(r.created_at),formatWitaTimestamp(r.updated_at),r.deleted_at?'DIARSIPKAN':'AKTIF']
   },
   stocktrace_cashier_logs: {
     tab: 'Riwayat Permintaan Kasir', key: 'id_log', keyColumnIndex: 5, sortTimeKey: 'created_at',
@@ -107,8 +107,9 @@ function formatWitaTimestamp(value){
 }
 function encodeRow(rec,schema,extra={}){
   if(typeof schema.mapRow==='function')return schema.mapRow(rec,extra);
-  return schema.columns.map(k => TIMESTAMP_COLUMNS.has(k)
-    ? formatWitaTimestamp(rec[k]) : googleValue(rec[k]));
+  return schema.columns.map(k => k==='status_data'
+    ? (rec.deleted_at?'DIARSIPKAN':'AKTIF')
+    : TIMESTAMP_COLUMNS.has(k) ? formatWitaTimestamp(rec[k]) : googleValue(rec[k]));
 }
 function keyFields(schema){return schema.keyFields||[schema.key];}
 function keyIndexes(schema){return schema.keyIndexes||[schema.keyColumnIndex??0];}
@@ -183,12 +184,24 @@ async function ensureHeader(client,sid,schema){
   const current=response.data.values?.[0]||[];
   const visibleCount=schema.visibleColumns??schema.labels.length;
   const expected=schema.labels.slice(0,visibleCount);
-  const actual=current.slice(0,visibleCount).map(v=>String(v??'').trim());
-  const empty=actual.every(v=>v==='');
-  if(empty){
+  const visible=current.slice(0,visibleCount).map(v=>String(v??'').trim());
+  const lastExisting=visible.reduce((last,value,index)=>value?index+1:last,0);
+  if(lastExisting===0){
     await client.spreadsheets.values.update({spreadsheetId:sid,range,valueInputOption:'RAW',requestBody:{values:[schema.labels]}});
-  }else if(expected.some((label,i)=>actual[i]!==label)){
-    throw Object.assign(new Error(`Header tab ${schema.tab} tidak sama dengan template. Periksa nama dan urutan kolom.`),{code:'SHEET_HEADER_MISMATCH',status:409});
+  }else{
+    const mismatch=expected.slice(0,lastExisting).some((label,index)=>visible[index]!==label);
+    if(mismatch){
+      throw Object.assign(new Error(`Header tab ${schema.tab} tidak sama dengan template. Periksa nama dan urutan kolom.`),{code:'SHEET_HEADER_MISMATCH',status:409});
+    }
+    if(lastExisting<expected.length){
+      const first=lastExisting+1,last=expected.length;
+      await client.spreadsheets.values.update({
+        spreadsheetId:sid,
+        range:a1(schema.tab,`${colLetter(first)}1:${colLetter(last)}1`),
+        valueInputOption:'RAW',
+        requestBody:{values:[expected.slice(lastExisting)]}
+      });
+    }
   }
   if(Number.isInteger(schema.hiddenColumnIndex)){
     const internalIndex=schema.hiddenColumnIndex;
@@ -252,8 +265,8 @@ async function deleteOne(client,sid,schema,record){
 }
 async function refreshIntakeSummary(client,sid,intakeId){
   if(!intakeId)return;
-  const detailRows=(await client.spreadsheets.values.get({spreadsheetId:sid,range:a1('Detail SKU','A2:G')})).data.values||[];
-  const matched=detailRows.filter(row=>String(row[0]||'')===String(intakeId));
+  const detailRows=(await client.spreadsheets.values.get({spreadsheetId:sid,range:a1('Detail SKU','A2:H')})).data.values||[];
+  const matched=detailRows.filter(row=>String(row[0]||'')===String(intakeId)&&String(row[7]||'AKTIF')!=='DIARSIPKAN');
   const differences=matched.map(row=>Number(row[5]||0));
   const summary=[matched.length,differences.filter(value=>value!==0).length,differences.reduce((sum,value)=>sum+value,0)];
   const intakeIds=(await client.spreadsheets.values.get({spreadsheetId:sid,range:a1('Penerimaan','A2:A')})).data.values||[];
@@ -317,6 +330,7 @@ async function fullSync(client,sid,identity,tables){
   const summaries=new Map();
   if(tables.includes('stocktrace_intake_items')){
     for(const item of datasets.stocktrace_intake_items){
+      if(item.deleted_at)continue;
       const id=String(item.id_intake||'');
       if(!id)continue;
       const summary=summaries.get(id)||{count:0,diffSkus:0,totalDiff:0};

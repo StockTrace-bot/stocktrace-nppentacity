@@ -1,0 +1,7 @@
+STOCKTRACE V2.2 FINAL SOURCE
+Build date: 2026-11-11
+Source basis: user-uploaded stocktrace-nppentacity-main.zip
+Primary guide: README_FINAL_STOCKTRACE_V22.md
+Database migration to apply after Production deploy: sql/12_SOFT_DELETE_ARCHIVE_FINAL.sql
+Automated QA: 60 passed / 0 failed; 28 JS/MJS syntax checks passed.
+This ZIP is source code only; it has not been deployed to Vercel or applied to the live Supabase database.

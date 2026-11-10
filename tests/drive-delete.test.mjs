@@ -25,14 +25,14 @@ const request = (table, oldRecord, headers = {}) => new Request('https://staging
   headers: { 'Content-Type': 'application/json', 'x-stocktrace-sync-secret': secret, ...headers },
   body: JSON.stringify({ schema: 'public', type: 'DELETE', table, old_record: oldRecord })
 });
-function mockDrive({ metadata, patchStatus = 200, metadataStatus = 200 } = {}) {
+function mockDrive({ metadata, patchStatus = 200, metadataStatus = 200, patchResult } = {}) {
   const calls = [];
   globalThis.fetch = async (url, init = {}) => {
     const u = String(url);
     calls.push({ url: u, init });
     if (u.includes('oauth2.googleapis.com/token')) return Response.json({ access_token: 'google-token' });
     if (u.includes('/drive/v3/files/')) {
-      if ((init.method || 'GET') === 'PATCH') return Response.json({ id: fileId, trashed: true }, { status: patchStatus });
+      if ((init.method || 'GET') === 'PATCH') return Response.json(patchResult || { id: fileId, trashed: true }, { status: patchStatus });
       if (metadataStatus !== 200) return Response.json({ error: { message: 'not found' } }, { status: metadataStatus });
       return Response.json(metadata);
     }
@@ -98,4 +98,62 @@ test('treats an already missing file as idempotent success', async () => {
   const r = await driveDelete.fetch(request('evidence_files', { id_kasus: caseId, drive_file_id: fileId }));
   assert.equal(r.status, 200);
   assert.equal((await r.json()).action, 'already_missing');
+});
+
+
+test('soft archive marks the Drive file without moving it to Trash', async () => {
+  const calls = mockDrive({
+    metadata: {
+      id: fileId, name: `${caseId}__photo.jpg`, description: `StockTrace — bukti kasus ${caseId}`,
+      parents: ['case-folder-123456'], trashed: false,
+      appProperties: { stocktrace_case: caseId, stocktrace_status: 'active' }
+    },
+    patchResult: { id: fileId, trashed: false, appProperties: { stocktrace_case: caseId, stocktrace_status: 'archived' } }
+  });
+  const r = await driveDelete.fetch(new Request('https://staging.example/api/drive-delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-stocktrace-sync-secret': secret },
+    body: JSON.stringify({
+      schema: 'public', type: 'UPDATE', table: 'evidence_files',
+      old_record: { id_kasus: caseId, drive_file_id: fileId, deleted_at: null },
+      record: { id_kasus: caseId, drive_file_id: fileId, deleted_at: '2026-11-11T00:00:00Z' }
+    })
+  }));
+  const payload = await r.json();
+  assert.equal(r.status, 200, JSON.stringify(payload));
+  assert.equal(payload.action, 'marked_archived');
+  const patch = calls.find(x => x.init.method === 'PATCH');
+  assert.ok(patch);
+  assert.deepEqual(JSON.parse(patch.init.body), {
+    appProperties: { stocktrace_case: caseId, stocktrace_status: 'archived' }
+  });
+});
+
+test('soft restore marks the Drive file active and keeps it out of Trash', async () => {
+  const calls = mockDrive({
+    metadata: {
+      id: fileId, name: `${caseId}__photo.jpg`, description: `StockTrace — bukti kasus ${caseId}`,
+      parents: ['case-folder-123456'], trashed: false,
+      appProperties: { stocktrace_case: caseId, stocktrace_status: 'archived' }
+    },
+    patchResult: { id: fileId, trashed: false, appProperties: { stocktrace_case: caseId, stocktrace_status: 'active' } }
+  });
+  const r = await driveDelete.fetch(new Request('https://staging.example/api/drive-delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-stocktrace-sync-secret': secret },
+    body: JSON.stringify({
+      schema: 'public', type: 'UPDATE', table: 'evidence_files',
+      old_record: { id_kasus: caseId, drive_file_id: fileId, deleted_at: '2026-11-11T00:00:00Z' },
+      record: { id_kasus: caseId, drive_file_id: fileId, deleted_at: null }
+    })
+  }));
+  const payload = await r.json();
+  assert.equal(r.status, 200, JSON.stringify(payload));
+  assert.equal(payload.action, 'restored_active');
+  const patch = calls.find(x => x.init.method === 'PATCH');
+  assert.ok(patch);
+  assert.deepEqual(JSON.parse(patch.init.body), {
+    trashed: false,
+    appProperties: { stocktrace_case: caseId, stocktrace_status: 'active' }
+  });
 });
