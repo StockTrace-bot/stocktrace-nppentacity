@@ -1,4 +1,5 @@
-// StockTrace V2.1 STAGING
+// StockTrace V2.1 — shared production/staging integration configuration.
+import { getDriveFolderId, getGoogleOAuthConfig, getSupabaseConfig } from './_lib/stocktrace-config.mjs';
 // Google Drive upload uses the OAuth account that owns/has access to My Drive folders.
 // Google Sheets may continue using GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON separately.
 // JSON control messages only; file bytes travel directly from browser to Google Drive.
@@ -9,15 +10,6 @@ const ALLOWED = new Set([
   'doc', 'docx', 'xls', 'xlsx', 'csv', 'txt'
 ]);
 const ROLES = new Set(['staff', 'leader', 'admin', 'store leader', 'store_leader']);
-const VARS = [
-  'SUPABASE_URL',
-  'SUPABASE_PUBLISHABLE_KEY',
-  'GOOGLE_CLIENT_ID',
-  'GOOGLE_CLIENT_SECRET',
-  'GOOGLE_REFRESH_TOKEN',
-  'GOOGLE_DRIVE_FOLDER_ID',
-  'GOOGLE_DRIVE_INTAKE_FOLDER_ID'
-];
 
 const json = (data, status = 200) => Response.json(data, {
   status,
@@ -39,28 +31,16 @@ const validFileId = id => /^[A-Za-z0-9_-]{10,128}$/.test(id);
 const validSize = n => Number.isSafeInteger(n) && n > 0 && n <= MAX_BYTES;
 
 function folderFor(isIntake) {
-  const key = isIntake ? 'GOOGLE_DRIVE_INTAKE_FOLDER_ID' : 'GOOGLE_DRIVE_FOLDER_ID';
-  const folder = String(process.env[key] || '').trim();
-
-  if (!folder) throw driveError(`Environment Variable ${key} belum diisi.`, 503);
-  if (!validFileId(folder)) {
-    throw driveError(`${key} harus berisi ID folder Google Drive saja, bukan URL lengkap.`, 503);
-  }
-
-  const reportFolder = String(process.env.GOOGLE_DRIVE_FOLDER_ID || '').trim();
-  const intakeFolder = String(process.env.GOOGLE_DRIVE_INTAKE_FOLDER_ID || '').trim();
-  if (reportFolder && intakeFolder && reportFolder === intakeFolder) {
-    throw driveError('Folder bukti laporan R1 dan penerimaan harus berbeda.', 503);
-  }
-
-  return folder;
+  try { return getDriveFolderId(isIntake ? 'intake' : 'r1'); }
+  catch (error) { throw driveError(error.message, error.status || 503); }
 }
 
 async function googleToken() {
+  const oauth = getGoogleOAuthConfig();
   const body = new URLSearchParams({
-    client_id: process.env.GOOGLE_CLIENT_ID,
-    client_secret: process.env.GOOGLE_CLIENT_SECRET,
-    refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+    client_id: oauth.clientId,
+    client_secret: oauth.clientSecret,
+    refresh_token: oauth.refreshToken,
     grant_type: 'refresh_token'
   });
 
@@ -144,9 +124,10 @@ async function authAndCase(req, caseId) {
   const token = (req.headers.get('authorization') || '').match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) throw driveError('Login diperlukan.', 401);
 
-  const supabaseOrigin = process.env.SUPABASE_URL.replace(/\/+$/, '');
+  const supabase = getSupabaseConfig();
+  const supabaseOrigin = supabase.url;
   const headers = {
-    apikey: process.env.SUPABASE_PUBLISHABLE_KEY,
+    apikey: supabase.publishableKey,
     Authorization: `Bearer ${token}`
   };
 
@@ -205,9 +186,19 @@ export default {
   async fetch(req) {
     if (req.method !== 'POST') return fail('METHOD_NOT_ALLOWED', 'Gunakan POST.', 405);
 
-    const missing = VARS.filter(key => !process.env[key]);
+    const supabase = getSupabaseConfig();
+    const oauth = getGoogleOAuthConfig();
+    const missing = [
+      ...(!supabase.url ? ['SUPABASE_URL'] : []),
+      ...(!supabase.publishableKey ? ['SUPABASE_PUBLISHABLE_KEY'] : []),
+      ...(!oauth.clientId ? ['GOOGLE_CLIENT_ID'] : []),
+      ...(!oauth.clientSecret ? ['GOOGLE_CLIENT_SECRET'] : []),
+      ...(!oauth.refreshToken ? ['GOOGLE_REFRESH_TOKEN'] : [])
+    ];
+    try { getDriveFolderId('r1'); getDriveFolderId('intake'); }
+    catch (error) { missing.push(error.code || 'STOCKTRACE_INTEGRATION_TARGETS_JSON'); }
     if (missing.length) {
-      return fail('CONFIG_MISSING', `Environment Variables belum lengkap: ${missing.join(', ')}`, 503);
+      return fail('CONFIG_MISSING', `Konfigurasi integrasi belum lengkap: ${[...new Set(missing)].join(', ')}`, 503);
     }
 
     const contentLength = Number(req.headers.get('content-length') || '0');

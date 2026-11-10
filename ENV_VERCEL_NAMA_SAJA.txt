@@ -1,21 +1,30 @@
-KONFIGURASI YANG SUDAH TERPASANG DI VERCEL (JANGAN UPLOAD NILAINYA)
+STOCKTRACE V2.1 — NAMA ENVIRONMENT VARIABLES (TANPA NILAI RAHASIA)
 
+KONFIGURASI SERVER-SIDE YANG DIPAKAI
 SUPABASE_URL
 SUPABASE_PUBLISHABLE_KEY
+SUPABASE_SERVICE_ROLE_KEY
 GOOGLE_CLIENT_ID
 GOOGLE_CLIENT_SECRET
 GOOGLE_REFRESH_TOKEN
+GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON
+STOCKTRACE_SHEETS_WEBHOOK_SECRET
+
+SATU PETA TUJUAN TERPUSAT (DIUTAMAKAN UNTUK PRODUCTION)
+STOCKTRACE_INTEGRATION_TARGETS_JSON
+
+JSON tersebut memuat empat ID tujuan non-secret:
+- drive.r1FolderId
+- drive.intakeFolderId
+- sheets.r1SpreadsheetId
+- sheets.intakeSpreadsheetId
+
+EMPAT VARIABEL LEGACY (FALLBACK JIKA JSON TERPUSAT BELUM ADA)
 GOOGLE_DRIVE_FOLDER_ID
 GOOGLE_DRIVE_INTAKE_FOLDER_ID
 GOOGLE_SHEETS_SPREADSHEET_ID
 GOOGLE_SHEETS_PENERIMAAN_SPREADSHEET_ID
-GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON
-STOCKTRACE_SHEETS_WEBHOOK_SECRET
 
-Project Vercel: stocktrace-nppentacity. Isi nilai sesuai environment masing-masing; variabel staging hanya pada Preview branch v2-1-staging. Jangan salin folder ID, spreadsheet ID, atau kredensial staging ke Production.
-
-Tidak ada secret/JSON pribadi di dalam paket ini. Key publik Supabase di frontend adalah publishable key,
-BUKAN service-role secret. Jangan menaruh secret Google di HTML/JS browser.
-Konfigurasi Service Account Google Sheets memerlukan akses Editor ke spreadsheet yang benar.
-
-Untuk V2.1 staging, pastikan kedua variabel INTAKE di atas diisi pada Preview branch v2-1-staging. Jangan gunakan ID folder atau spreadsheet Production.
+JANGAN masukkan nilai secret ke GitHub atau browser. Jangan hapus env lama sampai endpoint
+/api/integration-health menunjukkan konfigurasi Production benar dan pengujian selesai.
+Untuk format JSON, baca README_INTEGRASI_TERPUSAT.md.

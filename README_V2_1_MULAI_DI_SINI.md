@@ -1,5 +1,7 @@
 # StockTrace V2.1 — Paket sumber terintegrasi, 29 Oktober 2026
 
+> **Penerapan Production terpusat:** sebelum redeploy `main`, ikuti `README_INTEGRASI_TERPUSAT.md`. Dokumen itu mengatur satu variabel JSON untuk empat tujuan Google Drive/Sheets dan endpoint pemeriksaan `/api/integration-health`.
+
 **Status:** source code siap untuk **uji staging**, **bukan** konfirmasi bahwa sistem produksi sudah dipasang, lima akun perusahaan sudah aktif, atau integrasi pihak ketiga telah lolos uji langsung. Semua file proyek berada di root ZIP ini; tidak perlu digabung dengan ZIP lama.
 
 ## 1. Yang dipertahankan dari V1.2/V2

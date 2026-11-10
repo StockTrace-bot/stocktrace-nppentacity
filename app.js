@@ -74,19 +74,31 @@ async function checkAuth(){
 }
 async function syncSheetsNow(){
  if(!canManageCases())return notice('Akses ditolak','Hanya Leader dapat menjalankan sinkronisasi penuh.','warning');
- const btn=el('btnSyncSheets');if(btn){btn.disabled=true;btn.textContent='Sinkronisasi...';}
+ const btn=el('btnSyncSheets');if(btn){btn.disabled=true;btn.textContent='Sinkronisasi semua...';}
+ const completed=[];
  try{
   const {data:{session},error}=await sb.auth.getSession();
   if(error||!session?.access_token)throw new Error('Sesi Supabase kedaluwarsa. Silakan masuk kembali.');
-  const response=await fetch('/api/sheets-sync',{
-   method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},
-   body:JSON.stringify({mode:'full'})
-  });
-  const result=await response.json().catch(()=>({}));
-  if(!response.ok||!result.ok)throw new Error(result.message||'Sinkronisasi gagal.');
-  await notice('Google Sheets diperbarui',`Kasus: ${result.counts.cases}, bukti: ${result.counts.evidence_files}, riwayat: ${result.counts.case_logs}.`,'success');
- }catch(e){await notice('Sinkronisasi gagal',e.message,'error');}
- finally{if(btn){btn.disabled=false;btn.textContent='Sinkronkan Google Sheets';}}
+  const targets=[
+   {mode:'full',label:'R1 (Kasus, Bukti, Riwayat)'},
+   {mode:'full_penerimaan',label:'V2.1 (Penerimaan dan Kasir)'}
+  ];
+  const counts={};
+  for(const target of targets){
+   const response=await fetch('/api/sheets-sync',{
+    method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},
+    body:JSON.stringify({mode:target.mode})
+   });
+   const result=await response.json().catch(()=>({}));
+   if(!response.ok||!result.ok)throw new Error(`${target.label}: ${result.message||'Sinkronisasi gagal.'}`);
+   completed.push(target.label);counts[target.mode]=result.counts||{};
+  }
+  const r1=counts.full||{},v21=counts.full_penerimaan||{};
+  await notice('Semua Google Sheets diperbarui',`R1: ${r1.cases||0} kasus, ${r1.evidence_files||0} bukti, ${r1.case_logs||0} riwayat. V2.1: ${Object.values(v21).reduce((a,b)=>a+(Number(b)||0),0)} baris penerimaan dan kasir.`,'success');
+ }catch(e){
+  const partial=completed.length?`Berhasil: ${completed.join('; ')}. `:'';
+  await notice('Sinkronisasi belum lengkap',partial+e.message,'error');
+ }finally{if(btn){btn.disabled=false;btn.textContent='Sinkronkan Semua Google Sheets';}}
 }
 async function logout(){try{await sb?.auth.signOut();}catch(e){console.warn(e)}localStorage.removeItem('user_role');localStorage.removeItem('user_name');redirectLogin();}
 function displayCases(){

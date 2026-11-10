@@ -1,8 +1,9 @@
 // Download file by authenticated user; Supabase RLS enforces case visibility.
+import { getGoogleOAuthConfig, getSupabaseConfig } from './_lib/stocktrace-config.mjs';
 const fail=(message,status)=>Response.json({error:message},{status,headers:{'Cache-Control':'no-store'}});
-const vars=['SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY','GOOGLE_CLIENT_ID','GOOGLE_CLIENT_SECRET','GOOGLE_REFRESH_TOKEN'];
+function requiredConfigMissing(){const s=getSupabaseConfig(),g=getGoogleOAuthConfig();return [...(!s.url?['SUPABASE_URL']:[]),...(!s.publishableKey?['SUPABASE_PUBLISHABLE_KEY']:[]),...(!g.clientId?['GOOGLE_CLIENT_ID']:[]),...(!g.clientSecret?['GOOGLE_CLIENT_SECRET']:[]),...(!g.refreshToken?['GOOGLE_REFRESH_TOKEN']:[])];}
 async function googleAccessToken(){
- const body=new URLSearchParams({client_id:process.env.GOOGLE_CLIENT_ID,client_secret:process.env.GOOGLE_CLIENT_SECRET,refresh_token:process.env.GOOGLE_REFRESH_TOKEN,grant_type:'refresh_token'});
+ const g=getGoogleOAuthConfig();const body=new URLSearchParams({client_id:g.clientId,client_secret:g.clientSecret,refresh_token:g.refreshToken,grant_type:'refresh_token'});
  const r=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
  const data=await r.json().catch(()=>({}));
  if(!r.ok||!data.access_token)throw Error('Google OAuth gagal (cek refresh token).');
@@ -10,15 +11,15 @@ async function googleAccessToken(){
 }
 export default {async fetch(request){
  if(request.method!=='GET')return fail('Gunakan GET.',405);
- if(vars.some(x=>!process.env[x]))return fail('Konfigurasi server tidak lengkap.',503);
+ const missing=requiredConfigMissing();if(missing.length)return fail('Konfigurasi server tidak lengkap: '+missing.join(', '),503);
  const url=new URL(request.url),caseId=url.searchParams.get('case_id')||'',fileId=url.searchParams.get('file_id')||'';
  const isIntake=/^IN-[0-9]{8}-[A-Z0-9]{12}$/.test(caseId);
  if(!(/^ST-[A-Za-z0-9_-]{5,45}$/.test(caseId)||isIntake)||!/^[A-Za-z0-9_-]{10,128}$/.test(fileId))return fail('ID tidak valid.',400);
  const token=(request.headers.get('authorization')||'').match(/^Bearer\s+(.+)$/i)?.[1];
  if(!token)return fail('Login diperlukan.',401);
  try{
-  const origin=process.env.SUPABASE_URL.replace(/\/+$/,'');
-  const headers={apikey:process.env.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${token}`};
+  const supabase=getSupabaseConfig();const origin=supabase.url;
+  const headers={apikey:supabase.publishableKey,Authorization:`Bearer ${token}`};
   const userRes=await fetch(origin+'/auth/v1/user',{headers});
   if(!userRes.ok)return fail('Sesi tidak valid.',401);
   const user=await userRes.json().catch(()=>({}));if(!user.id)return fail('Pengguna tidak dikenal.',401);

@@ -1,32 +1,25 @@
 // StockTrace V2.1 — delete Drive evidence after an authenticated Supabase DELETE webhook.
 // This endpoint only moves verified StockTrace evidence to Drive Trash; it never permanently deletes.
 import { timingSafeEqual } from 'node:crypto';
+import { getDriveFolderId, getGoogleOAuthConfig, getWebhookSecret } from './_lib/stocktrace-config.mjs';
 
 const MAX_BODY_BYTES = 64 * 1024;
 const TABLES = {
   evidence_files: {
     idField: 'id_kasus',
-    folderEnv: 'GOOGLE_DRIVE_FOLDER_ID',
+    folderKind: 'r1',
     appProperty: 'stocktrace_case',
     idPattern: /^ST-[A-Za-z0-9_-]{5,45}$/,
     label: 'bukti kasus R1'
   },
   stocktrace_intake_evidence: {
     idField: 'id_intake',
-    folderEnv: 'GOOGLE_DRIVE_INTAKE_FOLDER_ID',
+    folderKind: 'intake',
     appProperty: 'stocktrace_intake',
     idPattern: /^IN-[0-9]{8}-[A-Z0-9]{12}$/,
     label: 'bukti penerimaan'
   }
 };
-const REQUIRED_ENV = [
-  'STOCKTRACE_SHEETS_WEBHOOK_SECRET',
-  'GOOGLE_CLIENT_ID',
-  'GOOGLE_CLIENT_SECRET',
-  'GOOGLE_REFRESH_TOKEN',
-  'GOOGLE_DRIVE_FOLDER_ID',
-  'GOOGLE_DRIVE_INTAKE_FOLDER_ID'
-];
 const FILE_ID_PATTERN = /^[A-Za-z0-9_-]{10,128}$/;
 
 const json = (payload, status = 200) => Response.json(payload, {
@@ -43,23 +36,16 @@ function secretMatches(received, expected) {
 }
 
 function folderFor(tableConfig) {
-  const folder = String(process.env[tableConfig.folderEnv] || '').trim();
-  if (!FILE_ID_PATTERN.test(folder)) {
-    throw Object.assign(new Error(`Environment Variable ${tableConfig.folderEnv} belum valid.`), { status: 503, code: 'DRIVE_FOLDER_CONFIG' });
-  }
-  const caseFolder = String(process.env.GOOGLE_DRIVE_FOLDER_ID || '').trim();
-  const intakeFolder = String(process.env.GOOGLE_DRIVE_INTAKE_FOLDER_ID || '').trim();
-  if (caseFolder === intakeFolder) {
-    throw Object.assign(new Error('Folder bukti R1 dan penerimaan harus berbeda.'), { status: 503, code: 'DRIVE_FOLDER_COLLISION' });
-  }
-  return folder;
+  try { return getDriveFolderId(tableConfig.folderKind); }
+  catch (error) { throw Object.assign(new Error(error.message), { status: error.status || 503, code: error.code || 'DRIVE_FOLDER_CONFIG' }); }
 }
 
 async function googleAccessToken() {
+  const oauth = getGoogleOAuthConfig();
   const form = new URLSearchParams({
-    client_id: process.env.GOOGLE_CLIENT_ID,
-    client_secret: process.env.GOOGLE_CLIENT_SECRET,
-    refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+    client_id: oauth.clientId,
+    client_secret: oauth.clientSecret,
+    refresh_token: oauth.refreshToken,
     grant_type: 'refresh_token'
   });
   const response = await fetch('https://oauth2.googleapis.com/token', {
@@ -89,8 +75,16 @@ export default {
   async fetch(request) {
     if (request.method !== 'POST') return fail('METHOD_NOT_ALLOWED', 'Gunakan POST.', 405);
 
-    const missing = REQUIRED_ENV.filter(name => !process.env[name]);
-    if (missing.length) return fail('CONFIG_MISSING', `Environment Variables belum lengkap: ${missing.join(', ')}.`, 503);
+    const oauth = getGoogleOAuthConfig();
+    const missing = [
+      ...(!getWebhookSecret() ? ['STOCKTRACE_SHEETS_WEBHOOK_SECRET'] : []),
+      ...(!oauth.clientId ? ['GOOGLE_CLIENT_ID'] : []),
+      ...(!oauth.clientSecret ? ['GOOGLE_CLIENT_SECRET'] : []),
+      ...(!oauth.refreshToken ? ['GOOGLE_REFRESH_TOKEN'] : [])
+    ];
+    try { getDriveFolderId('r1'); getDriveFolderId('intake'); }
+    catch (error) { missing.push(error.code || 'STOCKTRACE_INTEGRATION_TARGETS_JSON'); }
+    if (missing.length) return fail('CONFIG_MISSING', `Konfigurasi integrasi belum lengkap: ${[...new Set(missing)].join(', ')}.`, 503);
 
     const length = Number(request.headers.get('content-length') || 0);
     if (length > MAX_BODY_BYTES) return fail('BODY_TOO_LARGE', 'Payload webhook terlalu besar.', 413);
@@ -100,7 +94,7 @@ export default {
 
     if (!secretMatches(
       request.headers.get('x-stocktrace-sync-secret') || '',
-      process.env.STOCKTRACE_SHEETS_WEBHOOK_SECRET
+      getWebhookSecret()
     )) return fail('UNAUTHORIZED', 'Webhook tidak terautentikasi.', 401);
 
     try {

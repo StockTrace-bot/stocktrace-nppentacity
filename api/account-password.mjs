@@ -1,24 +1,24 @@
 // StockTrace V2 Account Security. Only self-change, no public administrative reset.
+import { getSupabaseConfig } from './_lib/stocktrace-config.mjs';
 // Server controls old-password proof and flags; service-role key stays in Vercel.
 const NO_STORE={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
 const reply=(data,status=200)=>Response.json(data,{status,headers:NO_STORE});
 const denied=(status=401)=>reply({error:status===429?'Terlalu banyak percobaan, coba nanti.':'Akses ditolak atau kata sandi tidak sesuai.'},status);
-const required=['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','SUPABASE_PUBLISHABLE_KEY'];
 const emailPattern=/^[^\s@]+@[^\s@]+$/;
 export default {async fetch(req){
  if(!['GET','POST'].includes(req.method))return reply({error:'Method tidak didukung.'},405);
- if(required.some(k=>!process.env[k]))return reply({error:'Keamanan akun belum dikonfigurasi.'},503);
+ const supabase=getSupabaseConfig();if(!supabase.url||!supabase.serviceRoleKey||!supabase.publishableKey)return reply({error:'Keamanan akun belum dikonfigurasi.'},503);
  if(req.method==='POST'){
   const origin=req.headers.get('origin');if(origin&&origin!==new URL(req.url).origin)return denied(403);
   if(Number(req.headers.get('content-length')||'0')>2048)return denied(413);
   if(!(req.headers.get('content-type')||'').includes('application/json'))return denied(415);
  }
  const token=(req.headers.get('authorization')||'').match(/^Bearer\s+(.+)$/i)?.[1];if(!token)return denied();
- const root=process.env.SUPABASE_URL.replace(/\/+$/,'');
- const sk=process.env.SUPABASE_SERVICE_ROLE_KEY;
+ const root=supabase.url;
+ const sk=supabase.serviceRoleKey;
  const adm=sk.startsWith('sb_secret_')?{apikey:sk}:{apikey:sk,Authorization:`Bearer ${sk}`};
  try{
-  const r=await fetch(root+'/auth/v1/user',{headers:{apikey:process.env.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${token}`}});
+  const r=await fetch(root+'/auth/v1/user',{headers:{apikey:supabase.publishableKey,Authorization:`Bearer ${token}`}});
   if(!r.ok)return denied();const user=await r.json();if(!/^[0-9a-f-]{36}$/i.test(user?.id||''))return denied();
   const secUrl=root+'/rest/v1/stocktrace_account_security?id_user=eq.'+encodeURIComponent(user.id);
   const stateRes=await fetch(secUrl+'&select=must_change_password,last_password_change_at',{headers:adm});
@@ -34,7 +34,7 @@ export default {async fetch(req){
   const u=await fetch(root+'/auth/v1/admin/users/'+encodeURIComponent(user.id),{headers:adm});
   if(!u.ok)return denied();const data=await u.json();const email=data?.email;
   if(!emailPattern.test(email||''))return reply({error:'Identitas internal belum siap.'},503);
-  const check=await fetch(root+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:process.env.SUPABASE_PUBLISHABLE_KEY,'Content-Type':'application/json'},body:JSON.stringify({email,password:current})});
+  const check=await fetch(root+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:supabase.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({email,password:current})});
   if(!check.ok)return denied();const signed=await check.json().catch(()=>({}));if(signed.user?.id!==user.id)return denied();
   // Only after successfully authenticating the current password may the server update it.
   const update=await fetch(root+'/auth/v1/admin/users/'+encodeURIComponent(user.id),{method:'PUT',headers:{...adm,'Content-Type':'application/json'},body:JSON.stringify({password:next})});

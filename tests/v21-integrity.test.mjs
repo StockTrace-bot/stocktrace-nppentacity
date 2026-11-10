@@ -53,7 +53,7 @@ test('receipt file uploads use separate receipt authorization and Drive appPrope
  const {default:upload}=await import('../api/drive-upload.mjs');
  const originalFetch=globalThis.fetch;
  const original={};
- for(const [k,v] of Object.entries({SUPABASE_URL:'https://example.supabase.co',SUPABASE_PUBLISHABLE_KEY:'key',GOOGLE_CLIENT_ID:'a',GOOGLE_CLIENT_SECRET:'b',GOOGLE_REFRESH_TOKEN:'c',GOOGLE_DRIVE_FOLDER_ID:'folder',GOOGLE_DRIVE_INTAKE_FOLDER_ID:'intake-folder'})){
+ for(const [k,v] of Object.entries({SUPABASE_URL:'https://example.supabase.co',SUPABASE_PUBLISHABLE_KEY:'key',GOOGLE_CLIENT_ID:'a',GOOGLE_CLIENT_SECRET:'b',GOOGLE_REFRESH_TOKEN:'c',GOOGLE_DRIVE_FOLDER_ID:'case-folder-test',GOOGLE_DRIVE_INTAKE_FOLDER_ID:'intake-folder-test'})){
   original[k]=process.env[k];process.env[k]=v;
  }
  const receipt='IN-20261029-ABCDEF123456',file='1A2b3C4d5E6f7G8h9I0j',person='00000000-0000-4000-8000-000000000001';
@@ -67,13 +67,13 @@ test('receipt file uploads use separate receipt authorization and Drive appPrope
    if(u.includes('/rest/v1/cases'))throw Error('Receipt must not use R1 cases table');
    if(u.includes('oauth2.googleapis.com'))return Response.json({access_token:'google'});
    if(u.includes('/drive/v3/about'))return Response.json({user:{emailAddress:'staging@example.test'}});
-   if(u.includes('/drive/v3/files/intake-folder'))return Response.json({id:'intake-folder',name:'Intake folder',mimeType:'application/vnd.google-apps.folder',trashed:false,capabilities:{canAddChildren:true}});
+   if(u.includes('/drive/v3/files/intake-folder-test'))return Response.json({id:'intake-folder',name:'Intake folder',mimeType:'application/vnd.google-apps.folder',trashed:false,capabilities:{canAddChildren:true}});
    if(u.includes('/upload/drive/')){
     const info=JSON.parse(opts.body);assert.equal(info.appProperties.stocktrace_intake,receipt);
     assert.equal(info.appProperties.stocktrace_user,person);
     return new Response(null,{status:200,headers:{Location:'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&upload_id=receipt'}});
    }
-   if(u.includes('/drive/v3/files/'))return Response.json({id:file,name:receipt+'__receipt.pdf',parents:['intake-folder'],size:'150',trashed:false,appProperties:{stocktrace_intake:receipt,stocktrace_user:person}});
+   if(u.includes('/drive/v3/files/'))return Response.json({id:file,name:receipt+'__receipt.pdf',parents:['intake-folder-test'],size:'150',trashed:false,appProperties:{stocktrace_intake:receipt,stocktrace_user:person}});
    throw Error('unexpected request '+u);
   };
   for(const action of ['start','verify']){

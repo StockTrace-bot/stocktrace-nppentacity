@@ -6,6 +6,7 @@
  */
 import { google } from 'googleapis';
 import { timingSafeEqual } from 'node:crypto';
+import { getGoogleSheetsServiceAccount, getSheetsSpreadsheetId, getSupabaseConfig, getWebhookSecret } from './_lib/stocktrace-config.mjs';
 
 const SHEETS = {
   // R1 — keep the existing spreadsheet and mappings intact.
@@ -63,16 +64,15 @@ const SHEETS = {
 };
 const TARGETS = {
   r1: {
-    spreadsheetEnv: 'GOOGLE_SHEETS_SPREADSHEET_ID',
+    spreadsheetTarget: 'r1',
     tables: ['cases','evidence_files','case_logs']
   },
   penerimaan: {
-    spreadsheetEnv: 'GOOGLE_SHEETS_PENERIMAAN_SPREADSHEET_ID',
+    spreadsheetTarget: 'intake',
     tables: ['stocktrace_intakes','stocktrace_intake_items','stocktrace_intake_evidence','stocktrace_cashier_requests','stocktrace_cashier_logs']
   }
 };
 const FULL_SYNC_LEADER_ROLES=new Set(['leader']);
-const COMMON_ENV_NAMES=['GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON','STOCKTRACE_SHEETS_WEBHOOK_SECRET','SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY'];
 const MAX_BODY_BYTES=512*1024;
 function json(payload,status=200){return Response.json(payload,{status,headers:{'Cache-Control':'no-store'}});}
 function fail(status,code,message){return json({ok:false,code,message},status);}
@@ -130,10 +130,10 @@ async function hideInternalColumn(client,sid,schema){
 }
 function colLetter(n){let result='';while(n>0){n--;result=String.fromCharCode(65+n%26)+result;n=Math.floor(n/26);}return result;}
 function getSpreadsheetId(target){
-  const envName=TARGETS[target]?.spreadsheetEnv;
-  const id=envName?process.env[envName]:'';
-  if(!id)throw Object.assign(new Error(`Pengaturan server belum lengkap: ${envName||'spreadsheet target tidak dikenal'}.`),{code:'CONFIG_MISSING',status:503});
-  return id;
+  const kind=TARGETS[target]?.spreadsheetTarget;
+  if(!kind)throw Object.assign(new Error('Spreadsheet target tidak dikenal.'),{code:'CONFIG_MISSING',status:503});
+  try{return getSheetsSpreadsheetId(kind);}
+  catch(error){throw Object.assign(new Error(error.message),{code:error.code||'CONFIG_MISSING',status:error.status||503});}
 }
 function targetForTable(table){
   return Object.keys(TARGETS).find(target=>TARGETS[target].tables.includes(table))||null;
@@ -173,15 +173,8 @@ async function formatWrittenRow(client,sid,schema,row,previousRow){
   await client.spreadsheets.batchUpdate({spreadsheetId:sid,requestBody:{requests}});
 }
 function getClient(){
-  let credentials;
-  try{credentials=JSON.parse(process.env.GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON||'');}
-  catch{throw Object.assign(new Error('GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON bukan JSON valid.'),{code:'GOOGLE_CREDENTIALS_BAD_JSON',status:503});}
-  if(credentials?.type!=='service_account'||!credentials.private_key||!credentials.client_email)
-    throw Object.assign(new Error('JSON Service Account tidak memuat type, private_key, atau client_email.'),{code:'GOOGLE_CREDENTIALS_INCOMPLETE',status:503});
-  const auth=new google.auth.GoogleAuth({
-    credentials,
-    scopes:['https://www.googleapis.com/auth/spreadsheets']
-  });
+  const credentials=getGoogleSheetsServiceAccount();
+  const auth=new google.auth.GoogleAuth({credentials,scopes:['https://www.googleapis.com/auth/spreadsheets']});
   return google.sheets({version:'v4',auth});
 }
 async function ensureHeader(client,sid,schema){
@@ -272,8 +265,9 @@ async function refreshIntakeSummary(client,sid,intakeId){
 async function findLeader(request){
   const bearer=(request.headers.get('authorization')||'').match(/^Bearer\s+(.+)$/i)?.[1];
   if(!bearer)return null;
-  const origin=String(process.env.SUPABASE_URL||'').replace(/\/+$/,'');
-  const headers={apikey:process.env.SUPABASE_PUBLISHABLE_KEY,Authorization:`Bearer ${bearer}`};
+  const supabase=getSupabaseConfig();
+  const origin=supabase.url;
+  const headers={apikey:supabase.publishableKey,Authorization:`Bearer ${bearer}`};
   const response=await fetch(`${origin}/auth/v1/user`,{headers});
   if(!response.ok)return null;
   const user=await response.json();
@@ -367,12 +361,15 @@ export default {
     if(request.method!=='POST')return fail(405,'METHOD_NOT_ALLOWED','POST only. This endpoint is not a public report.');
     if(Number(request.headers.get('content-length'))>MAX_BODY_BYTES)return fail(413,'TOO_LARGE','Body terlalu besar.');
     try{
-      const missing=COMMON_ENV_NAMES.filter(key=>!process.env[key]);
-      if(missing.length)return fail(503,'CONFIG_MISSING',`Pengaturan server belum lengkap: ${missing.join(', ')}.`);
+      const supabase=getSupabaseConfig();
+      const missing=[...(!supabase.url?['SUPABASE_URL']:[]),...(!supabase.publishableKey?['SUPABASE_PUBLISHABLE_KEY']:[]),...(!getWebhookSecret()?['STOCKTRACE_SHEETS_WEBHOOK_SECRET']:[])];
+      try{getGoogleSheetsServiceAccount();}catch(error){missing.push(error.code||'GOOGLE_SHEETS_SERVICE_ACCOUNT_JSON');}
+      try{getSheetsSpreadsheetId('r1');getSheetsSpreadsheetId('intake');}catch(error){missing.push(error.code||'STOCKTRACE_INTEGRATION_TARGETS_JSON');}
+      if(missing.length)return fail(503,'CONFIG_MISSING',`Konfigurasi integrasi belum lengkap: ${[...new Set(missing)].join(', ')}.`);
       let body;
       try{body=await request.json();}catch{return fail(400,'BAD_JSON','Body harus JSON valid.');}
       const secret=request.headers.get('x-stocktrace-sync-secret')||'';
-      const webhook=constantTimeEqual(secret,process.env.STOCKTRACE_SHEETS_WEBHOOK_SECRET);
+      const webhook=constantTimeEqual(secret,getWebhookSecret());
       if(webhook){
         if(body?.schema!=='public'||!SHEETS[body.table]||!['INSERT','UPDATE','DELETE'].includes(body.type))
           return fail(400,'EVENT_INVALID','Event webhook tidak dikenali.');

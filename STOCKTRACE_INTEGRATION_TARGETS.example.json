@@ -1,0 +1,10 @@
+{
+  "drive": {
+    "r1FolderId": "PASTE_ID_FOLDER_BUKTI_KASUS",
+    "intakeFolderId": "PASTE_ID_FOLDER_BUKTI_PENERIMAAN"
+  },
+  "sheets": {
+    "r1SpreadsheetId": "PASTE_ID_SPREADSHEET_R1",
+    "intakeSpreadsheetId": "PASTE_ID_SPREADSHEET_PENERIMAAN"
+  }
+}

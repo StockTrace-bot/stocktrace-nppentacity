@@ -1,4 +1,5 @@
-// StockTrace — Vercel Function untuk unggah berkas bukti ke Google Drive.
+// StockTrace — legacy small-file upload route, now uses shared integration config.
+import { getDriveFolderId, getGoogleOAuthConfig, getSupabaseConfig } from './_lib/stocktrace-config.mjs';
 // Nama file menentukan route: api/upload.mjs -> /api/upload
 // Web-standard Request/Response, Node.js >= 20, tanpa dependency eksternal.
 // Google OAuth refresh token dan kredensial tersimpan HANYA di Vercel Environment Variables.
@@ -14,18 +15,26 @@ function reject(code, message, status) {
   return respond({ success: false, code, error: message }, status);
 }
 function envMissing() {
-  return [
-    'SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY',
-    'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REFRESH_TOKEN', 'GOOGLE_DRIVE_FOLDER_ID'
-  ].filter((name) => !process.env[name]);
+  const supabase = getSupabaseConfig();
+  const oauth = getGoogleOAuthConfig();
+  const missing = [
+    ...(!supabase.url ? ['SUPABASE_URL'] : []),
+    ...(!supabase.publishableKey ? ['SUPABASE_PUBLISHABLE_KEY'] : []),
+    ...(!oauth.clientId ? ['GOOGLE_CLIENT_ID'] : []),
+    ...(!oauth.clientSecret ? ['GOOGLE_CLIENT_SECRET'] : []),
+    ...(!oauth.refreshToken ? ['GOOGLE_REFRESH_TOKEN'] : [])
+  ];
+  try { getDriveFolderId('r1'); } catch (error) { missing.push(error.code || 'STOCKTRACE_INTEGRATION_TARGETS_JSON'); }
+  return [...new Set(missing)];
 }
 async function getAuthenticatedUser(request) {
   const authHeader = request.headers.get('authorization') || '';
   const match = /^Bearer\s+(.+)$/i.exec(authHeader);
   if (!match) return { error: 'Sesi tidak dikirim. Silakan login kembali.', status: 401 };
   const token = match[1];
-  const origin = process.env.SUPABASE_URL.replace(/\/+$/, '');
-  const commonHeaders = { apikey: process.env.SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${token}` };
+  const supabase = getSupabaseConfig();
+  const origin = supabase.url;
+  const commonHeaders = { apikey: supabase.publishableKey, Authorization: `Bearer ${token}` };
   // Validasi user langsung ke Supabase Auth; jangan percaya role dari localStorage.
   const response = await fetch(`${origin}/auth/v1/user`, { headers: commonHeaders });
   if (!response.ok) return { error: 'Sesi Supabase tidak valid atau kedaluwarsa. Login ulang.', status: 401 };
@@ -41,10 +50,11 @@ async function getAuthenticatedUser(request) {
   return { user, role };
 }
 async function getGoogleAccessToken() {
+  const oauth = getGoogleOAuthConfig();
   const params = new URLSearchParams({
-    client_id: process.env.GOOGLE_CLIENT_ID,
-    client_secret: process.env.GOOGLE_CLIENT_SECRET,
-    refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
+    client_id: oauth.clientId,
+    client_secret: oauth.clientSecret,
+    refresh_token: oauth.refreshToken,
     grant_type: 'refresh_token'
   });
   const res = await fetch('https://oauth2.googleapis.com/token', {
@@ -69,7 +79,7 @@ async function sendToDrive(file, caseId) {
   const sanitizedName = normalizeFilename(file.name);
   const metadata = {
     name: `${caseId}__${sanitizedName}`,
-    parents: [process.env.GOOGLE_DRIVE_FOLDER_ID],
+    parents: [getDriveFolderId('r1')],
     description: `StockTrace — bukti kasus ${caseId}`
   };
   const boundary = `stocktrace_${crypto.randomUUID().replaceAll('-', '')}`;
@@ -132,9 +142,10 @@ export default {
       // Kasus harus ada dan terlihat oleh akun ini (RLS): hindari bukti yatim.
       // Alur frontend membuat cases lebih dulu, kemudian upload satu per satu.
       const authToken = (request.headers.get('authorization') || '').match(/^Bearer\s+(.+)$/i)?.[1];
-      const origin = process.env.SUPABASE_URL.replace(/\/+$/, '');
+      const supabase = getSupabaseConfig();
+      const origin = supabase.url;
       const visibleCaseResponse = await fetch(`${origin}/rest/v1/cases?select=id_kasus&id_kasus=eq.${encodeURIComponent(caseId)}&limit=1`, {
-        headers: { apikey: process.env.SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${authToken}` }
+        headers: { apikey: supabase.publishableKey, Authorization: `Bearer ${authToken}` }
       });
       if (!visibleCaseResponse.ok) return reject('CASE_ACCESS_CHECK_FAILED','Gagal memvalidasi hak akses kasus.',403);
       const visibleCases = await visibleCaseResponse.json().catch(() => []);
