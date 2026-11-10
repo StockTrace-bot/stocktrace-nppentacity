@@ -1,8 +1,8 @@
-# StockTrace V2.2 — FINAL SOURCE PACKAGE
+# StockTrace V2.2.1 — FINAL SOURCE PACKAGE
 
-Paket ini adalah source lengkap dari ZIP repository yang diberikan, dengan revisi keamanan sesi, pengarsipan yang dapat dipulihkan, sinkronisasi status arsip ke Google Sheets/Drive, dan penyempurnaan responsif.
+Paket ini adalah source lengkap dari ZIP repository yang diberikan, dengan revisi keamanan sesi, pengarsipan yang dapat dipulihkan, pemindahan file bukti ke folder arsip khusus Google Drive, sinkronisasi status arsip ke Google Sheets/Drive, dan penyempurnaan responsif.
 
-## Perubahan V2.2
+## Perubahan V2.2.1 (patch Drive)
 
 ### 1. Arsip & Sampah (Soft Delete)
 - Tidak ada tombol hapus permanen di aplikasi.
@@ -14,7 +14,7 @@ Paket ini adalah source lengkap dari ZIP repository yang diberikan, dengan revis
 - Log audit tetap dipertahankan; pengarsipan tidak menghapus catatan riwayat.
 - Staff hanya boleh mengarsipkan laporan miliknya yang masih **Baru Dilaporkan** dan belum memiliki PIC, bukti miliknya pada kondisi yang sama, serta permintaan kasir miliknya yang masih **Diajukan**.
 - Hanya Leader yang dapat mengarsipkan dokumen/bukti penerimaan dan memulihkan data.
-- Data tidak dihapus dari database. File Drive tetap ada dan ditandai melalui `appProperties.stocktrace_status` (`archived` / `active`) agar dapat dipulihkan. File tidak dipindahkan permanen atau dihapus.
+- Data tidak dihapus dari database. Saat bukti diarsipkan, file Drive dipindahkan dari folder bukti aktif ke subfolder `ARSIP STOCKTRACE` di dalam folder induk yang sama. File tetap tersimpan dan dapat dipulihkan ke folder aktif semula.
 
 ### 2. Sinkronisasi Google Sheets
 - Kolom `Status Data` ditambahkan di akhir tab data yang dapat diarsipkan.
@@ -24,10 +24,10 @@ Paket ini adalah source lengkap dari ZIP repository yang diberikan, dengan revis
 - Trigger INSERT/UPDATE yang sudah terpasang tetap digunakan. Tidak perlu mengganti secret, spreadsheet ID, atau membuat ulang delapan webhook Sheets.
 
 ### 3. Google Drive
-- Dua trigger UPDATE tambahan mengirim perubahan status arsip bukti ke `/api/drive-delete`.
-- File tetap tersimpan di folder yang sama, tidak dihapus permanen dan tidak dipindahkan ke Trash saat soft delete.
-- Pemulihan menandai file kembali `active`.
-- Event DELETE fisik yang dilakukan di luar alur aplikasi masih mengikuti endpoint lama dan memindahkan file terverifikasi ke Trash. Jangan menghapus record langsung dari SQL/Table Editor untuk operasional harian.
+- Dua trigger UPDATE mengirim perubahan status arsip bukti ke `/api/drive-delete`. Endpoint membuat subfolder `ARSIP STOCKTRACE` secara otomatis pada pemakaian pertama untuk folder bukti kasus dan folder bukti penerimaan; kedua jenis bukti tetap terpisah.
+- File tidak dihapus permanen dan tidak dipindahkan ke Trash saat soft delete. File dipindahkan ke subfolder `ARSIP STOCKTRACE`, lalu dikembalikan ke folder aktif semula saat dipulihkan.
+- Subfolder dibuat otomatis oleh endpoint Drive menggunakan OAuth yang sudah dipakai aplikasi; tidak ada environment variable atau ID folder arsip baru yang perlu ditambahkan.
+- Event DELETE fisik yang dilakukan di luar alur aplikasi masih memindahkan file terverifikasi ke Trash. Jangan menghapus record langsung dari SQL/Table Editor untuk operasional harian.
 
 ### 4. Login per tab
 - Supabase Auth menggunakan `sessionStorage`, bukan `localStorage`.
@@ -42,43 +42,33 @@ Paket ini adalah source lengkap dari ZIP repository yang diberikan, dengan revis
 - Tabel tetap dapat digeser secara horizontal; form, tombol arsip/pulihkan, detail, dan jarak sentuh disesuaikan untuk layar kecil.
 - Ini adalah layout responsif dengan identitas visual konsisten, bukan memaksa ukuran desktop yang sama persis pada layar HP.
 
-## Urutan deployment Production
+## Urutan update Production untuk V2.2.1
 
-**Jangan jalankan SQL 12 sebelum source code V2.2 sudah aktif di Production.** Endpoint `/api/drive-delete` perlu menerima event UPDATE terlebih dahulu.
+**Database Production pengguna sudah menjalankan SQL 12. Jangan jalankan SQL 12 lagi.** Patch ini memakai SQL 13 untuk memperbarui webhook dan memindahkan file bukti lama yang sudah berstatus arsip.
 
-1. Backup database Supabase dan pastikan backup bisa diakses. Jangan melakukan reset data.
-2. Ekstrak ZIP ini dan salin isi folder proyek ke repository lokal yang sudah memiliki `.git`. Jangan menimpa folder `.git`.
+1. Pastikan backup database tersedia. Jangan melakukan reset data.
+2. Ekstrak ZIP V2.2.1. Salin isi folder proyek ke repository lokal `stocktrace-v22-review` yang sudah memiliki `.git`; jangan menimpa atau menghapus folder `.git`.
 3. Jalankan pemeriksaan lokal:
 
    ```bash
    node --check app.js
    node --check v21.js
-   node --check api/sheets-sync.mjs
    node --check api/drive-delete.mjs
-   npm test
+   node --test tests/*.test.mjs
    ```
 
-   Paket QA ini lulus 60/60 tes simulasi pada saat dibuat. Tes simulasi tidak menggantikan tes langsung terhadap database, akun OAuth, Drive, dan spreadsheet Production.
+4. Commit dan push source ke branch review, lalu gabungkan ke `main` setelah pemeriksaan selesai. Tunggu deployment Vercel **Production** berstatus Ready.
+5. Pastikan environment variables Production yang lama tetap tersedia, terutama `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, `STOCKTRACE_SHEETS_WEBHOOK_SECRET`, dan target folder Drive. Tidak ada environment variable baru yang diperlukan.
+6. Setelah source V2.2.1 aktif di Production, buka Supabase project Production → SQL Editor dan jalankan **sekali** `sql/13_DRIVE_ARCHIVE_FOLDER_MIGRATION.sql`. Script ini mengambil URL, header, dan secret dari trigger Drive Production yang sudah aktif; tidak perlu menyalin atau menampilkan secret.
+7. SQL 13 memperbarui dua trigger Drive dan mengirim rekonsiliasi untuk bukti yang sudah diarsipkan sebelum patch ini. Webhook berjalan asynchronous. Periksa `net._http_response` dan Vercel Logs setelah migrasi.
+8. Folder `ARSIP STOCKTRACE` dibuat otomatis saat bukti pertama kali diarsipkan di masing-masing folder induk. Tidak perlu membuat folder manual. Jika folder dengan nama itu sudah ada tetapi bukan folder yang dibuat StockTrace, endpoint menolak memakainya agar file tidak tercampur; ubah nama folder manual tersebut lalu coba lagi.
+9. Uji dengan satu bukti percobaan yang tidak sensitif:
+   - Arsipkan bukti kasus R1 → file harus hilang dari daftar file langsung di folder aktif dan muncul di `ARSIP STOCKTRACE`.
+   - Pulihkan bukti → file harus kembali ke folder aktif semula.
+   - Ulangi pada bukti penerimaan untuk memastikan folder arsip penerimaan terpisah.
+10. Uji satu laporan dan satu dokumen penerimaan melalui menu **Arsip & Sampah**. Pastikan status database dan Google Sheets tetap sinkron. Jangan gunakan bukti operasional penting untuk pengujian pertama.
 
-4. Commit dan push ke branch `main`, lalu tunggu deployment Vercel **Production** berstatus Ready.
-5. Pastikan domain Production tetap `https://stocktrace-nppentacity.vercel.app` dan environment variables lama tetap tersedia. Tidak ada environment variable baru yang diperlukan. Jangan mengganti `STOCKTRACE_SHEETS_WEBHOOK_SECRET` atau menggunakan Vercel Protection Bypass sebagai webhook secret.
-6. Setelah deployment Ready, buka Supabase project Production → SQL Editor, lalu jalankan **sekali**:
-
-   `sql/12_SOFT_DELETE_ARCHIVE_FINAL.sql`
-
-   Script ini memerlukan trigger Sheets Production bernama `stocktrace_sync_bukti` yang mengarah ke `https://stocktrace-nppentacity.vercel.app/api/sheets-sync`. Jika nama/URL berbeda, script berhenti dan rollback; jangan menghapus trigger. Audit konfigurasi dahulu.
-7. Baca hasil verifikasi paling bawah. Harus ada dua baris trigger Drive:
-   - `evidence_files` → `stocktrace_soft_archive_drive_evidence` → `ENABLED` → `endpoint_is_drive_delete = true`
-   - `stocktrace_intake_evidence` → `stocktrace_soft_archive_drive_intake_evidence` → `ENABLED` → `endpoint_is_drive_delete = true`
-8. Login sebagai Leader, buka **Rekap & Ekspor**, jalankan **Sinkronkan Semua Google Sheets** satu kali agar kolom `Status Data` ditambahkan ke header spreadsheet lama.
-9. Lakukan tes hanya pada data uji yang disetujui:
-   - Staff buat laporan uji baru → Staff arsipkan laporan miliknya yang masih Baru Dilaporkan dan belum memiliki PIC.
-   - Leader buka Arsip & Sampah → pulihkan laporan.
-   - Leader arsipkan satu bukti uji → pastikan baris Sheets berstatus `DIARSIPKAN` dan file Drive `appProperties.stocktrace_status` menjadi `archived`.
-   - Leader pulihkan bukti → status Sheets `AKTIF` dan Drive `active`.
-   - Leader arsipkan dokumen penerimaan uji → rincian SKU dan bukti ikut diarsipkan; pulihkan dokumen dan pastikan seluruh batch kembali aktif.
-   - Staff buat permintaan kasir uji berstatus `Diajukan`, arsipkan permintaannya, lalu Leader pulihkan.
-   - Uji tab ditutup lalu buka URL aplikasi kembali: pengguna diminta login lagi. Refresh pada tab yang sama seharusnya tidak mengeluarkan pengguna.
+Tes otomatis hanya menguji perilaku simulasi API; tes tersebut tidak menggantikan pengujian langsung terhadap OAuth Google, Drive, Supabase, dan webhook Production.
 
 ## Catatan database dan integrasi
 
@@ -89,10 +79,10 @@ Paket ini adalah source lengkap dari ZIP repository yang diberikan, dengan revis
 - Jangan menjalankan `sql/11_DRIVE_DELETE_WEBHOOKS_STAGING.sql` di Production. File tersebut khusus alur staging lama.
 - Jangan mengubah delapan webhook Sheets yang sudah berhasil HTTP 200.
 - Webhook Supabase `pg_net` berjalan asynchronous. HTTP 200 dari endpoint menunjukkan request berhasil diproses, tetapi tetap periksa hasil Sheets dan status Drive.
-- Jika status Drive gagal berubah, jangan menghapus metadata. Periksa Supabase `net._http_response` dan Vercel Logs; data tetap ada di database sehingga dapat direkonsiliasi.
+- Jika status Drive gagal berubah atau folder arsip tidak terbentuk, jangan menghapus metadata. Periksa Supabase `net._http_response` dan Vercel Logs. Pastikan OAuth Google memiliki izin Drive untuk membuat folder dan memindahkan file; data tetap ada di database sehingga dapat direkonsiliasi.
 - `Status Data` di Google Sheets adalah salinan monitoring. Supabase tetap menjadi sumber data utama.
 - Tidak ada service-role key, OAuth secret, refresh token, atau JSON service account yang ditambahkan ke ZIP.
 
 ## Rollback aplikasi
 
-Jika ada masalah setelah deployment, kembalikan deployment Vercel ke versi sebelumnya dan jangan jalankan operasi arsip baru sampai diperiksa. SQL 12 bersifat additive; jangan mencoba rollback dengan DROP COLUMN atau DROP TABLE karena data arsip/audit harus dipertahankan. Perbaikan dilakukan dengan migration forward.
+Jika ada masalah setelah deployment, hentikan operasi arsip baru sampai diperiksa dan kembalikan deployment Vercel bila perlu. Jangan menghapus folder arsip atau menghapus metadata `stocktrace_archive_folder` / `stocktrace_original_parent` secara manual. SQL 12 dan SQL 13 tidak boleh di-rollback dengan DROP COLUMN atau DROP TABLE; perbaikan dilakukan dengan migration forward.

@@ -1,22 +1,21 @@
-StockTrace V2.2 FINAL — source audit
+StockTrace V2.2.1 FINAL — source audit
 
-Basis: user-provided GitHub repository ZIP stocktrace-nppentacity-main.zip.
-Changes:
-- Per-tab Supabase Auth session storage (sessionStorage) in login and dashboard.
-- Soft-delete/archive and Leader restore RPC migration for cases, evidence, intakes, and cashier requests.
-- Archive audit event table and role-scoped policies.
-- Google Sheets Status Data columns (AKTIF / DIARSIPKAN), with append-only header extension.
-- Reversible Drive appProperties status updates for evidence archive/restore.
-- Archive & Sampah UI controls and restore workflow.
-- Responsive action and archive table refinements; existing navy/blue desktop identity and mobile left drawer retained.
+Basis: user-provided StockTrace V2.2 final source ZIP.
+Changes in this patch:
+- Evidence archive moves Google Drive files out of the active folder into a dedicated "ARSIP STOCKTRACE" subfolder.
+- Archive subfolders are created automatically, separately under the R1 evidence root and intake evidence root.
+- Restore moves the same Google Drive file back to its original active folder; no copy or permanent deletion is performed.
+- Existing V2.2 archived evidence can be reconciled by SQL 13 without changing deleted_at timestamps.
+- Verified physical DELETE events can still move a StockTrace-owned file from either active or archive folder to Google Drive Trash.
+- Existing archive RPCs, Google Sheets sync, login-per-tab behavior, responsive UI, and other modules are retained.
 
-Automated checks at build time:
+Automated checks in this build:
 - Node syntax checks: all 28 JavaScript/MJS source files passed.
-- Automated test suite: 60 passed, 0 failed.
-- No service-role key, OAuth secret, refresh token, or service-account JSON was added.
+- Automated test suite: 66 passed, 0 failed.
 
 Important:
-- SQL migration sql/12_SOFT_DELETE_ARCHIVE_FINAL.sql was NOT executed against the user's live Supabase database.
-- Vercel Production deployment and live Google Drive/Sheets behavior were NOT executed from this environment.
-- Deploy the source to Production first, then run SQL 12 once in the correct Production Supabase project as documented in README_FINAL_STOCKTRACE_V22.md.
-- A 60/60 automated test result is not a substitute for the controlled live acceptance tests in the README.
+- The user's Production database has already run SQL 12. Do not run SQL 12 again.
+- SQL 13 must be run once in the same Production Supabase project, only after the V2.2.1 source is deployed to Vercel Production.
+- This ZIP has not been deployed to Vercel and no live Google Drive or Supabase operation was performed from this environment.
+- Automated tests are simulated API tests; complete the controlled live acceptance tests in README_FINAL_STOCKTRACE_V22.md.
+- No service-role key, OAuth secret, refresh token, or service-account JSON was added to the package.

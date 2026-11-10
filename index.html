@@ -98,13 +98,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                         <select id="filterCaseStatus" aria-label="Filter status" class="text-sm p-2 border rounded-lg"><option value="">Semua status</option><option>Baru Dilaporkan</option><option>Dalam Pemeriksaan</option><option>Menunggu Tindak Lanjut IT/MD</option><option>Dalam Penyelesaian</option><option>Selesai</option></select>
                         <button type="button" onclick="loadCases()" class="text-sm text-blue-600 hover:underline">Muat ulang</button>
                     </div>
-                    <p id="dashboardNotice" role="status" class="text-sm text-slate-500 mb-3">Memuat data dari Supabase...</p>
+                    <p id="dashboardNotice" role="status" class="text-sm text-slate-500 mb-3">Memuat data...</p>
                     <p class="st-scroll-hint">Geser tabel ke samping untuk melihat semua kolom.</p>
                     <div class="overflow-x-auto st-data-table"><table class="w-full text-sm text-left">
                         <thead class="text-xs uppercase text-slate-500 border-b"><tr><th class="py-3 pr-4">ID Kasus</th><th class="py-3 pr-4">Produk / SKU</th><th class="py-3 pr-4">Selisih</th><th class="py-3 pr-4">Pelapor / PIC</th><th class="py-3">Status</th></tr></thead>
                         <tbody id="dashboardCasesBody"></tbody>
                     </table></div>
-                    <p class="text-xs text-slate-400 mt-4">Menampilkan maksimal 500 kasus terbaru sesuai akses akun. Hak akses sebenarnya diatur oleh kebijakan database (RLS).</p>
+                    
                 </div>
             </div>
 
@@ -146,7 +146,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                             <div class="st-form-field">
                                 <label class="st-form-label" for="inputFile">Bukti Pendukung</label>
                                 <input type="file" id="inputFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" required class="w-full text-sm p-2 border border-dashed rounded-lg bg-slate-50">
-                                <p class="st-file-help text-xs text-slate-400">Boleh pilih beberapa berkas (diproses satu per satu), maksimal 100 MiB per berkas. File besar dikirim langsung ke Google Drive; jangan tutup tab saat proses berlangsung.</p>
+                                <p class="st-file-help text-xs text-slate-400">Maks. 100 MiB per berkas. Jangan tutup halaman saat unggah.</p>
                             </div>
                             <p id="uploadProgressReport" role="status" aria-live="polite" class="text-sm text-blue-700 font-medium" aria-label="Kemajuan upload"></p>
                         </div>
@@ -177,7 +177,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                         <form id="formExtraEvidence" class="mt-5 border-t pt-4 space-y-2">
                             <label for="extraEvidenceFile" class="text-sm font-semibold block">Tambah bukti ke kasus ini</label>
                             <input type="file" id="extraEvidenceFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" class="w-full text-sm border border-dashed rounded-lg p-2" required>
-                            <p class="text-xs text-slate-400">Foto, PDF, video, dan dokumen sampai 100 MiB per file. Upload langsung ke Drive; pertahankan tab terbuka sampai selesai.</p>
+                            <p class="text-xs text-slate-400">Maks. 100 MiB per berkas. Jangan tutup halaman saat unggah.</p>
                             <p id="uploadProgressExtra" role="status" aria-live="polite" class="text-sm text-blue-700 font-medium" aria-label="Kemajuan upload"></p>
                             <button id="btnExtraEvidence" class="bg-slate-800 text-white py-2 px-4 rounded-lg text-sm" type="submit">Unggah bukti tambahan</button>
                         </form>
@@ -194,7 +194,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                             <label for="inputStatusNote" class="block text-xs mb-1">Catatan pemeriksaan / alasan tindak lanjut (wajib)</label>
                             <textarea id="inputStatusNote" maxlength="2000" rows="4" class="w-full p-2 bg-slate-800 text-white border border-slate-600 rounded mb-3" placeholder="Hasil pemeriksaan dan rencana tindak lanjut..."></textarea>
                             <button type="button" id="btnSimpanStatus" class="w-full py-2 bg-blue-600 rounded text-sm font-semibold" onclick="saveStatus()">Simpan status & catatan</button>
-                            <p class="text-xs text-slate-300 mt-2">Hanya Leader. Perubahan status dan catatan dilakukan bersama oleh fungsi database.</p>
+                            <p class="text-xs text-slate-300 mt-2">Hanya Leader yang dapat mengubah status dan catatan.</p>
                         </div>
                         <div id="panelPenugasanPIC" class="bg-white p-5 rounded-xl border border-slate-200 space-y-3">
                             <h3 class="font-bold text-slate-800 border-b pb-3">Penugasan PIC</h3>
@@ -215,7 +215,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 
             <!-- ARSIP BUKTI -->
             <section id="view-archive" class="hidden space-y-6">
-                <div class="flex flex-wrap gap-3 justify-between items-center"><div><h1 class="text-2xl font-bold">Arsip & Sampah</h1><p class="text-sm text-slate-500">Data yang diarsipkan tidak dihapus permanen. Leader dapat memulihkannya setelah pemeriksaan.</p></div>
+                <div class="flex flex-wrap gap-3 justify-between items-center"><div><h1 class="text-2xl font-bold">Arsip & Sampah</h1><p class="text-sm text-slate-500">Data arsip dapat dipulihkan oleh Leader.</p></div>
                 <button onclick="loadArchive()" class="px-4 py-2 bg-white border rounded-lg text-sm">Muat ulang</button></div>
                 <div class="bg-white rounded-xl border p-5"><p id="archiveNotice" class="text-sm text-slate-500 pb-3">Memuat data arsip...</p>
                     <p class="st-scroll-hint">Geser tabel untuk melihat seluruh detail arsip.</p>
@@ -224,7 +224,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
             </section>
             <!-- REKAP DAN ANALITIK -->
             <section id="view-reports" class="hidden space-y-5">
-                <div class="flex flex-wrap gap-3 justify-between items-center"><div><h1 class="text-2xl font-bold">Rekap & Ekspor</h1><p class="text-sm text-slate-500">Jumlah kasus dan pola temuan dalam laporan yang dapat kamu akses.</p></div>
+                <div class="flex flex-wrap gap-3 justify-between items-center"><div><h1 class="text-2xl font-bold">Rekap & Ekspor</h1></div>
                     <div class="flex flex-wrap gap-2"><button onclick="window.print()" class="px-4 py-2 bg-white border rounded-lg text-sm">Cetak / Simpan PDF</button>
                     <button onclick="exportCasesCSV()" class="px-4 py-2 bg-npnavy text-white rounded-lg text-sm">Ekspor CSV</button>
                     <button id="btnSyncSheets" type="button" onclick="syncSheetsNow()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm" style="display:none">Sinkronkan Semua Google Sheets</button></div>
@@ -236,16 +236,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5"><div class="bg-white border p-5 rounded-xl"><h2 class="font-semibold mb-4">Distribusi status kasus</h2><div id="reportStatusBars" class="space-y-3"></div></div>
                 <div class="bg-white border p-5 rounded-xl"><h2 class="font-semibold mb-4">SKU paling banyak dilaporkan</h2><div id="reportSkuBars" class="space-y-3"></div></div></div>
-                <p class="text-xs text-slate-500">Rekap jumlah kasus, bukan estimasi nominal kerugian. Pemuatan maksimal 500 kasus terbaru sesuai akses RLS.</p>
+                
             </section>
 
             <!-- V2.1 / MODUL PENERIMAAN BARANG: BUKAN PENGUBAHAN INVENTORI RESMI -->
             <section id="view-intake" class="hidden space-y-5">
               <div class="flex flex-wrap items-start justify-between gap-3">
-                <div><h1 class="text-2xl font-bold">Penerimaan Barang</h1><p class="text-sm text-slate-500 mt-1">Catat dokumen penerimaan dan bandingkan jumlah tercantum dengan barang fisik untuk setiap SKU.</p></div>
+                <div><h1 class="text-2xl font-bold">Penerimaan Barang</h1></div>
                 <button type="button" id="btnExportIntake" class="px-4 py-2 rounded-lg bg-npnavy text-white text-sm">Ekspor Excel .xlsx</button>
               </div>
-              <p class="text-xs text-slate-500">Simulasi akademik. Pencatatan tidak mengubah stok kasir atau inventori resmi. Format Excel ini adalah format kerja StockTrace, bukan format pusat yang telah diverifikasi.</p>
+              <p class="text-xs text-slate-500">Pencatatan ini tidak mengubah stok kasir.</p>
               <div class="bg-white border rounded-xl p-4 md:p-6">
                 <h2 class="font-semibold mb-4">Dokumen penerimaan baru</h2>
                 <form id="formIntake" class="space-y-4">
@@ -258,7 +258,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                   <div class="flex gap-3 items-center justify-between flex-wrap"><h3 class="font-semibold">Rincian SKU</h3><button type="button" id="btnAddIntakeRow" class="st-secondary-btn">+ Tambah SKU</button></div>
                   <p class="st-scroll-hint">Geser tabel untuk melihat seluruh kolom.</p>
                   <div class="st-data-table overflow-x-auto border rounded-lg"><table class="w-full text-sm st-entry-table"><thead class="bg-slate-50 text-slate-600"><tr><th>SKU</th><th>Produk</th><th>Jumlah dokumen</th><th>Fisik diterima</th><th>Selisih</th><th>Aksi</th></tr></thead><tbody id="intakeItemsBody"></tbody></table></div>
-                  <div><label class="st-field-label" for="intakeFile">Lampiran bukti penerimaan (opsional)</label><input type="file" id="intakeFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" class="st-field"/><p class="text-xs text-slate-500 mt-1">Foto surat jalan/unboxing, hingga 100 MiB tiap file; disimpan ke arsip Google Drive.</p><p id="intakeUploadProgress" role="status" aria-live="polite" class="text-xs text-blue-700 mt-1"></p></div>
+                  <div><label class="st-field-label" for="intakeFile">Lampiran bukti penerimaan (opsional)</label><input type="file" id="intakeFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" class="st-field"/><p class="text-xs text-slate-500 mt-1">Maks. 100 MiB per berkas.</p><p id="intakeUploadProgress" role="status" aria-live="polite" class="text-xs text-blue-700 mt-1"></p></div>
                   <button type="submit" id="btnSaveIntake" class="st-primary-btn">Simpan penerimaan</button>
                 </form>
               </div>
@@ -273,7 +273,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 
             <!-- V2.1 / PERMINTAAN UPDATE KASIR — HANYA MONITORING, TIDAK ADA AKSES TULIS KE KASIR -->
             <section id="view-cashier" class="hidden space-y-5">
-              <div><h1 class="text-2xl font-bold">Monitoring Update Stok Kasir</h1><p class="text-sm text-slate-500 mt-1">Ajukan dan telusuri permintaan penyesuaian stok. Persetujuan dan perubahan resmi tetap dilakukan pihak berwenang di luar StockTrace.</p></div>
+              <div><h1 class="text-2xl font-bold">Monitoring Update Stok Kasir</h1><p class="text-sm text-slate-500 mt-1">Persetujuan dan perubahan stok dilakukan di luar StockTrace.</p></div>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="cashierMetrics">
                 <div class="st-kpi"><p>Total permintaan</p><strong id="cashierTotal">—</strong></div>
                 <div class="st-kpi"><p>Menunggu tindak lanjut</p><strong id="cashierWaiting">—</strong></div>
@@ -301,7 +301,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 
             <!-- KEAMANAN AKUN: menu sama tersedia di desktop dan HP -->
             <section id="view-account" class="hidden space-y-5 max-w-2xl mx-auto">
-                <div><h1 class="text-2xl font-bold">Akun Saya</h1><p class="text-sm text-slate-500 mt-1">Kelola keamanan akun StockTrace kamu.</p></div>
+                <div><h1 class="text-2xl font-bold">Akun Saya</h1></div>
                 <div class="bg-white rounded-xl border p-5 md:p-7 space-y-5">
                     <div><p class="text-xs text-slate-500">ID Pengguna</p><p class="font-semibold" id="accountLoginId">—</p></div>
                     <form id="passwordChangeForm" class="space-y-4">
@@ -310,7 +310,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                         <div><label for="confirmPassword" class="text-sm font-medium block mb-1">Ulangi Kata Sandi Baru</label><input id="confirmPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="128" class="w-full border rounded-lg p-3"/></div>
                         <button id="savePasswordButton" class="px-5 py-3 rounded-lg bg-slate-800 text-white w-full" type="submit">Ganti Kata Sandi</button>
                     </form>
-                    <p class="text-xs text-slate-500">Lupa kata sandi lama? Hubungi administrator sistem untuk verifikasi identitas dan reset melalui Supabase. Jangan membagikan password melalui chat.</p>
+                    <p class="text-xs text-slate-500">Lupa kata sandi? Hubungi administrator.</p>
                 </div>
             </section>
         </div>
