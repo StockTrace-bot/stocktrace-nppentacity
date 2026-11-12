@@ -88,7 +88,9 @@
         btn.disabled=false;
       }catch(e){showStatus('Koneksi aplikasi gagal: '+e.message);btn.disabled=true;}
     }
-    btn.disabled=true;\n    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initClient,{once:true});\n    else initClient();
+    btn.disabled=true;
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initClient,{once:true});
+    else initClient();
 
 
     function safeAuthStorageSnapshot() {
