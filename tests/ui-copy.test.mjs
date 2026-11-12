@@ -38,7 +38,8 @@ test('technical row-limit and staging instructions are not shown in the UI', () 
 });
 
 test('export semantics remain intact without duplicate archive counts', () => {
-  assert.match(v21, /Selisih = jumlah fisik diterima - jumlah dokumen/);
+  assert.match(v21, /Selisih = jumlah fisik datang termasuk reject - jumlah dokumen/);
+  assert.match(v21, /Diterima layak = jumlah fisik datang - jumlah barang reject/);
   assert.match(v21, /Update stok kasir tetap dilakukan di sistem kasir/);
   assert.doesNotMatch(app, /Total arsip:/);
   assert.doesNotMatch(app, /Sinkronisasi Sheets dan Drive berjalan melalui webhook/);

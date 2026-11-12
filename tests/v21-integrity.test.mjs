@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import {writeFileSync} from 'node:fs';
+import {writeFileSync, rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 const html=fs.readFileSync('index.html','utf8');
 const code=fs.readFileSync('v21.js','utf8');
@@ -45,9 +46,13 @@ test('packaged XLSX writer emits binary ZIP with required OpenXML parts and esca
   {name:'Kasir',rows:[['ID'],['KS-123']]}
  ]);
  assert.equal(bytes[0],0x50);assert.equal(bytes[1],0x4B);
- const dest=join('/tmp','stocktrace_v21_writer_qa.xlsx');
- writeFileSync(dest,Buffer.from(bytes));
- assert.ok(bytes.byteLength>1900);
+ const dest=join(tmpdir(),`stocktrace_v21_writer_qa_${process.pid}.xlsx`);
+ try {
+  writeFileSync(dest,Buffer.from(bytes));
+  assert.ok(bytes.byteLength>1900);
+ } finally {
+  rmSync(dest,{force:true});
+ }
 });
 
 test('receipt file uploads use separate receipt authorization and Drive appProperties',async()=>{

@@ -29,24 +29,27 @@ const SHEETS = {
   // V2.1 — exact tab names and visible column order from the user's template.
   stocktrace_intakes: {
     tab: 'Penerimaan', key: 'id_intake', sortTimeKey: 'created_at',
-    columns: ['id_intake','document_no','received_on','supplier','note','created_by','created_at','jumlah_sku','sku_berselisih','total_selisih','status_data'],
-    labels: ['ID Penerimaan','No Dokumen','Tanggal Terima','Pengirim','Catatan','Pembuat','Waktu Dibuat','Jumlah SKU','SKU Berselisih','Total Selisih','Status Data'],
-    mapRow: (r, summary={}) => [r.id_intake,r.document_no,r.received_on,r.supplier,r.note,r.created_by,formatWitaTimestamp(r.created_at),summary.count||0,summary.diffSkus||0,summary.totalDiff||0,r.deleted_at?'DIARSIPKAN':'AKTIF']
+    columns: ['id_intake','document_no','received_on','supplier','note','created_by','created_at','jumlah_sku','sku_berselisih','total_selisih','status_data','total_reject','total_selisih_layak'],
+    labels: ['ID Penerimaan','No Dokumen','Tanggal Terima','Pengirim','Catatan','Pembuat','Waktu Dibuat','Jumlah SKU','SKU Berselisih','Total Selisih Fisik','Status Data','Total Barang Reject','Total Selisih Layak'],
+    mapRow: (r, summary={}) => [r.id_intake,r.document_no,r.received_on,r.supplier,r.note,r.created_by,formatWitaTimestamp(r.created_at),summary.count||0,summary.diffSkus||0,summary.totalDiff||0,r.deleted_at?'DIARSIPKAN':'AKTIF',summary.totalReject||0,summary.totalAcceptedDiff||0]
   },
   stocktrace_intake_items: {
     tab: 'Detail SKU', key: 'id_item', keyFields: ['id_intake','sku'], keyIndexes: [0,1], groupSortKey: 'id_intake',
-    columns: ['id_intake','sku','product_name','qty_document','qty_received','qty_difference','hasil','status_data'],
-    labels: ['ID Penerimaan','SKU','Nama Produk','Qty Dokumen','Qty Fisik','Selisih Fisik - Dokumen','Hasil','Status Data'],
+    columns: ['id_intake','sku','product_name','qty_document','qty_received','qty_difference','hasil','status_data','qty_rejected','qty_accepted','reject_reason','qty_accepted_difference'],
+    labels: ['ID Penerimaan','SKU','Nama Produk','Qty Dokumen','Qty Fisik Datang','Selisih Fisik - Dokumen','Hasil Fisik','Status Data','Qty Reject','Qty Diterima Layak','Alasan Reject','Selisih Layak - Dokumen'],
     mapRow: r => {
       const difference = Number(r.qty_difference ?? (Number(r.qty_received)-Number(r.qty_document)));
-      return [r.id_intake,r.sku,r.product_name,r.qty_document,r.qty_received,difference,difference===0?'Sesuai':difference<0?'Kurang':'Lebih',r.deleted_at?'DIARSIPKAN':'AKTIF'];
+      const rejected = Number(r.qty_rejected||0);
+      const accepted = Number(r.qty_accepted??(Number(r.qty_received)-rejected));
+      const acceptedDifference = Number(r.qty_accepted_difference??(accepted-Number(r.qty_document)));
+      return [r.id_intake,r.sku,r.product_name,r.qty_document,r.qty_received,difference,difference===0?'Sesuai':difference<0?'Kurang':'Lebih',r.deleted_at?'DIARSIPKAN':'AKTIF',rejected,accepted,r.reject_reason||'',acceptedDifference];
     }
   },
   stocktrace_intake_evidence: {
     tab: 'Bukti Penerimaan', key: 'drive_file_id', keyColumnIndex: 2, sortTimeKey: 'waktu_unggah',
-    columns: ['id_intake','nama_file_asli','drive_file_id','drive_view_url','waktu_unggah','status_data'],
-    labels: ['ID Penerimaan','Nama Berkas','Google Drive File ID','Google Drive URL','Waktu Unggah','Status Data'],
-    mapRow: r => [r.id_intake,r.nama_file_asli,r.drive_file_id,r.drive_view_url,formatWitaTimestamp(r.waktu_unggah),r.deleted_at?'DIARSIPKAN':'AKTIF']
+    columns: ['id_intake','nama_file_asli','drive_file_id','drive_view_url','waktu_unggah','status_data','evidence_type'],
+    labels: ['ID Penerimaan','Nama Berkas','Google Drive File ID','Google Drive URL','Waktu Unggah','Status Data','Jenis Bukti'],
+    mapRow: r => [r.id_intake,r.nama_file_asli,r.drive_file_id,r.drive_view_url,formatWitaTimestamp(r.waktu_unggah),r.deleted_at?'DIARSIPKAN':'AKTIF',r.evidence_type||'Bukti Penerimaan']
   },
   stocktrace_cashier_requests: {
     tab: 'Permintaan Kasir', key: 'id_request', sortTimeKey: 'created_at',
@@ -265,15 +268,18 @@ async function deleteOne(client,sid,schema,record){
 }
 async function refreshIntakeSummary(client,sid,intakeId){
   if(!intakeId)return;
-  const detailRows=(await client.spreadsheets.values.get({spreadsheetId:sid,range:a1('Detail SKU','A2:H')})).data.values||[];
+  const detailRows=(await client.spreadsheets.values.get({spreadsheetId:sid,range:a1('Detail SKU','A2:L')})).data.values||[];
   const matched=detailRows.filter(row=>String(row[0]||'')===String(intakeId)&&String(row[7]||'AKTIF')!=='DIARSIPKAN');
   const differences=matched.map(row=>Number(row[5]||0));
+  const totalReject=matched.reduce((sum,row)=>sum+Number(row[8]||0),0);
+  const totalAcceptedDiff=matched.reduce((sum,row)=>sum+Number(row[11]||0),0);
   const summary=[matched.length,differences.filter(value=>value!==0).length,differences.reduce((sum,value)=>sum+value,0)];
   const intakeIds=(await client.spreadsheets.values.get({spreadsheetId:sid,range:a1('Penerimaan','A2:A')})).data.values||[];
   const index=intakeIds.findIndex(row=>String(row[0]||'')===String(intakeId));
   if(index===-1)return;
   const row=index+2;
   await client.spreadsheets.values.update({spreadsheetId:sid,range:a1('Penerimaan',`H${row}:J${row}`),valueInputOption:'RAW',requestBody:{values:[summary]}});
+  await client.spreadsheets.values.update({spreadsheetId:sid,range:a1('Penerimaan',`L${row}:M${row}`),valueInputOption:'RAW',requestBody:{values:[[totalReject,totalAcceptedDiff]]}});
 }
 async function findLeader(request){
   const bearer=(request.headers.get('authorization')||'').match(/^Bearer\s+(.+)$/i)?.[1];
@@ -333,11 +339,13 @@ async function fullSync(client,sid,identity,tables){
       if(item.deleted_at)continue;
       const id=String(item.id_intake||'');
       if(!id)continue;
-      const summary=summaries.get(id)||{count:0,diffSkus:0,totalDiff:0};
+      const summary=summaries.get(id)||{count:0,diffSkus:0,totalDiff:0,totalReject:0,totalAcceptedDiff:0};
       const difference=Number(item.qty_difference??(Number(item.qty_received)-Number(item.qty_document)));
       summary.count++;
       if(difference!==0)summary.diffSkus++;
       summary.totalDiff+=difference;
+      summary.totalReject+=Number(item.qty_rejected||0);
+      summary.totalAcceptedDiff+=Number(item.qty_accepted_difference??((Number(item.qty_received)-Number(item.qty_rejected||0))-Number(item.qty_document)));
       summaries.set(id,summary);
     }
   }

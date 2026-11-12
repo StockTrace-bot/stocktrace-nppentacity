@@ -273,15 +273,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                   </div>
                   <div><label class="st-field-label" for="intakeNote">Catatan penerimaan (opsional)</label><textarea id="intakeNote" rows="2" maxlength="2000" class="st-field" placeholder="Catatan tambahan..."></textarea></div>
                   <div class="flex gap-3 items-center justify-between flex-wrap"><h3 class="font-semibold">Rincian SKU</h3><button type="button" id="btnAddIntakeRow" class="st-secondary-btn">+ Tambah SKU</button></div>
-                  <div class="st-data-table overflow-x-auto border rounded-lg"><table class="w-full text-sm st-entry-table"><thead class="bg-slate-50 text-slate-600"><tr><th>SKU</th><th>Produk</th><th>Jumlah dokumen</th><th>Fisik diterima</th><th>Selisih</th><th>Aksi</th></tr></thead><tbody id="intakeItemsBody"></tbody></table></div>
-                  <div><label class="st-field-label" for="intakeFile">Lampiran bukti penerimaan (opsional)</label><input type="file" id="intakeFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" class="st-field"/><p id="intakeUploadProgress" role="status" aria-live="polite" class="text-xs text-blue-700"></p></div>
+                  <div class="st-data-table overflow-x-auto border rounded-lg"><table class="w-full text-sm st-entry-table"><thead class="bg-slate-50 text-slate-600"><tr><th>SKU</th><th>Produk</th><th>Jumlah dokumen</th><th>Fisik datang</th><th>Jumlah reject</th><th>Diterima layak</th><th>Selisih layak - dokumen</th><th>Alasan reject</th><th>Selisih fisik - dokumen</th><th>Aksi</th></tr></thead><tbody id="intakeItemsBody"></tbody></table></div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="intakeEvidenceType">Jenis lampiran</label><select id="intakeEvidenceType" class="st-field"><option value="Bukti Penerimaan">Bukti Penerimaan</option><option value="Bukti Barang Reject">Bukti Barang Reject</option></select></div><div><label class="st-field-label" for="intakeFile">Lampiran (opsional)</label><input type="file" id="intakeFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" class="st-field"/><p id="intakeUploadProgress" role="status" aria-live="polite" class="text-xs text-blue-700"></p></div></div>
                   <button type="submit" id="btnSaveIntake" class="st-primary-btn">Simpan penerimaan</button>
                 </form>
               </div>
               <div class="bg-white border rounded-xl p-4 md:p-6">
                 <div class="flex flex-wrap gap-2 justify-between items-center mb-3"><h2 class="font-semibold">Riwayat penerimaan & selisih SKU</h2><button type="button" id="btnRefreshIntakes" class="st-secondary-btn">Muat ulang</button></div>
                 <p id="intakeNotice" role="status" class="text-sm text-slate-500"></p>
-                <div class="st-data-table overflow-x-auto"><table class="w-full text-sm st-entry-table"><thead><tr><th>ID / Tanggal</th><th>Dokumen</th><th>SKU</th><th>Jumlah selisih</th><th>Penanggung jawab</th><th>Detail</th></tr></thead><tbody id="intakesBody"></tbody></table></div>
+                <div class="st-data-table overflow-x-auto"><table class="w-full text-sm st-entry-table"><thead><tr><th>ID / Tanggal</th><th>Dokumen</th><th>SKU</th><th>Jumlah selisih</th><th>Total barang reject</th><th>Penanggung jawab</th><th>Detail</th></tr></thead><tbody id="intakesBody"></tbody></table></div>
                 <div id="intakeDetail" class="mt-4" aria-live="polite"></div>
               </div>
             </section>

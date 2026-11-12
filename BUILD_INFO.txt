@@ -28,3 +28,10 @@ Preserved:
 Automated QA: 89 passed / 0 failed. JavaScript syntax checks passed.
 No SQL migration, environment-variable update, credential rotation, or database change is required for this UI-only patch.
 This ZIP is source code only; it has not been deployed to Vercel or applied to the live Supabase database.
+
+V2.4 - Barang reject pada penerimaan:
+- Pencatatan jumlah reject per SKU, alasan reject, jumlah diterima layak, dan selisih layak terhadap dokumen.
+- Bukti Drive diberi kategori Bukti Penerimaan atau Bukti Barang Reject.
+- Rincian, ekspor Excel, dan Google Sheets memuat data reject.
+- SQL 15 adalah migrasi additive; jalankan satu kali sebelum deploy source V2.4.
+- Automated QA setelah perubahan V2.4: 93 passed / 0 failed.

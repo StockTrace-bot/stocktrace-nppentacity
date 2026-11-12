@@ -378,7 +378,8 @@ async function uploadFileBatch(files,id,session,progress,options={}){
   if(completed.length){
    const records=completed.map(({file,data})=>({
     [idField]:id,nama_file_asli:file.name,drive_file_id:data.drive_file_id,drive_view_url:data.drive_link,
-    ...(includeUploader?{uploaded_by:activeUser.id}:{})
+    ...(includeUploader?{uploaded_by:activeUser.id}:{}),
+    ...(options.extraFields&&typeof options.extraFields==='object'?options.extraFields:{})
    }));
    const bulk=await sb.from(table).insert(records);
    if(!bulk.error){
