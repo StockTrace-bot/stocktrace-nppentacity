@@ -29,6 +29,16 @@ function notice(title,message,icon='info'){
  window.alert(`${title}\n${message}`);return Promise.resolve();
 }
 function redirectLogin(){window.location.replace('login.html');}
+function finishAuthBoot(){
+ document.body.classList.remove('st-auth-pending','st-auth-error');
+ const boot=el('authBootScreen');if(boot)boot.setAttribute('aria-hidden','true');
+}
+function showAuthBootError(message){
+ document.body.classList.add('st-auth-pending','st-auth-error');
+ const boot=el('authBootScreen');if(boot)boot.setAttribute('aria-hidden','false');
+ const text=el('authBootMessage');if(text)text.textContent=message||'Aplikasi belum dapat memverifikasi sesi. Periksa koneksi lalu coba lagi.';
+ const retry=el('authBootRetry');if(retry)retry.hidden=false;
+}
 function canManageCases(){return activeRole.toLowerCase().trim()==='leader';}
 function niceDate(value){if(!value)return 'Waktu belum dicatat';let d=new Date(value);if(isNaN(d.getTime()))return 'Waktu tidak valid';return new Intl.DateTimeFormat('id-ID',{timeZone:'Asia/Makassar',dateStyle:'medium',timeStyle:'short'}).format(d)+' WITA';}
 function showView(view){
@@ -55,39 +65,53 @@ function showView(view){
  if(view==='account'&&activeUser){const p=el('passwordChangeForm');if(p)p.reset();}
 }
 async function checkAuth(){
- if(!sb)return notice('Koneksi Supabase gagal','Pustaka Supabase tidak bisa dimuat.','error');
+ if(!sb){showAuthBootError('Koneksi Supabase gagal dimuat. Periksa koneksi lalu coba lagi.');return;}
  try{
-  const {data:{user},error}=await sb.auth.getUser();if(error||!user)return redirectLogin();
+  const {data:{user},error}=await sb.auth.getUser();
+  if(error||!user)return redirectLogin();
   activeUser=user;
   const {data:{session:secureSession},error:sessionError}=await sb.auth.getSession();
   if(sessionError||!secureSession?.access_token)return redirectLogin();
-  // Profil dan pemeriksaan keamanan tidak saling bergantung; jalankan bersamaan.
+  // Profile and account-security checks must pass before any application view is revealed.
   const [profileResult,securityResponse]=await Promise.all([
    sb.from('users').select('role,nama_lengkap,login_id').eq('id_user',user.id).single(),
    fetch('/api/account-password',{headers:{Authorization:`Bearer ${secureSession.access_token}`}})
   ]);
   const {data:profile,error:profileError}=profileResult;
-  if(profileError||!profile)throw new Error('Akun tidak memiliki profil atau izin SELECT public.users: '+(profileError?.message||''));
+  if(profileError||!profile)throw new Error('Profil akun belum dapat diverifikasi: '+(profileError?.message||'profil tidak ditemukan'));
   const securityData=await securityResponse.json().catch(()=>({}));
-  if(!securityResponse.ok||typeof securityData.must_change_password!=='boolean')throw new Error(securityData.error||'Keamanan akun belum aktif. Akses laporan ditahan.');
-  activeRole=profile.role||'Staff';const name=profile.nama_lengkap||'Pengguna';
-  el('displayUserName').textContent=name;el('displayUserRole').textContent=activeRole;el('profilInisial').textContent=name.slice(0,1).toUpperCase();
+  if(!securityResponse.ok||typeof securityData.must_change_password!=='boolean')throw new Error(securityData.error||'Keamanan akun belum dapat diverifikasi.');
+  activeRole=profile.role||'Staff';
+  const name=profile.nama_lengkap||'Pengguna';
+  el('displayUserName').textContent=name;
+  el('displayUserRole').textContent=activeRole;
+  el('profilInisial').textContent=name.slice(0,1).toUpperCase();
   el('accountLoginId').textContent=profile.login_id||'Belum diaktifkan';
   mustChangePassword=securityData.must_change_password;
   document.body.classList.toggle('st-password-required',mustChangePassword);
-  if(mustChangePassword){showView('account');await notice('Perbarui kata sandi','Akun menggunakan kata sandi sementara. Ganti kata sandi terlebih dahulu untuk mengakses laporan.','warning');return;}
   el('panelTindakLanjutLeader').style.display=canManageCases()?'':'none';
   const archiveNav=document.querySelector('[data-nav-view="archive"]');
   if(archiveNav)archiveNav.style.display=canManageCases()?'':'none';
   el('view-detail-kasus').classList.toggle('staff-detail-centered',!canManageCases());
   el('btnSyncSheets').style.display=canManageCases()?'':'none';
-  // Dashboard tidak perlu menunggu direktori PIC; kedua data dimuat paralel.
+  if(mustChangePassword){
+   showView('account');
+   finishAuthBoot();
+   await notice('Perbarui kata sandi','Akun menggunakan kata sandi sementara. Ganti kata sandi terlebih dahulu untuk mengakses laporan.','warning');
+   return;
+  }
+  // Reveal the authenticated shell only after identity, role, and security are verified.
+  finishAuthBoot();
   const directoryTask=loadStaffDirectory().catch(dirError=>{
    console.warn(dirError.message);
    el('picFormHint').textContent='Daftar Staff belum tersedia. Hubungi administrator.';
   });
   await Promise.all([directoryTask,loadCases({force:true})]);
- }catch(e){mustChangePassword=true;document.body.classList.add('st-password-required');showView('account');el('dashboardNotice').textContent=e.message;await notice('Profil belum siap',e.message,'error');}
+ }catch(e){
+  activeUser=null;activeRole='Staff';mustChangePassword=false;
+  console.error('StockTrace authentication bootstrap failed:',e);
+  showAuthBootError(e.message||'Profil dan hak akses belum dapat diverifikasi.');
+ }
 }
 async function syncSheetsNow(){
  if(!canManageCases())return notice('Akses ditolak','Hanya Leader dapat menjalankan sinkronisasi penuh.','warning');
@@ -591,9 +615,9 @@ async function bootstrap(){
    });
   await checkAuth();
  }catch(e){
-  mustChangePassword=true;document.body.classList.add('st-password-required');showView('account');
-  const noticeEl=el('dashboardNotice');if(noticeEl)noticeEl.textContent='Aplikasi ditahan: '+e.message;
-  await notice('Aplikasi belum siap',e.message,'error');
+  activeUser=null;activeRole='Staff';mustChangePassword=false;
+  console.error('StockTrace bootstrap failed:',e);
+  showAuthBootError(e.message||'Aplikasi belum siap. Periksa koneksi lalu coba lagi.');
  }
 }
 bootstrap();

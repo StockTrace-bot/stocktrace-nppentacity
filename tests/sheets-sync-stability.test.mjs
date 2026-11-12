@@ -6,9 +6,9 @@ const html=fs.readFileSync('index.html','utf8');
 const sync=fs.readFileSync('api/sheets-sync.mjs','utf8');
 
 test('critical sidebar colors are available before deferred Tailwind initializes',()=>{
-  assert.match(html,/<style id="stocktrace-critical-sidebar">/);
-  assert.match(html,/#appSidebar \.st-sidebar-nav > button/);
-  assert.match(html,/background-color:\s*transparent\s*!important/);
+  assert.match(html,/<style id="stocktrace-critical-shell">/);
+  assert.match(html,/#appSidebar.st-sidebar .st-sidebar-nav > button/);
+  assert.match(html,/background:\s*transparent\s*!important/);
   assert.match(html,/color:\s*#f8fafc\s*!important/);
   assert.match(html,/background-color:\s*#334155\s*!important/);
 });

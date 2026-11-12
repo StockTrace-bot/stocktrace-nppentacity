@@ -29,29 +29,71 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 @media print { .mobile-bottom-nav,.mobile-signout { display:none!important; } }
 </style>
 <link rel="stylesheet" href="stocktrace-professional-rose.css?v=2.3.1-plain-links">
-<style id="stocktrace-critical-sidebar">
-/* Critical shell colors must exist before the deferred Tailwind CDN initializes. */
-#appSidebar .st-sidebar-nav > button {
-  -webkit-appearance: none;
-  appearance: none;
-  background-color: transparent !important;
-  color: #f8fafc !important;
-  border: 1px solid transparent;
+<style id="stocktrace-critical-shell">
+/* Keep the application shell hidden until Supabase session and user role are verified. */
+html, body { min-height: 100%; }
+body.st-auth-pending { overflow: hidden !important; background: #f8fafc !important; }
+body.st-auth-pending #appSidebar,
+body.st-auth-pending .st-main,
+body.st-auth-pending .st-mobile-nav-backdrop {
+  display: none !important;
+  visibility: hidden !important;
 }
-#appSidebar .st-sidebar-nav > button:hover {
-  background-color: #334155 !important;
+.st-auth-boot { display: none; }
+body.st-auth-pending .st-auth-boot {
+  position: fixed; inset: 0; z-index: 2147483647;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: #f8fafc; color: #1e293b;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+.st-auth-boot-card {
+  width: min(100%, 360px); padding: 24px; border: 1px solid #e2e8f0;
+  border-radius: 16px; background: #fff; text-align: center;
+  box-shadow: 0 12px 36px rgba(15,23,42,.07);
+}
+.st-auth-boot-mark {
+  width: 44px; height: 44px; margin: 0 auto 14px; display: grid;
+  place-items: center; border-radius: 12px; background: #1e293b; color: #60a5fa;
+  font-weight: 800; font-size: 22px;
+}
+.st-auth-boot-title { margin: 0; font-size: 18px; font-weight: 700; }
+.st-auth-boot-message { margin: 8px 0 0; color: #64748b; font-size: 13px; line-height: 1.5; }
+.st-auth-boot-retry {
+  display: none; width: 100%; margin-top: 16px; padding: 10px 14px;
+  border: 0; border-radius: 9px; background: #1e293b; color: #fff;
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
+
+/* Critical sidebar styling must win before and after deferred Tailwind CDN loads. */
+#appSidebar.st-sidebar { background: #1e293b !important; color: #f8fafc !important; }
+#appSidebar.st-sidebar .st-sidebar-nav > button {
+  -webkit-appearance: none !important; appearance: none !important;
+  background: transparent !important; background-color: transparent !important;
+  background-image: none !important; box-shadow: none !important;
+  color: #f8fafc !important; border: 1px solid transparent !important;
+}
+#appSidebar.st-sidebar .st-sidebar-nav > button:hover {
+  background: #334155 !important; background-color: #334155 !important;
   color: #ffffff !important;
 }
-#appSidebar .st-sidebar-nav > button.st-active-nav {
-  background-color: #344154 !important;
-  color: #ffffff !important;
-  border-color: #475569;
+#appSidebar.st-sidebar .st-sidebar-nav > button.st-active-nav {
+  background: #344154 !important; background-color: #344154 !important;
+  color: #ffffff !important; border-color: #475569 !important;
 }
-#appSidebar .st-sidebar-nav > button i { color: #cbd5e1; }
-#appSidebar .st-sidebar-nav > button.st-active-nav i { color: #93c5fd; }
+#appSidebar.st-sidebar .st-sidebar-nav > button i { color: #cbd5e1 !important; }
+#appSidebar.st-sidebar .st-sidebar-nav > button.st-active-nav i { color: #93c5fd !important; }
 </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans flex h-screen overflow-hidden">
+<body class="st-auth-pending bg-slate-50 text-slate-800 font-sans flex h-screen overflow-hidden">
+    <div id="authBootScreen" class="st-auth-boot" role="status" aria-live="polite">
+        <div class="st-auth-boot-card">
+            <div class="st-auth-boot-mark" aria-hidden="true">S</div>
+            <p class="st-auth-boot-title">StockTrace</p>
+            <p id="authBootMessage" class="st-auth-boot-message">Memeriksa sesi dan hak akses...</p>
+            <button id="authBootRetry" class="st-auth-boot-retry" type="button" onclick="window.location.reload()">Coba lagi</button>
+        </div>
+    </div>
 
     <!-- SIDEBAR -->
     <aside id="appSidebar" aria-label="Navigasi utama" aria-hidden="false" class="st-sidebar w-64 bg-npnavy text-white flex flex-col transition-all duration-300">

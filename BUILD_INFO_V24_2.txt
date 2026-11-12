@@ -1,0 +1,12 @@
+STOCKTRACE V2.4.2 — AUTH BOOT GUARD
+Build date: 2026-11-12
+Based on the V2.4.1 source tree supplied in the current project context.
+
+Fixes:
+- Prevents the dashboard/sidebar from being visible before authentication is verified.
+- Adds a neutral boot screen while the Supabase session, profile, role, and account security are checked.
+- Keeps the shell hidden on profile/security bootstrap errors and offers a retry.
+- Strengthens critical navy/white sidebar CSS.
+
+No SQL, database, RLS, webhook, Google Drive, or Vercel environment changes.
+Automated tests: 99 passed / 0 failed in the working source tree.
