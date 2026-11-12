@@ -519,3 +519,158 @@ body.st-password-required #view-account .bg-white{border-color:#F59E0B}
     padding:10px 13px;
   }
 }
+
+
+/* StockTrace V2.2.2 — persistent mobile toolbar, compact layout, plain detail links. */
+@media(max-width:767px) {
+  html,body {
+    width:100%;
+    height:100%;
+    min-height:0;
+    overflow:hidden!important;
+  }
+  body {
+    height:100vh;
+    height:100dvh;
+    max-height:100dvh;
+  }
+  .st-main {
+    display:flex!important;
+    flex:1 1 0%;
+    width:100%;
+    height:100vh;
+    height:100dvh;
+    min-height:0!important;
+    max-height:100dvh;
+    overflow:hidden!important;
+  }
+  #appToolbar,
+  .st-main>header {
+    display:flex!important;
+    position:relative;
+    inset:auto;
+    z-index:60!important;
+    flex:0 0 56px!important;
+    width:100%;
+    height:56px;
+    min-height:56px!important;
+    max-height:56px;
+    box-sizing:border-box;
+    padding:7px 10px!important;
+    gap:8px;
+    visibility:visible!important;
+    opacity:1!important;
+    transform:none!important;
+    background:#fff;
+    border-bottom:1px solid #E2E8F0;
+    box-shadow:0 2px 7px rgba(15,23,42,.06);
+  }
+  .st-main>.flex-1.overflow-y-auto {
+    display:block;
+    flex:1 1 auto!important;
+    width:100%;
+    height:0;
+    min-height:0!important;
+    max-height:calc(100dvh - 56px);
+    box-sizing:border-box;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+    overscroll-behavior-y:contain;
+    -webkit-overflow-scrolling:touch;
+    scroll-padding-top:10px;
+    padding:11px 11px calc(20px + env(safe-area-inset-bottom, 0px))!important;
+  }
+  .st-mobile-nav-toggle {
+    flex:0 0 38px!important;
+    width:38px;
+    height:38px;
+    min-height:38px;
+    border-radius:9px;
+  }
+  .st-header-search {
+    flex:1 1 auto;
+    min-width:0;
+    min-height:38px;
+    height:38px;
+    padding:6px 9px;
+    border-radius:9px;
+  }
+  .st-header-search input { font-size:14px!important; }
+
+  /* Scale rem-based spacing and type down slightly on phones only. */
+  html { font-size:14px; }
+  .st-main h1 { font-size:18px!important; line-height:1.28!important; }
+  .st-main h2 { font-size:15px!important; line-height:1.32!important; }
+  .st-main h3 { font-size:14px!important; line-height:1.35!important; }
+  .st-main p,
+  .st-main label,
+  .st-main th,
+  .st-main td { line-height:1.4; }
+  .st-main .bg-white.border.rounded-xl,
+  .st-main .bg-white.rounded-xl,
+  #detailMainCard,
+  #detailLeaderColumn>div {
+    padding:11px!important;
+    border-radius:11px;
+  }
+  .st-main .st-detail-box {
+    padding:11px;
+    border-radius:10px;
+    gap:9px;
+  }
+  .st-main .st-field {
+    min-height:40px;
+    padding:8px 10px;
+    border-radius:8px;
+    font-size:14px!important;
+  }
+  .st-main textarea.st-field { min-height:76px; }
+  .st-main .st-primary-btn,
+  .st-main .st-secondary-btn,
+  .st-main .st-archive-action,
+  .st-main .st-restore-action {
+    min-height:36px;
+    padding:7px 10px;
+    border-radius:8px;
+    font-size:12px;
+  }
+  .st-main .st-kpi { padding:10px; border-radius:10px; }
+  .st-main .st-kpi strong { font-size:20px; }
+  .st-main .st-kpi p { font-size:11px; }
+  .st-main .space-y-5>:not([hidden])~:not([hidden]) { margin-top:12px; }
+  .st-main .space-y-4>:not([hidden])~:not([hidden]) { margin-top:10px; }
+  .st-main .space-y-3>:not([hidden])~:not([hidden]) { margin-top:8px; }
+
+  /* Plain blue-underlined text actions, matching the reference screenshot. */
+  .st-open-detail-action {
+    display:inline-flex!important;
+    align-items:center;
+    justify-content:flex-start;
+    min-width:0!important;
+    min-height:38px!important;
+    padding:6px 0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    color:#1D4ED8!important;
+    text-decoration:underline!important;
+    text-decoration-thickness:1px;
+    text-underline-offset:2px;
+    font-size:12px!important;
+    font-weight:600!important;
+    line-height:1.3;
+    white-space:nowrap;
+  }
+  .st-open-detail-action:hover,
+  .st-open-detail-action:active {
+    background:transparent!important;
+    color:#1D4ED8!important;
+    text-decoration:underline!important;
+  }
+  .st-open-detail-action:focus-visible {
+    outline:2px solid #60A5FA!important;
+    outline-offset:3px;
+  }
+  #intakeDetail,#cashierDetail { scroll-margin-top:10px; }
+}

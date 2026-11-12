@@ -62,7 +62,18 @@ function v21RenderIntakes(){
 function v21ScrollToDetail(id){
  const node=el(id);
  if(!node||!window.matchMedia?.('(max-width: 767px)').matches)return;
- const scroll=()=>node.scrollIntoView({behavior:'smooth',block:'start'});
+ const scroll=()=>{
+  const scroller=document.querySelector('.st-main > .flex-1.overflow-y-auto');
+  if(scroller&&scroller.contains(node)){
+   const nodeTop=node.getBoundingClientRect().top;
+   const scrollerTop=scroller.getBoundingClientRect().top;
+   const nextTop=Math.max(0,scroller.scrollTop+nodeTop-scrollerTop-10);
+   scroller.scrollTo({top:nextTop,behavior:'smooth'});
+   return;
+  }
+  // Fallback only if a future view is rendered outside the main content pane.
+  node.scrollIntoView({behavior:'smooth',block:'start'});
+ };
  if(typeof requestAnimationFrame==='function')requestAnimationFrame(scroll);else scroll();
 }
 
