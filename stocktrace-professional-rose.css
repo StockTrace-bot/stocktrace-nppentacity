@@ -695,3 +695,52 @@ body.st-password-required #view-account .bg-white{border-color:#F59E0B}
     line-height:1.2;
   }
 }
+
+
+/* StockTrace V2.3.1 — plain text actions on every viewport.
+   Keep the controls as buttons for their existing click handlers, but render them as links. */
+button.st-open-detail-action,
+#view-intake button[data-open-intake],
+#view-cashier button[data-open-cashier] {
+  appearance:none!important;
+  -webkit-appearance:none!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  min-width:0!important;
+  min-height:38px!important;
+  padding:6px 0!important;
+  margin:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  color:#1D4ED8!important;
+  text-decoration:underline!important;
+  text-decoration-thickness:1px;
+  text-underline-offset:2px;
+  font-size:12px!important;
+  font-weight:600!important;
+  line-height:1.3!important;
+  white-space:nowrap!important;
+  cursor:pointer;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+}
+button.st-open-detail-action:hover,
+button.st-open-detail-action:active,
+#view-intake button[data-open-intake]:hover,
+#view-intake button[data-open-intake]:active,
+#view-cashier button[data-open-cashier]:hover,
+#view-cashier button[data-open-cashier]:active {
+  background:transparent!important;
+  box-shadow:none!important;
+  color:#1D4ED8!important;
+  text-decoration:underline!important;
+}
+button.st-open-detail-action:focus-visible,
+#view-intake button[data-open-intake]:focus-visible,
+#view-cashier button[data-open-cashier]:focus-visible {
+  outline:2px solid #60A5FA!important;
+  outline-offset:3px;
+}

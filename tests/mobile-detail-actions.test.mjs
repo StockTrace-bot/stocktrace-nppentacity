@@ -34,6 +34,9 @@ test('detail actions remain accessible, finger-sized, plain blue underlined text
   assert.match(css,/text-decoration:underline!important/);
   assert.match(css,/background:transparent!important/);
   assert.match(css,/border:0!important/);
+  assert.match(css,/button\.st-open-detail-action,[\s\S]*?\{[^}]*background:transparent!important/s);
+  assert.match(css,/button\.st-open-detail-action,[\s\S]*?\{[^}]*border:0!important/s);
+  assert.match(html,/stocktrace-professional-rose\.css\?v=2\.3\.1-plain-links/);
 });
 
 test('mobile toolbar remains visible and the content pane scrolls independently',()=>{
