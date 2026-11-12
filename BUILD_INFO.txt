@@ -1,7 +1,8 @@
-STOCKTRACE V2.3 PERFORMANCE OPTIMIZATION
+STOCKTRACE V2.3.1 — UI COPY CLEANUP
 Build date: 2026-11-12
-Source basis: Complete StockTrace V2.2.3 source uploaded from the GitHub main branch.
-Performance updates:
+Source basis: User-uploaded StockTrace V2.3 Performance Optimization ZIP. Git metadata is not included in the archive, so the originating commit cannot be independently verified.
+
+Base performance updates retained from V2.3:
 - External UI scripts are deferred; CDN connections are preconnected.
 - Public Supabase config is cached briefly; no private credentials are exposed.
 - Login profile/security checks and initial dashboard data loads run in parallel where safe.
@@ -10,7 +11,20 @@ Performance updates:
 - Evidence uploads process two files concurrently and write metadata in small batches with per-file fallback.
 - Google OAuth access tokens and Drive folder permission checks are reused briefly on warm Vercel instances.
 - Drive authorization checks are parallelized internally; verify requests skip redundant folder permission checks.
-No database schema, RLS policy, SQL migration, OAuth credential, environment variable, or role-permission changes.
-Automated QA: 84 passed / 0 failed. JavaScript syntax checks passed.
+
+UI copy cleanup:
+- Removed nonessential explanatory paragraphs, role/process descriptions, table-scroll instructions, file-size helper notes, and repeated count notifications from operational pages.
+- Removed generic subtitles from the dashboard and login screen.
+- Shortened field placeholders and success confirmations.
+- Removed row-limit and staging/SQL implementation instructions from user-facing loading messages.
+- Retained page names, form labels, empty/loading states, validation, error and success feedback, and password recovery/change guidance.
+
+Preserved:
+- Application workflows, data handling, and role permissions.
+- Supabase schema and RLS policies.
+- SQL migrations, Google Sheets/Drive integrations, OAuth settings, and Vercel environment configuration.
+- Official cashier/inventory write boundaries and archive/restore behavior.
+
+Automated QA: 89 passed / 0 failed. JavaScript syntax checks passed.
+No SQL migration, environment-variable update, credential rotation, or database change is required for this UI-only patch.
 This ZIP is source code only; it has not been deployed to Vercel or applied to the live Supabase database.
-Live speed gains must be measured after deployment on the actual network and devices.

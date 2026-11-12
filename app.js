@@ -122,7 +122,7 @@ function displayCases(){
  const q=el('searchCases').value.toLowerCase().trim(), filter=el('filterCaseStatus').value, picFilter=el('filterCasePIC').value;
  const list=cachedCases.filter(c=>(!filter||toText(c.status_kasus||statuses[0])===filter)&&(!picFilter||(picFilter==='mine'?c.pic_id===activeUser?.id:picFilter==='reported'?c.id_pelapor===activeUser?.id:picFilter==='unassigned'?!c.pic_id:true))&&[c.id_kasus,c.sku_produk,c.nama_produk].some(x=>toText(x).toLowerCase().includes(q)));
  el('dashboardCasesBody').innerHTML=list.map(c=>`<tr class="border-b"><td class="py-3 pr-4"><button type="button" data-case-id="${htmlEscape(c.id_kasus)}" class="text-blue-600 font-semibold underline">${htmlEscape(c.id_kasus)}</button></td><td class="py-3 pr-4">${htmlEscape(c.nama_produk)}<span class="text-xs text-slate-400 block">${htmlEscape(c.sku_produk)}</span></td><td class="py-3 pr-4">${htmlEscape(c.selisih)}</td><td class="py-3 pr-4 text-xs"><span class="block">Pelapor: ${htmlEscape(displayPerson(c.id_pelapor))}</span><span class="block mt-1 text-slate-500">PIC: ${htmlEscape(c.pic_nama||'Belum ditugaskan')}</span></td><td class="py-3"><span class="status-chip">${htmlEscape(c.status_kasus||statuses[0])}</span></td></tr>`).join('');
- el('dashboardNotice').textContent=list.length?`${list.length} kasus ditampilkan.`:(q||filter?'Tidak ada kasus yang cocok.':'Belum ada kasus yang dapat diakses.');
+ el('dashboardNotice').textContent=list.length?'':(q||filter?'Tidak ada kasus yang cocok.':'Belum ada kasus yang dapat diakses.');
 }
 async function loadCases(options={}){
  if(!sb||!activeUser)return;
@@ -157,7 +157,7 @@ async function openCase(id){
   const picSelect=el('selectPIC');const exists=[...picSelect.options].some(o=>o.value===toText(c.pic_id));
   picSelect.value=exists?toText(c.pic_id):'';
   el('inputPICNote').value='';
-  el('picFormHint').textContent=c.pic_id&&!exists?'PIC lama tidak ada dalam daftar Staff aktif. Pilih Staff pengganti jika diperlukan.':'Penugasan tercatat dalam Riwayat dan Google Sheets.';
+  el('picFormHint').textContent=c.pic_id&&!exists?'PIC lama tidak ada dalam daftar Staff aktif. Pilih Staff pengganti jika diperlukan.':'';
  }
  el('detailEvidence').textContent='Memuat bukti...';el('detailHistory').textContent='Memuat riwayat...';
  showView('detail-kasus');
@@ -189,9 +189,7 @@ async function loadPICProgress(id,c=selectedCase){
    el('picProgressSelect').value=picProgressStatuses.includes(data?.progress_status)?data.progress_status:picProgressStatuses[0];
    el('picProgressNote').value='';
   }
-  el('picProgressHint').textContent=c.status_kasus==='Selesai'
-   ?'Kasus sudah diselesaikan oleh Leader. Progres tidak dapat diubah.'
-   :'Hanya PIC yang ditugaskan dapat memperbarui progres. Status akhir tetap ditentukan Leader.';
+  el('picProgressHint').textContent='';
  }catch(error){
   el('picProgressStatus').textContent='Belum tersedia';
   el('picProgressNoteCurrent').textContent='Fitur progres PIC belum aktif.';
@@ -205,7 +203,7 @@ async function loadEvidence(id){
  if(selectedCase?.id_kasus!==id)return;
  if(error){el('detailEvidence').textContent='Gagal membaca bukti: '+error.message;return;}
   const activeFiles=(data||[]).filter(f=>!f.deleted_at);
-  if(!activeFiles.length){el('detailEvidence').textContent='Belum ada berkas aktif. Gunakan Tambah Bukti di bawah ini.';return;}
+  if(!activeFiles.length){el('detailEvidence').textContent='Belum ada berkas aktif.';return;}
   el('detailEvidence').innerHTML=activeFiles.map(f=>{const canArchive=canManageCases()||(f.uploaded_by===activeUser?.id&&selectedCase?.id_pelapor===activeUser?.id&&selectedCase?.status_kasus==='Baru Dilaporkan'&&!selectedCase?.pic_id);return `<div class="bg-slate-50 rounded border p-3 mb-2 flex gap-3 justify-between items-center flex-wrap"><div class="break-all min-w-0"><strong>${htmlEscape(f.nama_file_asli||'Berkas')}</strong><p class="text-xs text-slate-400">${htmlEscape(niceDate(f.waktu_unggah))}</p></div><div class="flex gap-3 items-center"><button type="button" class="text-blue-700 underline text-xs" data-download-case="${htmlEscape(id)}" data-download-id="${htmlEscape(f.drive_file_id)}" data-download-name="${htmlEscape(f.nama_file_asli)}">Unduh aman</button>${canArchive?`<button type="button" class="st-archive-action" data-archive-record="evidence" data-archive-id="${htmlEscape(f.id_file)}">Arsipkan</button>`:''}</div></div>`;}).join('');
 }
 async function loadHistory(id){
@@ -226,7 +224,7 @@ async function saveStatus(){
   const {data,error}=await sb.rpc('stocktrace_update_case_status',{p_case_id:id,p_status:status,p_note:note});
   if(error)throw new Error(error.message);
   if(!data?.ok)throw new Error('Database tidak mengonfirmasi perubahan.');
-  await loadCases({force:true});await openCase(id);await notice('Berhasil','Status dan catatan tercatat secara bersamaan.','success');
+  await loadCases({force:true});await openCase(id);await notice('Berhasil','Status kasus berhasil diperbarui.','success');
  }catch(e){await notice('Belum dapat memperbarui',e.message,'error');}
  finally{btn.disabled=false;btn.textContent='Simpan status & catatan';}
 }
@@ -242,7 +240,7 @@ async function savePIC(){
   if(error)throw new Error(error.message);
   if(!data?.ok)throw new Error('Database tidak mengonfirmasi penugasan.');
   await loadCases({force:true});await openCase(id);
-  await notice('PIC berhasil diperbarui',pic?`PIC: ${data.pic_name||displayPerson(pic)}. Riwayat penugasan dicatat.`:'PIC berhasil dilepas. Riwayat dicatat.','success');
+  await notice('PIC berhasil diperbarui',pic?`PIC ${data.pic_name||displayPerson(pic)} berhasil ditetapkan.`:'Penugasan PIC berhasil dilepas.','success');
  }catch(e){await notice('Gagal memperbarui PIC',e.message,'error');}
  finally{btn.disabled=false;btn.textContent='Simpan penugasan PIC';}
 }
@@ -263,7 +261,7 @@ async function savePICProgress(){
   if(error)throw new Error(error.message);
   if(!data?.ok)throw new Error('Database tidak mengonfirmasi pembaruan progres.');
   await loadCases({force:true});await openCase(id);
-  await notice('Progres tersimpan','Pembaruan progres tercatat di timeline. Status akhir kasus tidak berubah.','success');
+  await notice('Progres tersimpan','Progres pemeriksaan berhasil disimpan.','success');
  }catch(error){await notice('Gagal menyimpan progres',error.message,'error');}
  finally{btn.disabled=false;btn.textContent='Simpan progres';}
 }
@@ -430,7 +428,7 @@ async function submitReport(ev){
   // Trigger database mencatat pembuatan laporan secara otomatis.
   const result=await uploadFiles(files,id,session,btn);
   el('formLaporanLengkap').reset();await loadCases({force:true});
-  await notice(result.errors.length?'Sebagian bukti belum tersimpan':'Laporan berhasil',`Kasus ${id} tersimpan. Bukti berhasil ${result.count}/${files.length}. ${result.errors.length?result.errors.join('; ')+' — Periksa Drive sebelum mengulangi unggah.':'Silakan cek arsip dan riwayat.'}`,result.errors.length?'warning':'success');
+  await notice(result.errors.length?'Sebagian bukti belum tersimpan':'Laporan berhasil',`Kasus ${id} tersimpan. ${result.count}/${files.length} bukti berhasil diunggah.${result.errors.length?' '+result.errors.join('; ')+' — Periksa Drive sebelum mengulangi unggah.':''}`,result.errors.length?'warning':'success');
   await openCase(id);
  }catch(e){await notice(saved?'Kasus tersimpan; bukti perlu dilengkapi':'Kasus belum disimpan',`${e.message}. ${saved?'ID kasus: '+id+'. Tambahkan bukti melalui Detail Kasus.':''}`,'error');if(saved){await loadCases({force:true});await openCase(id);}}
  finally{btn.disabled=false;btn.textContent='Kirim Laporan';}
@@ -477,7 +475,7 @@ async function loadArchive(){
    ...(cashierRes.data||[]).map(x=>({type:'cashier_request',id:x.id_request,label:'Permintaan kasir',detail:`${x.sku} · ${x.product_name} · ${x.status_request}`,when:x.deleted_at,reason:x.delete_reason}))
   ].sort((a,b)=>toText(b.when).localeCompare(toText(a.when)));
   el('archiveBody').innerHTML=rows.map(x=>`<tr class="border-b"><td class="py-3 pr-3">${htmlEscape(x.label)}</td><td class="py-3 pr-3 break-all"><strong>${htmlEscape(x.id)}</strong><span class="block text-xs text-slate-500">${htmlEscape(x.detail)}</span></td><td class="py-3 pr-3 whitespace-nowrap">${htmlEscape(niceDate(x.when))}</td><td class="py-3 pr-3">${htmlEscape(x.reason||'—')}</td><td class="py-3"><div class="flex flex-wrap gap-3">${x.download?`<button type="button" class="text-blue-700 underline text-xs" data-download-case="${htmlEscape(x.download.caseId)}" data-download-id="${htmlEscape(x.download.fileId)}" data-download-name="${htmlEscape(x.download.name)}">Unduh</button>`:''}<button type="button" class="st-restore-action" data-restore-type="${htmlEscape(x.type)}" data-restore-id="${htmlEscape(x.id)}">Pulihkan</button></div></td></tr>`).join('')||'<tr><td colspan="5" class="py-6 text-center text-slate-500">Belum ada data di Arsip & Sampah.</td></tr>';
-  el('archiveNotice').textContent=`Total arsip: ${rows.length} item.`;
+  el('archiveNotice').textContent='';
  }catch(error){
   console.error('StockTrace archive load failed:',error);
   el('archiveNotice').textContent='Gagal memuat arsip. Coba lagi.';
@@ -557,7 +555,7 @@ async function submitPasswordChange(ev){
   const result=await response.json().catch(()=>({}));
   if(!response.ok||!result.ok)throw new Error(result.error||'Gagal memperbarui kata sandi.');
   form.reset();mustChangePassword=false;document.body.classList.remove('st-password-required');
-  await notice('Kata sandi diperbarui','Kata sandi baru berhasil disimpan. Silakan login kembali agar sesi tetap aman.','success');
+  await notice('Kata sandi diperbarui','Kata sandi berhasil diperbarui. Silakan login kembali.','success');
   await logout();
  }catch(e){await notice('Gagal mengganti kata sandi','Periksa kata sandi saat ini atau pengaturan verifikasi Supabase: '+e.message,'error');}
  finally{button.disabled=false;button.textContent='Ganti Kata Sandi';}

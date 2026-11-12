@@ -84,14 +84,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                 <div class="st-dashboard-heading flex justify-between items-center gap-3">
                     <div class="st-dashboard-heading-text">
                         <h1 class="text-2xl font-bold text-slate-800">Dashboard Utama</h1>
-                        <p class="text-sm text-slate-500 mt-1">Dokumentasi dan penanganan selisih stok Nada Puspita Pentacity.</p>
                     </div>
                     <button onclick="showView('form-laporan')" class="st-dashboard-action bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center">
                         <i class="ph ph-plus mr-2"></i> Lapor Kasus
                     </button>
                 </div>
                 <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
-                    <div class="bg-white border rounded-xl p-5"><p class="text-xs text-slate-500">Total kasus yang termuat</p><p class="text-3xl font-bold mt-2" id="countTotal">—</p></div>
+                    <div class="bg-white border rounded-xl p-5"><p class="text-xs text-slate-500">Total kasus</p><p class="text-3xl font-bold mt-2" id="countTotal">—</p></div>
                     <div class="bg-white border rounded-xl p-5"><p class="text-xs text-slate-500">Kasus belum selesai</p><p class="text-3xl font-bold mt-2" id="countOpen">—</p></div>
                     <div class="bg-white border rounded-xl p-5"><p class="text-xs text-slate-500">Kasus selesai</p><p class="text-3xl font-bold mt-2" id="countClosed">—</p></div>
                     <div class="bg-white border rounded-xl p-5"><p class="text-xs text-slate-500">Menunggu tindak lanjut IT/MD</p><p class="text-3xl font-bold mt-2" id="countEscalated">—</p></div>
@@ -103,8 +102,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                         <select id="filterCaseStatus" aria-label="Filter status" class="text-sm p-2 border rounded-lg"><option value="">Semua status</option><option>Baru Dilaporkan</option><option>Dalam Pemeriksaan</option><option>Menunggu Tindak Lanjut IT/MD</option><option>Dalam Penyelesaian</option><option>Selesai</option></select>
                         <button type="button" onclick="loadCases({force:true})" class="text-sm text-blue-600 hover:underline">Muat ulang</button>
                     </div>
-                    <p id="dashboardNotice" role="status" class="text-sm text-slate-500 mb-3">Memuat data...</p>
-                    <p class="st-scroll-hint">Geser tabel ke samping untuk melihat semua kolom.</p>
+                    <p id="dashboardNotice" role="status" class="text-sm text-slate-500">Memuat data...</p>
                     <div class="overflow-x-auto st-data-table"><table class="w-full text-sm text-left">
                         <thead class="text-xs uppercase text-slate-500 border-b"><tr><th class="py-3 pr-4">ID Kasus</th><th class="py-3 pr-4">Produk / SKU</th><th class="py-3 pr-4">Selisih</th><th class="py-3 pr-4">Pelapor / PIC</th><th class="py-3">Status</th></tr></thead>
                         <tbody id="dashboardCasesBody"></tbody>
@@ -146,12 +144,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                             </div>
                             <div class="st-form-field">
                                 <label class="st-form-label" for="inputKronologi">Kronologi Pemeriksaan</label>
-                                <textarea id="inputKronologi" rows="3" placeholder="Jelaskan tanggal pemeriksaan, kondisi stok, dan bukti pendukung..." minlength="8" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500 resize-none"></textarea>
+                                <textarea id="inputKronologi" rows="3" placeholder="Masukkan kronologi pemeriksaan..." minlength="8" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500 resize-none"></textarea>
                             </div>
                             <div class="st-form-field">
                                 <label class="st-form-label" for="inputFile">Bukti Pendukung</label>
                                 <input type="file" id="inputFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" required class="w-full text-sm p-2 border border-dashed rounded-lg bg-slate-50">
-                                <p class="st-file-help text-xs text-slate-400">Maks. 100 MiB per berkas. Jangan tutup halaman saat unggah.</p>
                             </div>
                             <p id="uploadProgressReport" role="status" aria-live="polite" class="text-sm text-blue-700 font-medium" aria-label="Kemajuan upload"></p>
                         </div>
@@ -176,7 +173,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                 <div id="detailCaseGrid" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div id="detailMainCard" class="lg:col-span-2 bg-white p-6 rounded-xl border">
                         <h3 class="font-semibold border-b pb-2 mb-4">Informasi Kasus</h3>
-                        <div id="detailInfo" class="text-sm text-slate-600">Pilih kasus dari dashboard.</div>
+                        <div id="detailInfo" class="text-sm text-slate-600">Belum ada kasus dipilih.</div>
                         <section id="panelPICProgress" class="hidden mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3" aria-live="polite">
                             <div class="flex flex-wrap items-center justify-between gap-2">
                                 <h3 class="font-semibold text-slate-800">Progres pemeriksaan PIC</h3>
@@ -192,7 +189,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                                     <option>Selesai Diperiksa</option>
                                 </select>
                                 <label for="picProgressNote" class="block text-sm font-semibold text-slate-700">Catatan pemeriksaan</label>
-                                <textarea id="picProgressNote" rows="3" maxlength="2000" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800" placeholder="Tuliskan hasil pemeriksaan atau informasi yang masih dibutuhkan..."></textarea>
+                                <textarea id="picProgressNote" rows="3" maxlength="2000" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800" placeholder="Masukkan catatan pemeriksaan..."></textarea>
                                 <button type="button" id="btnSavePICProgress" onclick="savePICProgress()" class="w-full rounded-lg py-3 px-4 bg-blue-600 text-white font-semibold text-sm">Simpan progres</button>
                             </div>
                             <p id="picProgressHint" class="text-xs text-slate-500"></p>
@@ -202,12 +199,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                         <form id="formExtraEvidence" class="mt-5 border-t pt-4 space-y-2">
                             <label for="extraEvidenceFile" class="text-sm font-semibold block">Tambah bukti ke kasus ini</label>
                             <input type="file" id="extraEvidenceFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" class="w-full text-sm border border-dashed rounded-lg p-2" required>
-                            <p class="text-xs text-slate-400">Maks. 100 MiB per berkas. Jangan tutup halaman saat unggah.</p>
                             <p id="uploadProgressExtra" role="status" aria-live="polite" class="text-sm text-blue-700 font-medium" aria-label="Kemajuan upload"></p>
                             <button id="btnExtraEvidence" class="bg-slate-800 text-white py-2 px-4 rounded-lg text-sm" type="submit">Unggah bukti tambahan</button>
                         </form>
                         <h3 class="font-semibold border-b pb-2 mt-7 mb-3">Timeline & riwayat tindak lanjut</h3>
-                        <div id="detailHistory" class="space-y-3 text-sm text-slate-600">Buka kasus untuk membaca riwayat.</div>
+                        <div id="detailHistory" class="space-y-3 text-sm text-slate-600"></div>
                     </div>
                     <div id="detailLeaderColumn" class="space-y-6">
                         <div id="panelTindakLanjutLeader" class="bg-npnavy p-6 rounded-xl text-white">
@@ -217,21 +213,19 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                                 <option>Menunggu Tindak Lanjut IT/MD</option><option>Dalam Penyelesaian</option><option>Selesai</option>
                             </select>
                             <label for="inputStatusNote" class="block text-xs mb-1">Catatan pemeriksaan / alasan tindak lanjut (wajib)</label>
-                            <textarea id="inputStatusNote" maxlength="2000" rows="4" class="w-full p-2 bg-slate-800 text-white border border-slate-600 rounded mb-3" placeholder="Hasil pemeriksaan dan rencana tindak lanjut..."></textarea>
+                            <textarea id="inputStatusNote" maxlength="2000" rows="4" class="w-full p-2 bg-slate-800 text-white border border-slate-600 rounded mb-3" placeholder="Masukkan hasil pemeriksaan..."></textarea>
                             <button type="button" id="btnSimpanStatus" class="w-full py-2 bg-blue-600 rounded text-sm font-semibold" onclick="saveStatus()">Simpan status & catatan</button>
-                            <p class="text-xs text-slate-300 mt-2">Hanya Leader yang dapat mengubah status dan catatan.</p>
                         </div>
                         <div id="panelPenugasanPIC" class="bg-white p-5 rounded-xl border border-slate-200 space-y-3">
                             <h3 class="font-bold text-slate-800 border-b pb-3">Penugasan PIC</h3>
-                            <p class="text-xs text-slate-500">Pelapor dicatat otomatis dari akun login. PIC adalah Staff yang ditunjuk untuk menelusuri kasus; keputusan akhir tetap milik Leader.</p>
                             <label for="selectPIC" class="block text-sm font-semibold text-slate-700">Pilih Staff sebagai PIC</label>
                             <select id="selectPIC" class="w-full px-3 py-3 border border-slate-300 rounded-lg bg-white text-slate-800 text-sm" aria-label="Pilih PIC">
                                 <option value="">Belum ditugaskan</option>
                             </select>
-                            <label for="inputPICNote" class="block text-sm font-semibold text-slate-700">Alasan penugasan / penggantian PIC</label>
-                            <textarea id="inputPICNote" rows="3" maxlength="2000" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800" placeholder="Contoh: Periksa dokumen transaksi dan cocokkan dengan stok fisik..."></textarea>
+                            <label for="inputPICNote" class="block text-sm font-semibold text-slate-700">Alasan penugasan</label>
+                            <textarea id="inputPICNote" rows="3" maxlength="2000" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-800" placeholder="Masukkan alasan penugasan..."></textarea>
                             <button type="button" id="btnSimpanPIC" onclick="savePIC()" class="w-full rounded-lg py-3 px-4 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm">Simpan penugasan PIC</button>
-                            <p id="picFormHint" class="text-xs text-slate-500" role="status">Hanya Leader dapat menetapkan atau mengganti PIC. Semua perubahan dicatat dalam timeline.</p>
+                            <p id="picFormHint" class="text-xs text-slate-500" role="status"></p>
                         </div>
                     </div>
                 </div>
@@ -240,10 +234,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 
             <!-- ARSIP BUKTI -->
             <section id="view-archive" class="hidden space-y-6">
-                <div class="flex flex-wrap gap-3 justify-between items-center"><div><h1 class="text-2xl font-bold">Arsip & Sampah</h1><p class="text-sm text-slate-500">Data arsip dapat dipulihkan oleh Leader.</p></div>
+                <div class="flex flex-wrap gap-3 justify-between items-center"><div><h1 class="text-2xl font-bold">Arsip & Sampah</h1></div>
                 <button onclick="loadArchive()" class="px-4 py-2 bg-white border rounded-lg text-sm">Muat ulang</button></div>
-                <div class="bg-white rounded-xl border p-5"><p id="archiveNotice" class="text-sm text-slate-500 pb-3">Memuat data arsip...</p>
-                    <p class="st-scroll-hint">Geser tabel untuk melihat seluruh detail arsip.</p>
+                <div class="bg-white rounded-xl border p-5"><p id="archiveNotice" class="text-sm text-slate-500">Memuat data arsip...</p>
                     <div class="overflow-x-auto st-data-table"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-500 uppercase border-b"><tr><th class="py-3">Jenis</th><th>ID / Detail</th><th>Waktu Diarsipkan</th><th>Alasan</th><th>Aksi</th></tr></thead><tbody id="archiveBody"></tbody></table></div>
                 </div>
             </section>
@@ -270,7 +263,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                 <div><h1 class="text-2xl font-bold">Penerimaan Barang</h1></div>
                 <button type="button" id="btnExportIntake" class="px-4 py-2 rounded-lg bg-npnavy text-white text-sm">Ekspor Excel .xlsx</button>
               </div>
-              <p class="text-xs text-slate-500">Pencatatan ini tidak mengubah stok kasir.</p>
               <div class="bg-white border rounded-xl p-4 md:p-6">
                 <h2 class="font-semibold mb-4">Dokumen penerimaan baru</h2>
                 <form id="formIntake" class="space-y-4">
@@ -279,18 +271,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                     <div><label class="st-field-label" for="intakeDate">Tanggal terima</label><input id="intakeDate" type="date" class="st-field" required/></div>
                     <div><label class="st-field-label" for="intakeSupplier">Pengirim / sumber barang</label><input id="intakeSupplier" class="st-field" maxlength="150" required placeholder="Contoh: Gudang pusat"/></div>
                   </div>
-                  <div><label class="st-field-label" for="intakeNote">Catatan penerimaan (opsional)</label><textarea id="intakeNote" rows="2" maxlength="2000" class="st-field" placeholder="Kondisi paket, waktu tiba, informasi pendukung..."></textarea></div>
+                  <div><label class="st-field-label" for="intakeNote">Catatan penerimaan (opsional)</label><textarea id="intakeNote" rows="2" maxlength="2000" class="st-field" placeholder="Catatan tambahan..."></textarea></div>
                   <div class="flex gap-3 items-center justify-between flex-wrap"><h3 class="font-semibold">Rincian SKU</h3><button type="button" id="btnAddIntakeRow" class="st-secondary-btn">+ Tambah SKU</button></div>
-                  <p class="st-scroll-hint">Geser tabel untuk melihat seluruh kolom.</p>
                   <div class="st-data-table overflow-x-auto border rounded-lg"><table class="w-full text-sm st-entry-table"><thead class="bg-slate-50 text-slate-600"><tr><th>SKU</th><th>Produk</th><th>Jumlah dokumen</th><th>Fisik diterima</th><th>Selisih</th><th>Aksi</th></tr></thead><tbody id="intakeItemsBody"></tbody></table></div>
-                  <div><label class="st-field-label" for="intakeFile">Lampiran bukti penerimaan (opsional)</label><input type="file" id="intakeFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" class="st-field"/><p class="text-xs text-slate-500 mt-1">Maks. 100 MiB per berkas.</p><p id="intakeUploadProgress" role="status" aria-live="polite" class="text-xs text-blue-700 mt-1"></p></div>
+                  <div><label class="st-field-label" for="intakeFile">Lampiran bukti penerimaan (opsional)</label><input type="file" id="intakeFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" class="st-field"/><p id="intakeUploadProgress" role="status" aria-live="polite" class="text-xs text-blue-700"></p></div>
                   <button type="submit" id="btnSaveIntake" class="st-primary-btn">Simpan penerimaan</button>
                 </form>
               </div>
               <div class="bg-white border rounded-xl p-4 md:p-6">
                 <div class="flex flex-wrap gap-2 justify-between items-center mb-3"><h2 class="font-semibold">Riwayat penerimaan & selisih SKU</h2><button type="button" id="btnRefreshIntakes" class="st-secondary-btn">Muat ulang</button></div>
-                <p id="intakeNotice" role="status" class="text-sm text-slate-500 mb-3">Buka halaman untuk memuat riwayat.</p>
-                <p class="st-scroll-hint">Geser tabel jika layar sempit.</p>
+                <p id="intakeNotice" role="status" class="text-sm text-slate-500"></p>
                 <div class="st-data-table overflow-x-auto"><table class="w-full text-sm st-entry-table"><thead><tr><th>ID / Tanggal</th><th>Dokumen</th><th>SKU</th><th>Jumlah selisih</th><th>Penanggung jawab</th><th>Detail</th></tr></thead><tbody id="intakesBody"></tbody></table></div>
                 <div id="intakeDetail" class="mt-4" aria-live="polite"></div>
               </div>
@@ -298,7 +288,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 
             <!-- V2.1 / PERMINTAAN UPDATE KASIR — HANYA MONITORING, TIDAK ADA AKSES TULIS KE KASIR -->
             <section id="view-cashier" class="hidden space-y-5">
-              <div><h1 class="text-2xl font-bold">Monitoring Update Stok Kasir</h1><p class="text-sm text-slate-500 mt-1">Persetujuan dan perubahan stok dilakukan di luar StockTrace.</p></div>
+              <div><h1 class="text-2xl font-bold">Monitoring Update Stok Kasir</h1></div>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="cashierMetrics">
                 <div class="st-kpi"><p>Total permintaan</p><strong id="cashierTotal">—</strong></div>
                 <div class="st-kpi"><p>Menunggu tindak lanjut</p><strong id="cashierWaiting">—</strong></div>
@@ -310,15 +300,14 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                 <form id="formCashierRequest" class="space-y-3">
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="cashierSku">SKU</label><input id="cashierSku" class="st-field" maxlength="80" required/></div><div><label class="st-field-label" for="cashierProduct">Nama produk</label><input id="cashierProduct" class="st-field" maxlength="150" required/></div></div>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="cashierSystem">Jumlah tercatat di kasir</label><input type="number" id="cashierSystem" class="st-field" min="0" max="999999999" step="1" required/></div><div><label class="st-field-label" for="cashierPhysical">Jumlah hasil pengecekan</label><input type="number" id="cashierPhysical" class="st-field" min="0" max="999999999" step="1" required/></div></div>
-                  <div><label class="st-field-label" for="cashierReason">Alasan permintaan / tindak lanjut</label><textarea id="cashierReason" rows="3" minlength="8" maxlength="2000" class="st-field" required placeholder="Jelaskan sumber data dan tindakan yang diminta..."></textarea></div>
+                  <div><label class="st-field-label" for="cashierReason">Alasan permintaan / tindak lanjut</label><textarea id="cashierReason" rows="3" minlength="8" maxlength="2000" class="st-field" required placeholder="Masukkan alasan permintaan..."></textarea></div>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="cashierCase">ID kasus R1 terkait (opsional)</label><input id="cashierCase" class="st-field" maxlength="64" placeholder="ST-..."/></div><div><label class="st-field-label" for="cashierIntake">ID penerimaan terkait (opsional)</label><input id="cashierIntake" class="st-field" maxlength="64" placeholder="IN-..."/></div></div>
                   <button id="btnSubmitCashier" class="st-primary-btn" type="submit">Kirim permintaan</button>
                 </form>
               </div>
               <div class="bg-white border rounded-xl p-4 md:p-6">
                 <div class="flex items-center justify-between flex-wrap gap-2 mb-4"><h2 class="font-semibold">Daftar permintaan & status</h2><div class="flex gap-2 flex-wrap"><select id="cashierFilter" class="border rounded-lg px-3 py-2 text-sm"><option value="">Semua status</option><option>Diajukan</option><option>Diteruskan ke Kasir</option><option>Sedang Diproses</option><option>Selesai (Dikonfirmasi)</option><option>Ditolak</option></select><button type="button" id="btnRefreshCashier" class="st-secondary-btn">Muat ulang</button></div></div>
-                <p id="cashierNotice" role="status" class="text-sm text-slate-500 mb-3">Buka halaman untuk memuat permintaan.</p>
-                <p class="st-scroll-hint">Geser tabel jika layar sempit.</p>
+                <p id="cashierNotice" role="status" class="text-sm text-slate-500"></p>
                 <div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full text-sm"><thead><tr><th>ID / SKU</th><th>Selisih</th><th>Status</th><th>Pemohon</th><th>Waktu</th><th>Detail</th></tr></thead><tbody id="cashierBody"></tbody></table></div>
                 <div id="cashierDetail" class="mt-4" aria-live="polite"></div>
               </div>

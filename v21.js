@@ -25,7 +25,7 @@ async function v21ReadPaged(table,sortKey='created_at',max=5000,columns='*'){
  const rows=[],batch=1000;
  for(let start=0;start<max;start+=batch){
   const {data,error}=await sb.from(table).select(columns).is('deleted_at',null).order(sortKey,{ascending:false}).range(start,start+batch-1);
-  if(error)throw Error('Tabel '+table+' belum siap atau akses ditolak: '+error.message+' (cek SQL 10 V2.1 staging).');
+  if(error)throw Error('Gagal memuat '+table+': '+error.message);
   rows.push(...(data||[]));if(!data||data.length<batch)break;
  }
  return {rows,truncated:rows.length===max};
@@ -46,7 +46,7 @@ async function loadIntakes(options={}){
     v21ReadPaged('stocktrace_intake_evidence','waktu_unggah',5000,'id_file,id_intake,nama_file_asli,drive_file_id,drive_view_url,waktu_unggah,deleted_at')
    ]);
    v21Intakes=headers.rows;v21Items=items.rows;v21IntakeEvidence=evid.rows;v21IntakesLoadedAt=Date.now();
-   v21RenderIntakes();el('intakeNotice').textContent=`${v21Intakes.length} dokumen, ${v21Items.length} baris SKU. ${headers.truncated||items.truncated||evid.truncated?'Batas 5.000 baris tercapai; ekspor hanya data yang termuat.':''}`;
+   v21RenderIntakes();el('intakeNotice').textContent='';
    if(v21SelectedIntake)v21OpenIntake(v21SelectedIntake);
   }catch(e){el('intakeNotice').textContent='Gagal memuat penerimaan: '+e.message;}
  })();
@@ -110,7 +110,7 @@ function v21OpenIntake(id,options={}){
  <p class="text-xs">Dokumen: <strong>${htmlEscape(h.document_no)}</strong> · Tanggal: ${htmlEscape(h.received_on)} · Pengirim: ${htmlEscape(h.supplier)} · Dicatat: ${htmlEscape(niceDate(h.created_at))}</p>
  <p class="text-xs whitespace-pre-wrap">Catatan: ${htmlEscape(h.note||'—')}</p><div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full text-sm"><thead><tr><th>SKU</th><th>Produk</th><th>Dokumen</th><th>Diterima</th><th>Selisih</th></tr></thead><tbody>${lines}</tbody></table></div>
  <h4 class="font-semibold text-sm">Bukti penerimaan (${files.length})</h4>${links||'<p class="text-xs text-slate-500">Belum ada lampiran.</p>'}
- <div class="border-t pt-3 space-y-2"><label class="st-field-label" for="intakeDetailFiles">Tambah bukti setelah dokumen disimpan</label><input id="intakeDetailFiles" type="file" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" class="st-field"/><p id="intakeDetailProgress" class="text-xs text-blue-700" role="status" aria-live="polite"></p><button type="button" class="st-secondary-btn" data-upload-intake="${htmlEscape(key)}">Unggah lampiran</button></div>
+ <div class="border-t pt-3 space-y-2"><label class="st-field-label" for="intakeDetailFiles">Lampiran tambahan</label><input id="intakeDetailFiles" type="file" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" class="st-field"/><p id="intakeDetailProgress" class="text-xs text-blue-700" role="status" aria-live="polite"></p><button type="button" class="st-secondary-btn" data-upload-intake="${htmlEscape(key)}">Unggah lampiran</button></div>
   <div class="flex flex-wrap gap-2"><button type="button" class="st-primary-btn" data-intake-to-cashier="${htmlEscape(key)}">Buat permintaan stok kasir terkait</button>${canManageCases()?`<button type="button" class="st-archive-action" data-archive-intake="${htmlEscape(key)}">Arsipkan dokumen</button>`:''}</div></div>`;
  if(options.scroll)v21ScrollToDetail('intakeDetail');
 }
@@ -165,7 +165,7 @@ async function loadCashier(options={}){
   try{
    const data=await v21ReadPaged('stocktrace_cashier_requests','created_at',5000,'id_request,sku,product_name,qty_system,qty_physical,qty_difference,reason,status_request,id_kasus,id_intake,created_by,created_at,updated_at,deleted_at');
    v21Cashier=data.rows;v21CashierLoadedAt=Date.now();v21RenderCashier();
-   el('cashierNotice').textContent=`${v21Cashier.length} permintaan termuat. ${data.truncated?'Batas 5.000 baris tercapai.':''}`;
+   el('cashierNotice').textContent='';
    if(v21SelectedCashier)await v21OpenCashier(v21SelectedCashier);
   }catch(e){el('cashierNotice').textContent='Gagal memuat permintaan: '+e.message;}
  })();
@@ -215,7 +215,7 @@ async function v21SaveCashier(event){
   const {data,error}=await sb.rpc('stocktrace_request_cashier_update',{p_sku:sku,p_product:prod,p_system_qty:system,p_counted_qty:physical,p_reason:reason,p_case_id:id||null,p_intake_id:intake||null});
   if(error)throw Error(error.message);if(!data?.ok)throw Error('Database belum mengonfirmasi permintaan.');
   el('formCashierRequest').reset();await loadCashier({force:true});await v21OpenCashier(data.id_request);
-  await notice('Permintaan dibuat',`ID ${data.id_request} tersimpan dan menunggu tindak lanjut; stok kasir resmi tidak berubah.`,'success');
+  await notice('Permintaan dibuat',`Permintaan ${data.id_request} berhasil disimpan.`,'success');
  }catch(e){await notice('Permintaan tidak tersimpan',e.message,'error');}
  finally{btn.disabled=false;btn.textContent='Kirim permintaan';}
 }
@@ -227,7 +227,7 @@ async function v21UpdateCashier(id){
  try{
   const {data,error}=await sb.rpc('stocktrace_update_cashier_status',{p_request_id:id,p_status:status,p_note:note});
   if(error)throw Error(error.message);if(!data?.ok)throw Error('Perubahan belum dikonfirmasi.');
-  await loadCashier({force:true});await notice('Status tersimpan','Perubahan status dan catatan ditambahkan ke riwayat. Tidak ada perubahan otomatis ke kasir resmi.','success');
+  await loadCashier({force:true});await notice('Status tersimpan','Status permintaan berhasil diperbarui.','success');
  }catch(e){await notice('Gagal menyimpan status',e.message,'error');}
  finally{btn.disabled=false;}
 }

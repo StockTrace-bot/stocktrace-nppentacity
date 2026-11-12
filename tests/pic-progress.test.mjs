@@ -18,7 +18,8 @@ test('frontend shows edit controls only to the assigned PIC and keeps Leader dec
   assert.match(app,/String\(c\.pic_id\)===String\(activeUser\?\.id\)/);
   assert.match(app,/editor\.classList\.toggle\('hidden',!canEdit\)/);
   assert.match(app,/stocktrace_update_pic_progress/);
-  assert.match(app,/Status akhir kasus tidak berubah/);
+  const progressHandler=app.slice(app.indexOf('async function savePICProgress'),app.indexOf('async function downloadEvidence'));
+  assert.doesNotMatch(progressHandler,/\.update\s*\(|p_status\s*:/);
   assert.match(app,/loadPICProgress\(id,c\)/);
 });
 
