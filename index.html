@@ -29,6 +29,27 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 @media print { .mobile-bottom-nav,.mobile-signout { display:none!important; } }
 </style>
 <link rel="stylesheet" href="stocktrace-professional-rose.css?v=2.3.1-plain-links">
+<style id="stocktrace-critical-sidebar">
+/* Critical shell colors must exist before the deferred Tailwind CDN initializes. */
+#appSidebar .st-sidebar-nav > button {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: transparent !important;
+  color: #f8fafc !important;
+  border: 1px solid transparent;
+}
+#appSidebar .st-sidebar-nav > button:hover {
+  background-color: #334155 !important;
+  color: #ffffff !important;
+}
+#appSidebar .st-sidebar-nav > button.st-active-nav {
+  background-color: #344154 !important;
+  color: #ffffff !important;
+  border-color: #475569;
+}
+#appSidebar .st-sidebar-nav > button i { color: #cbd5e1; }
+#appSidebar .st-sidebar-nav > button.st-active-nav i { color: #93c5fd; }
+</style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans flex h-screen overflow-hidden">
 

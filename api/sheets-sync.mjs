@@ -181,6 +181,16 @@ function getClient(){
   const auth=new google.auth.GoogleAuth({credentials,scopes:['https://www.googleapis.com/auth/spreadsheets']});
   return google.sheets({version:'v4',auth});
 }
+function normalizeSheetHeader(value){
+  return String(value??'')
+    .normalize('NFKC')
+    .replace(/[\u00A0\u2007\u202F]/g,' ')
+    .replace(/[\u2010-\u2015\u2212]/g,'-')
+    .replace(/\s+/g,' ')
+    .trim()
+    .replace(/\s*-\s*/g,' - ')
+    .toLowerCase();
+}
 async function ensureHeader(client,sid,schema){
   const range=a1(schema.tab,`A1:${colLetter(schema.columns.length)}1`);
   const response=await client.spreadsheets.values.get({spreadsheetId:sid,range});
@@ -192,9 +202,11 @@ async function ensureHeader(client,sid,schema){
   if(lastExisting===0){
     await client.spreadsheets.values.update({spreadsheetId:sid,range,valueInputOption:'RAW',requestBody:{values:[schema.labels]}});
   }else{
-    const mismatch=expected.slice(0,lastExisting).some((label,index)=>visible[index]!==label);
-    if(mismatch){
-      throw Object.assign(new Error(`Header tab ${schema.tab} tidak sama dengan template. Periksa nama dan urutan kolom.`),{code:'SHEET_HEADER_MISMATCH',status:409});
+    const mismatchIndex=expected.slice(0,lastExisting).findIndex((label,index)=>
+      normalizeSheetHeader(visible[index])!==normalizeSheetHeader(label));
+    if(mismatchIndex!==-1){
+      const column=colLetter(mismatchIndex+1);
+      throw Object.assign(new Error(`Header tab ${schema.tab} tidak sesuai pada kolom ${column}. Ditemukan "${visible[mismatchIndex]}"; seharusnya "${expected[mismatchIndex]}". Periksa nama dan urutan kolom.`),{code:'SHEET_HEADER_MISMATCH',status:409});
     }
     if(lastExisting<expected.length){
       const first=lastExisting+1,last=expected.length;
