@@ -1,7 +1,7 @@
-# StockTrace — panduan rilis terbaru
+# StockTrace — panduan rilis
 
-Gunakan **`README_FINAL_STOCKTRACE_V22.md`** sebagai panduan utama untuk source final V2.2.1, fitur Arsip & Sampah, pemindahan bukti Drive ke folder arsip khusus, sesi login per tab, sinkronisasi Sheets/Drive, deployment Production, dan pengujian.
+Source terbaru pada paket ini adalah **V2.3 Performance Optimization**.
 
-Untuk database Production yang sudah menjalankan SQL 12, jangan jalankan SQL 12 lagi. Ikuti instruksi SQL 13 pada panduan utama setelah source V2.2.1 aktif di Vercel Production.
+Mulai dari `README_PERFORMANCE_V23.md` untuk ringkasan optimasi, pemeriksaan lokal, dan cara deployment.
 
-Dokumen versi lama di repository dipertahankan sebagai arsip historis. Jangan menjalankan migrasi historis berulang kali hanya karena file SQL masih tersedia.
+Pembaruan ini tidak memerlukan SQL atau perubahan konfigurasi Supabase/Vercel. Dokumen dan SQL versi sebelumnya tetap disimpan sebagai arsip historis; jangan menjalankan ulang migrasi lama hanya karena filenya masih tersedia.

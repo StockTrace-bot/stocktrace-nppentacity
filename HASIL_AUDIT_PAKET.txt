@@ -1,21 +1,32 @@
-StockTrace V2.2.1 FINAL — source audit
+StockTrace V2.3 Performance Optimization — source audit
 
-Basis: user-provided StockTrace V2.2 final source ZIP.
-Changes in this patch:
-- Evidence archive moves Google Drive files out of the active folder into a dedicated "ARSIP STOCKTRACE" subfolder.
-- Archive subfolders are created automatically, separately under the R1 evidence root and intake evidence root.
-- Restore moves the same Google Drive file back to its original active folder; no copy or permanent deletion is performed.
-- Existing V2.2 archived evidence can be reconciled by SQL 13 without changing deleted_at timestamps.
-- Verified physical DELETE events can still move a StockTrace-owned file from either active or archive folder to Google Drive Trash.
-- Existing archive RPCs, Google Sheets sync, login-per-tab behavior, responsive UI, and other modules are retained.
+Basis: complete StockTrace source ZIP uploaded from the GitHub main branch, identified as V2.2.3.
 
-Automated checks in this build:
-- Node syntax checks: all 28 JavaScript/MJS source files passed.
-- Automated test suite: 66 passed, 0 failed.
+Performance findings addressed:
+- Blocking third-party scripts on login and dashboard pages.
+- Sequential profile/security and initial dashboard requests.
+- Oversized dashboard and V2.1 list queries.
+- Sequential multi-file evidence uploads and per-file metadata writes.
+- Repeated Google OAuth refresh and Drive folder checks.
+- Repeated ID-login backend lookups.
 
-Important:
-- The user's Production database has already run SQL 12. Do not run SQL 12 again.
-- SQL 13 must be run once in the same Production Supabase project, only after the V2.2.1 source is deployed to Vercel Production.
-- This ZIP has not been deployed to Vercel and no live Google Drive or Supabase operation was performed from this environment.
-- Automated tests are simulated API tests; complete the controlled live acceptance tests in README_FINAL_STOCKTRACE_V22.md.
-- No service-role key, OAuth secret, refresh token, or service-account JSON was added to the package.
+Implemented changes:
+- Deferred external UI scripts and added CDN preconnect hints.
+- Added short cache headers to the public-only Supabase config endpoint.
+- Parallelized independent login/dashboard and upload authorization checks.
+- Reduced selected fields and added short-lived view data caches.
+- Increased V2.1 pagination to 1,000 rows while filtering archived rows at query time.
+- Added two-file upload concurrency and batch metadata inserts with individual fallback.
+- Added warm-instance Google OAuth token caching and short Drive folder permission caching.
+- Preserved original evidence files; no resizing or recompression is applied.
+
+Automated checks:
+- JavaScript/MJS syntax checks: passed.
+- Automated test suite: 84 passed, 0 failed.
+
+Database and deployment:
+- No SQL migration, table change, RLS change, role change, OAuth credential change, or Vercel environment variable change is required.
+- This ZIP is source code only. It has not been deployed to Vercel and no live latency measurement has been performed.
+- After deployment, test login, dashboard, one small photo, multiple photos, one PDF/video, and the existing Drive/Sheets integrations on the actual operating devices and network.
+
+No service-role key, OAuth secret, refresh token, or service-account JSON was added to the package.

@@ -5,10 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#1E293B">
     <title>StockTrace | Login ID Pengguna</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <script defer src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
     /* Login page: center the card in the available viewport while allowing scroll on short screens. */
     body.st-login-page{
@@ -70,7 +73,7 @@
     async function initClient(){
       try{
         if (!window.supabase?.createClient) throw new Error('Library Supabase gagal dimuat.');
-        const resp=await fetch('/api/public-config',{cache:'no-store'});
+        const resp=await fetch('/api/public-config');
         const cfg=await resp.json().catch(()=>({}));
         if(!resp.ok||!cfg.supabase_url||!cfg.supabase_publishable_key)throw new Error(cfg.error||'Konfigurasi aplikasi tidak siap.');
         supabaseConfig=cfg;
@@ -85,7 +88,7 @@
         btn.disabled=false;
       }catch(e){showStatus('Koneksi aplikasi gagal: '+e.message);btn.disabled=true;}
     }
-    btn.disabled=true;initClient();
+    btn.disabled=true;\n    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initClient,{once:true});\n    else initClient();
 
 
     function safeAuthStorageSnapshot() {

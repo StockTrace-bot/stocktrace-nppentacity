@@ -9,6 +9,7 @@ const allowedExtensions=new Set(['jpg','jpeg','png','pdf','mp4','webm','doc','do
 const statuses=['Baru Dilaporkan','Dalam Pemeriksaan','Menunggu Tindak Lanjut IT/MD','Dalam Penyelesaian','Selesai'];
 const picProgressStatuses=['Sedang Diperiksa','Menunggu Informasi','Selesai Diperiksa'];
 let activeUser=null,activeRole='Staff',cachedCases=[],selectedCase=null,staffDirectory=[],mustChangePassword=false;
+let casesLoadedAt=0,casesLoadedOnce=false,casesLoadPromise=null;
 const directoryNameById=new Map();
 function displayPerson(id){return directoryNameById.get(String(id||''))||(id===activeUser?.id?'Saya':'Pengguna tercatat');}
 async function loadStaffDirectory(){
@@ -58,15 +59,20 @@ async function checkAuth(){
  try{
   const {data:{user},error}=await sb.auth.getUser();if(error||!user)return redirectLogin();
   activeUser=user;
-  const {data:profile,error:profileError}=await sb.from('users').select('role,nama_lengkap,login_id').eq('id_user',user.id).single();
+  const {data:{session:secureSession},error:sessionError}=await sb.auth.getSession();
+  if(sessionError||!secureSession?.access_token)return redirectLogin();
+  // Profil dan pemeriksaan keamanan tidak saling bergantung; jalankan bersamaan.
+  const [profileResult,securityResponse]=await Promise.all([
+   sb.from('users').select('role,nama_lengkap,login_id').eq('id_user',user.id).single(),
+   fetch('/api/account-password',{headers:{Authorization:`Bearer ${secureSession.access_token}`}})
+  ]);
+  const {data:profile,error:profileError}=profileResult;
   if(profileError||!profile)throw new Error('Akun tidak memiliki profil atau izin SELECT public.users: '+(profileError?.message||''));
+  const securityData=await securityResponse.json().catch(()=>({}));
+  if(!securityResponse.ok||typeof securityData.must_change_password!=='boolean')throw new Error(securityData.error||'Keamanan akun belum aktif. Akses laporan ditahan.');
   activeRole=profile.role||'Staff';const name=profile.nama_lengkap||'Pengguna';
   el('displayUserName').textContent=name;el('displayUserRole').textContent=activeRole;el('profilInisial').textContent=name.slice(0,1).toUpperCase();
   el('accountLoginId').textContent=profile.login_id||'Belum diaktifkan';
-  const {data:{session:secureSession}}=await sb.auth.getSession();
-  const securityResponse=await fetch('/api/account-password',{headers:{Authorization:`Bearer ${secureSession?.access_token||''}`}});
-  const securityData=await securityResponse.json().catch(()=>({}));
-  if(!securityResponse.ok||typeof securityData.must_change_password!=='boolean')throw new Error(securityData.error||'Keamanan akun belum aktif. Akses laporan ditahan.');
   mustChangePassword=securityData.must_change_password;
   document.body.classList.toggle('st-password-required',mustChangePassword);
   if(mustChangePassword){showView('account');await notice('Perbarui kata sandi','Akun menggunakan kata sandi sementara. Ganti kata sandi terlebih dahulu untuk mengakses laporan.','warning');return;}
@@ -75,8 +81,12 @@ async function checkAuth(){
   if(archiveNav)archiveNav.style.display=canManageCases()?'':'none';
   el('view-detail-kasus').classList.toggle('staff-detail-centered',!canManageCases());
   el('btnSyncSheets').style.display=canManageCases()?'':'none';
-  try{await loadStaffDirectory();}catch(dirError){console.warn(dirError.message);el('picFormHint').textContent='Daftar Staff belum tersedia. Jalankan migrasi PIC terlebih dahulu.';}
-  await loadCases();
+  // Dashboard tidak perlu menunggu direktori PIC; kedua data dimuat paralel.
+  const directoryTask=loadStaffDirectory().catch(dirError=>{
+   console.warn(dirError.message);
+   el('picFormHint').textContent='Daftar Staff belum tersedia. Hubungi administrator.';
+  });
+  await Promise.all([directoryTask,loadCases({force:true})]);
  }catch(e){mustChangePassword=true;document.body.classList.add('st-password-required');showView('account');el('dashboardNotice').textContent=e.message;await notice('Profil belum siap',e.message,'error');}
 }
 async function syncSheetsNow(){
@@ -114,17 +124,26 @@ function displayCases(){
  el('dashboardCasesBody').innerHTML=list.map(c=>`<tr class="border-b"><td class="py-3 pr-4"><button type="button" data-case-id="${htmlEscape(c.id_kasus)}" class="text-blue-600 font-semibold underline">${htmlEscape(c.id_kasus)}</button></td><td class="py-3 pr-4">${htmlEscape(c.nama_produk)}<span class="text-xs text-slate-400 block">${htmlEscape(c.sku_produk)}</span></td><td class="py-3 pr-4">${htmlEscape(c.selisih)}</td><td class="py-3 pr-4 text-xs"><span class="block">Pelapor: ${htmlEscape(displayPerson(c.id_pelapor))}</span><span class="block mt-1 text-slate-500">PIC: ${htmlEscape(c.pic_nama||'Belum ditugaskan')}</span></td><td class="py-3"><span class="status-chip">${htmlEscape(c.status_kasus||statuses[0])}</span></td></tr>`).join('');
  el('dashboardNotice').textContent=list.length?`${list.length} kasus ditampilkan.`:(q||filter?'Tidak ada kasus yang cocok.':'Belum ada kasus yang dapat diakses.');
 }
-async function loadCases(){
+async function loadCases(options={}){
  if(!sb||!activeUser)return;
- el('dashboardNotice').textContent='Memuat laporan...';
- const {data,error}=await sb.from('cases').select('*').order('created_at',{ascending:false}).limit(500);
- if(error){el('dashboardNotice').textContent='Gagal membaca kasus: '+error.message;return;}
-  cachedCases=(data||[]).filter(c=>!c.deleted_at);
- el('countTotal').textContent=cachedCases.length;
- el('countClosed').textContent=cachedCases.filter(c=>(c.status_kasus||statuses[0])==='Selesai').length;
- el('countOpen').textContent=cachedCases.filter(c=>(c.status_kasus||statuses[0])!=='Selesai').length;
- el('countEscalated').textContent=cachedCases.filter(c=>c.status_kasus==='Menunggu Tindak Lanjut IT/MD').length;
- displayCases();
+ const force=options?.force===true;
+ if(!force&&casesLoadedOnce&&Date.now()-casesLoadedAt<12000){displayCases();return;}
+ if(casesLoadPromise)return casesLoadPromise;
+ const task=(async()=>{
+  el('dashboardNotice').textContent='Memuat laporan...';
+  const {data,error}=await sb.from('cases')
+   .select('id_kasus,id_pelapor,sku_produk,nama_produk,stok_sistem,stok_fisik,selisih,dugaan_penyebab,kronologi,status_kasus,created_at,pic_id,pic_nama,pic_ditetapkan_pada,deleted_at')
+   .is('deleted_at',null).order('created_at',{ascending:false}).limit(500);
+  if(error){el('dashboardNotice').textContent='Gagal membaca kasus: '+error.message;return;}
+  cachedCases=data||[];casesLoadedAt=Date.now();casesLoadedOnce=true;
+  el('countTotal').textContent=cachedCases.length;
+  el('countClosed').textContent=cachedCases.filter(c=>(c.status_kasus||statuses[0])==='Selesai').length;
+  el('countOpen').textContent=cachedCases.filter(c=>(c.status_kasus||statuses[0])!=='Selesai').length;
+  el('countEscalated').textContent=cachedCases.filter(c=>c.status_kasus==='Menunggu Tindak Lanjut IT/MD').length;
+  displayCases();
+ })();
+ casesLoadPromise=task;
+ try{return await task;}finally{if(casesLoadPromise===task)casesLoadPromise=null;}
 }
 async function openCase(id){
  selectedCase=cachedCases.find(c=>c.id_kasus===id)||null;
@@ -207,7 +226,7 @@ async function saveStatus(){
   const {data,error}=await sb.rpc('stocktrace_update_case_status',{p_case_id:id,p_status:status,p_note:note});
   if(error)throw new Error(error.message);
   if(!data?.ok)throw new Error('Database tidak mengonfirmasi perubahan.');
-  await loadCases();await openCase(id);await notice('Berhasil','Status dan catatan tercatat secara bersamaan.','success');
+  await loadCases({force:true});await openCase(id);await notice('Berhasil','Status dan catatan tercatat secara bersamaan.','success');
  }catch(e){await notice('Belum dapat memperbarui',e.message,'error');}
  finally{btn.disabled=false;btn.textContent='Simpan status & catatan';}
 }
@@ -222,7 +241,7 @@ async function savePIC(){
   const {data,error}=await sb.rpc('stocktrace_assign_pic',{p_case_id:id,p_pic_user_id:pic,p_note:note});
   if(error)throw new Error(error.message);
   if(!data?.ok)throw new Error('Database tidak mengonfirmasi penugasan.');
-  await loadCases();await openCase(id);
+  await loadCases({force:true});await openCase(id);
   await notice('PIC berhasil diperbarui',pic?`PIC: ${data.pic_name||displayPerson(pic)}. Riwayat penugasan dicatat.`:'PIC berhasil dilepas. Riwayat dicatat.','success');
  }catch(e){await notice('Gagal memperbarui PIC',e.message,'error');}
  finally{btn.disabled=false;btn.textContent='Simpan penugasan PIC';}
@@ -243,7 +262,7 @@ async function savePICProgress(){
   });
   if(error)throw new Error(error.message);
   if(!data?.ok)throw new Error('Database tidak mengonfirmasi pembaruan progres.');
-  await loadCases();await openCase(id);
+  await loadCases({force:true});await openCase(id);
   await notice('Progres tersimpan','Pembaruan progres tercatat di timeline. Status akhir kasus tidak berubah.','success');
  }catch(error){await notice('Gagal menyimpan progres',error.message,'error');}
  finally{btn.disabled=false;btn.textContent='Simpan progres';}
@@ -331,23 +350,68 @@ async function uploadToBackend(file,id,token,onProgress=()=>{}){
  const verified=await driveControl('verify',{...details,file_id:completed.id},token);
  return verified;
 }
-async function uploadFiles(files,id,session,button){
- let count=0;const errors=[];
- for(const [i,file] of files.entries()){
-  button.textContent=`Mengunggah ${i+1}/${files.length}...`;
-  const progress=button.id==='btnSubmitLaporan'?el('uploadProgressReport'):el('uploadProgressExtra');
-  if(progress)progress.textContent=`Berkas ${i+1}/${files.length}: ${file.name} — memulai...`;
-  try{
-   const d=await uploadToBackend(file,id,session.access_token,pct=>{if(progress)progress.textContent=`Berkas ${i+1}/${files.length}: ${file.name} — ${pct}%`;});
-   const {error}=await sb.from('evidence_files').insert([{id_kasus:id,nama_file_asli:file.name,drive_file_id:d.drive_file_id,drive_view_url:d.drive_link,uploaded_by:activeUser.id}]);
-   if(error)throw new Error('File mungkin sudah masuk Drive, tetapi metadata gagal: '+error.message);
-   count++;
-   // Trigger database mencatat penambahan bukti secara otomatis.
-  }catch(e){errors.push(file.name+': '+e.message);}
+async function uploadFileBatch(files,id,session,progress,options={}){
+ const table=options.table||'evidence_files',idField=options.idField||'id_kasus';
+ const includeUploader=options.includeUploader===true;
+ const states=files.map(file=>({file,status:'Menunggu',pct:0}));
+ const errors=[];let count=0;
+ const paint=()=>{
+  if(!progress)return;
+  const active=states.filter(x=>x.status==='Mengunggah').map(x=>`${x.file.name} ${x.pct}%`).slice(0,2);
+  const failed=states.filter(x=>x.status==='Gagal').length;
+  const saved=states.filter(x=>x.status==='Tersimpan').length;
+  progress.textContent=`${saved}/${files.length} tersimpan${active.length?' · '+active.join(' | '):''}${failed?' · '+failed+' gagal':''}`;
+ };
+ // Dua file berjalan bersamaan agar upload multi-bukti lebih cepat tanpa membebani HP/jaringan.
+ for(let start=0;start<files.length;start+=2){
+  const batch=files.slice(start,start+2);
+  const results=await Promise.all(batch.map(async(file,index)=>{
+   const fileIndex=start+index,state=states[fileIndex];
+   state.status='Mengunggah';state.pct=0;paint();
+   try{
+    const data=await uploadToBackend(file,id,session.access_token,pct=>{state.pct=pct;paint();});
+    return {file,fileIndex,data};
+   }catch(error){
+    state.status='Gagal';state.message=error?.message||'Upload gagal';
+    errors.push(file.name+': '+state.message);paint();return null;
+   }
+  }));
+  const completed=results.filter(Boolean);
+  if(completed.length){
+   const records=completed.map(({file,data})=>({
+    [idField]:id,nama_file_asli:file.name,drive_file_id:data.drive_file_id,drive_view_url:data.drive_link,
+    ...(includeUploader?{uploaded_by:activeUser.id}:{})
+   }));
+   const bulk=await sb.from(table).insert(records);
+   if(!bulk.error){
+    completed.forEach(({fileIndex})=>{states[fileIndex].status='Tersimpan';count++;});
+   }else{
+    // Jika insert batch ditolak, coba satu per satu agar satu metadata bermasalah
+    // tidak menggagalkan bukti lain yang sudah berhasil diunggah ke Drive.
+    const fallback=await Promise.all(completed.map(async(item,i)=>{
+     const result=await sb.from(table).insert([records[i]]);
+     return {item,error:result.error};
+    }));
+    for(const result of fallback){
+     if(result.error){
+      states[result.item.fileIndex].status='Gagal';
+      states[result.item.fileIndex].message='File mungkin sudah masuk Drive, tetapi metadata gagal: '+result.error.message;
+      errors.push(result.item.file.name+': '+states[result.item.fileIndex].message);
+     }else{
+      states[result.item.fileIndex].status='Tersimpan';count++;
+     }
+    }
+   }
+  }
+  paint();
  }
- const progress=button.id==='btnSubmitLaporan'?el('uploadProgressReport'):el('uploadProgressExtra');
- if(progress)progress.textContent=`Selesai ${count}/${files.length} berkas. ${errors.length?'Ada kegagalan; cek notifikasi.':''}`;
+ if(progress)progress.textContent=`Selesai ${count}/${files.length} berkas tersimpan.${errors.length?' Periksa berkas yang gagal sebelum mencoba ulang.':''}`;
  return {count,errors};
+}
+async function uploadFiles(files,id,session,button){
+ const progress=button?.id==='btnSubmitLaporan'?el('uploadProgressReport'):el('uploadProgressExtra');
+ if(button)button.textContent=`Mengunggah ${files.length} berkas...`;
+ return uploadFileBatch(files,id,session,progress,{table:'evidence_files',idField:'id_kasus',includeUploader:true});
 }
 async function submitReport(ev){
  ev.preventDefault();if(!activeUser)return redirectLogin();
@@ -365,10 +429,10 @@ async function submitReport(ev){
   saved=true;
   // Trigger database mencatat pembuatan laporan secara otomatis.
   const result=await uploadFiles(files,id,session,btn);
-  el('formLaporanLengkap').reset();await loadCases();
+  el('formLaporanLengkap').reset();await loadCases({force:true});
   await notice(result.errors.length?'Sebagian bukti belum tersimpan':'Laporan berhasil',`Kasus ${id} tersimpan. Bukti berhasil ${result.count}/${files.length}. ${result.errors.length?result.errors.join('; ')+' — Periksa Drive sebelum mengulangi unggah.':'Silakan cek arsip dan riwayat.'}`,result.errors.length?'warning':'success');
   await openCase(id);
- }catch(e){await notice(saved?'Kasus tersimpan; bukti perlu dilengkapi':'Kasus belum disimpan',`${e.message}. ${saved?'ID kasus: '+id+'. Tambahkan bukti melalui Detail Kasus.':''}`,'error');if(saved){await loadCases();await openCase(id);}}
+ }catch(e){await notice(saved?'Kasus tersimpan; bukti perlu dilengkapi':'Kasus belum disimpan',`${e.message}. ${saved?'ID kasus: '+id+'. Tambahkan bukti melalui Detail Kasus.':''}`,'error');if(saved){await loadCases({force:true});await openCase(id);}}
  finally{btn.disabled=false;btn.textContent='Kirim Laporan';}
 }
 async function addEvidenceToCase(ev){
@@ -443,12 +507,12 @@ async function archiveRecord(type,id){
  try{
   const {data,error}=await sb.rpc('stocktrace_archive_record',{p_entity_type:type,p_entity_id:String(id),p_reason:reason});
   if(error)throw new Error(error.message);if(!data?.ok)throw new Error(data?.message||'Database belum mengonfirmasi pengarsipan.');
-  await Promise.all([loadCases(),loadIntakesSafe(),loadCashierSafe()]);
+  await Promise.all([loadCases({force:true}),loadIntakesSafe(),loadCashierSafe()]);
   if(type==='case'&&selectedCase?.id_kasus===id){selectedCase=null;showView('dashboard');}
   else if(type==='evidence'&&selectedCase)await loadEvidence(selectedCase.id_kasus);
-  else if(type==='intake')await loadIntakes();
-  else if(type==='intake_evidence')await loadIntakes();
-  else if(type==='cashier_request')await loadCashier();
+  else if(type==='intake')await loadIntakes({force:true});
+  else if(type==='intake_evidence')await loadIntakes({force:true});
+  else if(type==='cashier_request')await loadCashier({force:true});
   if(canManageCases())await loadArchive();
   await notice('Berhasil diarsipkan',`${label} berhasil diarsipkan.`,'success');
  }catch(error){await notice('Pengarsipan gagal',error.message,'error');}
@@ -460,12 +524,12 @@ async function restoreArchiveRecord(type,id){
  try{
   const {data,error}=await sb.rpc('stocktrace_restore_record',{p_entity_type:type,p_entity_id:String(id),p_reason:reason});
   if(error)throw new Error(error.message);if(!data?.ok)throw new Error(data?.message||'Database belum mengonfirmasi pemulihan.');
-  await Promise.all([loadCases(),loadIntakesSafe(),loadCashierSafe(),loadArchive()]);
+  await Promise.all([loadCases({force:true}),loadIntakesSafe(),loadCashierSafe(),loadArchive()]);
   await notice('Berhasil dipulihkan',`${label} kembali tersedia.`, 'success');
  }catch(error){await notice('Pemulihan gagal',error.message,'error');}
 }
-async function loadIntakesSafe(){if(typeof loadIntakes==='function')await loadIntakes();}
-async function loadCashierSafe(){if(typeof loadCashier==='function')await loadCashier();}
+async function loadIntakesSafe(){if(typeof loadIntakes==='function')await loadIntakes({force:true});}
+async function loadCashierSafe(){if(typeof loadCashier==='function')await loadCashier({force:true});}
 async function archiveCurrentCase(){if(selectedCase)await archiveRecord('case',selectedCase.id_kasus);}
 
 
@@ -518,7 +582,7 @@ el('detailEvidence').addEventListener('click',e=>{
 el('passwordChangeForm').addEventListener('submit',submitPasswordChange);
 async function bootstrap(){
  try{
-  const response=await fetch('/api/public-config',{cache:'no-store'});
+  const response=await fetch('/api/public-config');
   const settings=await response.json().catch(()=>({}));
   if(!response.ok||!settings.supabase_url||!settings.supabase_publishable_key)throw new Error(settings.error||'Konfigurasi publik tidak siap.');
   if(!window.supabase?.createClient)throw new Error('Library Supabase tidak dapat dimuat.');

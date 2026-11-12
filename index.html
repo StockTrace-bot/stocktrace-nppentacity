@@ -5,11 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#1E293B">
     <title>StockTrace - Nada Puspita</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { npnavy: '#1E293B', npaccent: '#3B82F6' } } } }
     </script>
@@ -96,7 +101,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
                         <h2 class="font-semibold">Daftar kasus & monitoring</h2>
                         <select id="filterCasePIC" aria-label="Filter penugasan" class="text-sm p-2 border rounded-lg"><option value="">Semua penugasan</option><option value="mine">PIC saya</option><option value="reported">Laporan saya</option><option value="unassigned">Belum ada PIC</option></select>
                         <select id="filterCaseStatus" aria-label="Filter status" class="text-sm p-2 border rounded-lg"><option value="">Semua status</option><option>Baru Dilaporkan</option><option>Dalam Pemeriksaan</option><option>Menunggu Tindak Lanjut IT/MD</option><option>Dalam Penyelesaian</option><option>Selesai</option></select>
-                        <button type="button" onclick="loadCases()" class="text-sm text-blue-600 hover:underline">Muat ulang</button>
+                        <button type="button" onclick="loadCases({force:true})" class="text-sm text-blue-600 hover:underline">Muat ulang</button>
                     </div>
                     <p id="dashboardNotice" role="status" class="text-sm text-slate-500 mb-3">Memuat data...</p>
                     <p class="st-scroll-hint">Geser tabel ke samping untuk melihat semua kolom.</p>

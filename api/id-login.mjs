@@ -19,11 +19,14 @@ export default {async fetch(req){
   const base=supabase.url;
   const secret=supabase.serviceRoleKey;
   const admin=secret.startsWith('sb_secret_')?{apikey:secret}:{apikey:secret,Authorization:`Bearer ${secret}`};
-  // Durable atomic rate gate, not Vercel in-memory state; deny closed if the gate is unavailable.
-  const gate=await fetch(base+'/rest/v1/rpc/stocktrace_login_gate',{method:'POST',headers:{...admin,'Content-Type':'application/json'},body:JSON.stringify({p_login_id:id})});
+  // Rate gate tetap wajib; lookup ID dijalankan paralel agar satu round-trip jaringan terpangkas.
+  // Hasil lookup tidak pernah dikirim ke browser dan tidak melewati pemeriksaan rate gate.
+  const [gate,map]=await Promise.all([
+   fetch(base+'/rest/v1/rpc/stocktrace_login_gate',{method:'POST',headers:{...admin,'Content-Type':'application/json'},body:JSON.stringify({p_login_id:id})}),
+   fetch(base+'/rest/v1/users?select=id_user&login_id=eq.'+encodeURIComponent(id)+'&limit=1',{headers:admin})
+  ]);
   if(!gate.ok){console.error('login_gate unavailable',gate.status);return json({error:'Login sementara belum tersedia. Hubungi administrator.'},503);}
   if((await gate.json())!==true)return deny(429);
-  const map=await fetch(base+'/rest/v1/users?select=id_user&login_id=eq.'+encodeURIComponent(id)+'&limit=1',{headers:admin});
   if(!map.ok)return deny();
   const rows=await map.json().catch(()=>[]);if(!Array.isArray(rows)||rows.length!==1)return deny();
   const uid=rows[0].id_user;

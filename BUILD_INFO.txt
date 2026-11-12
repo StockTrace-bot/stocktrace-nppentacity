@@ -1,7 +1,16 @@
-STOCKTRACE V2.2.3 MOBILE UI REFINEMENT
+STOCKTRACE V2.3 PERFORMANCE OPTIMIZATION
 Build date: 2026-11-12
-Source basis: StockTrace V2.2.2 mobile toolbar/compact-layout package.
-UI refinements: login card vertically and horizontally centered; archive Pulihkan action stays on one line while Unduh and Pulihkan may stack naturally in the action column.
-No database schema, RLS, API route, OAuth, Google Drive, Google Sheets, or role-permission changes.
-Automated QA: 78 passed / 0 failed; JavaScript syntax check included in package validation.
+Source basis: Complete StockTrace V2.2.3 source uploaded from the GitHub main branch.
+Performance updates:
+- External UI scripts are deferred; CDN connections are preconnected.
+- Public Supabase config is cached briefly; no private credentials are exposed.
+- Login profile/security checks and initial dashboard data loads run in parallel where safe.
+- Dashboard queries select only required fields and reuse fresh data briefly.
+- Intake/cashier lists use explicit columns, active-row filtering, 1,000-row pages, and short view caches.
+- Evidence uploads process two files concurrently and write metadata in small batches with per-file fallback.
+- Google OAuth access tokens and Drive folder permission checks are reused briefly on warm Vercel instances.
+- Drive authorization checks are parallelized internally; verify requests skip redundant folder permission checks.
+No database schema, RLS policy, SQL migration, OAuth credential, environment variable, or role-permission changes.
+Automated QA: 84 passed / 0 failed. JavaScript syntax checks passed.
 This ZIP is source code only; it has not been deployed to Vercel or applied to the live Supabase database.
+Live speed gains must be measured after deployment on the actual network and devices.

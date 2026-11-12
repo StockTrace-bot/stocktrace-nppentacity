@@ -11,6 +11,13 @@ const ALLOWED = new Set([
 ]);
 const ROLES = new Set(['staff', 'leader', 'admin', 'store leader', 'store_leader']);
 
+// Warm Vercel instances reuse short-lived Google OAuth tokens across uploads.
+let googleTokenCache = null;
+let googleTokenExpiresAt = 0;
+let googleTokenCacheKey = '';
+let googleTokenPending = null;
+const folderAccessCache = new Map();
+
 const json = (data, status = 200) => Response.json(data, {
   status,
   headers: {
@@ -37,27 +44,41 @@ function folderFor(isIntake) {
 
 async function googleToken() {
   const oauth = getGoogleOAuthConfig();
-  const body = new URLSearchParams({
-    client_id: oauth.clientId,
-    client_secret: oauth.clientSecret,
-    refresh_token: oauth.refreshToken,
-    grant_type: 'refresh_token'
-  });
-
-  const response = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body
-  });
-
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok || !result.access_token) {
-    const reason = String(result.error_description || result.error || `HTTP ${response.status}`).slice(0, 220);
-    console.error('StockTrace OAuth token refresh failed:', response.status, reason);
-    throw driveError(`OAuth Google gagal: ${reason}. Pastikan refresh token berasal dari akun pemilik folder dan memiliki scope Google Drive.`, 502);
+  const cacheKey = [oauth.clientId, oauth.clientSecret, oauth.refreshToken].join('\u0000');
+  if (googleTokenCache && googleTokenCacheKey === cacheKey && Date.now() < googleTokenExpiresAt - 60000) {
+    return googleTokenCache;
   }
+  if (googleTokenPending?.key === cacheKey) return googleTokenPending.promise;
 
-  return result.access_token;
+  const promise = (async () => {
+    const body = new URLSearchParams({
+      client_id: oauth.clientId,
+      client_secret: oauth.clientSecret,
+      refresh_token: oauth.refreshToken,
+      grant_type: 'refresh_token'
+    });
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.access_token) {
+      const reason = String(result.error_description || result.error || `HTTP ${response.status}`).slice(0, 220);
+      console.error('StockTrace OAuth token refresh failed:', response.status, reason);
+      throw driveError(`OAuth Google gagal: ${reason}. Pastikan refresh token berasal dari akun pemilik folder dan memiliki scope Google Drive.`, 502);
+    }
+    googleTokenCache = result.access_token;
+    googleTokenCacheKey = cacheKey;
+    googleTokenExpiresAt = Date.now() + Math.max(60, Number(result.expires_in) || 3600) * 1000;
+    return googleTokenCache;
+  })();
+  googleTokenPending = { key: cacheKey, promise };
+  try {
+    return await promise;
+  } finally {
+    if (googleTokenPending?.promise === promise) googleTokenPending = null;
+  }
 }
 
 async function googleDriveRequest(url, token, options = {}) {
@@ -70,59 +91,49 @@ async function googleDriveRequest(url, token, options = {}) {
   });
 }
 
-async function googleAccountEmail(token) {
-  try {
-    const response = await googleDriveRequest(
-      'https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)',
-      token
-    );
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data?.user?.emailAddress || null;
-  } catch {
-    return null;
-  }
-}
+async function checkFolderAccess(folderId, token, label) {
+  const cached = folderAccessCache.get(folderId);
+  if (cached?.expiresAt > Date.now()) return cached.data;
+  if (cached?.promise) return cached.promise;
 
-async function checkFolderAccess(folderId, token, label, accountEmail) {
-  const fields = 'id,name,mimeType,trashed,capabilities(canAddChildren)';
-  const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(folderId)}?fields=${encodeURIComponent(fields)}&supportsAllDrives=true`;
-  const response = await googleDriveRequest(url, token);
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    const detail = String(data?.error?.message || `HTTP ${response.status}`).slice(0, 220);
-    console.error('StockTrace OAuth Drive folder check:', {
-      label,
-      status: response.status,
-      accountEmail,
-      folderId,
-      detail
-    });
-
-    if (response.status === 404) {
-      throw driveError(
-        `Akun OAuth ${accountEmail || '(email tidak terbaca)'} tidak dapat menemukan folder ${label}. Periksa ID folder dan pastikan akun OAuth memiliki akses ke folder tersebut. Detail Google: ${detail}`,
-        404
-      );
+  const promise = (async () => {
+    const fields = 'id,name,mimeType,trashed,capabilities(canAddChildren)';
+    const url = `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(folderId)}?fields=${encodeURIComponent(fields)}&supportsAllDrives=true`;
+    const response = await googleDriveRequest(url, token);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = String(data?.error?.message || `HTTP ${response.status}`).slice(0, 220);
+      console.error('StockTrace OAuth Drive folder check:', { label, status: response.status, folderId, detail });
+      if (response.status === 404) {
+        throw driveError(`Akun OAuth tidak dapat menemukan folder ${label}. Periksa ID folder dan izin akun Google Drive. Detail Google: ${detail}`, 404);
+      }
+      throw driveError(`Google Drive gagal memeriksa folder ${label}: ${detail}`, response.status);
     }
-    throw driveError(`Google Drive gagal memeriksa folder ${label}: ${detail}`, response.status);
+    if (data.trashed) throw driveError(`Folder ${label} berada di Trash.`, 409);
+    if (data.mimeType !== 'application/vnd.google-apps.folder') {
+      throw driveError(`ID tujuan ${label} bukan folder Google Drive.`, 400);
+    }
+    if (data.capabilities?.canAddChildren === false) {
+      throw driveError(`Akun OAuth tidak memiliki izin untuk menambahkan file ke folder ${label}.`, 403);
+    }
+    folderAccessCache.set(folderId, { data, expiresAt: Date.now() + 120000 });
+    return data;
+  })();
+  folderAccessCache.set(folderId, { promise, expiresAt: 0 });
+  try {
+    return await promise;
+  } catch (error) {
+    folderAccessCache.delete(folderId);
+    throw error;
   }
-
-  if (data.trashed) throw driveError(`Folder ${label} berada di Trash.`, 409);
-  if (data.mimeType !== 'application/vnd.google-apps.folder') {
-    throw driveError(`ID tujuan ${label} bukan folder Google Drive.`, 400);
-  }
-  if (data.capabilities?.canAddChildren === false) {
-    throw driveError(`Akun OAuth ${accountEmail || ''} tidak memiliki izin untuk menambahkan file ke folder ${label}.`, 403);
-  }
-
-  return data;
 }
 
 async function authAndCase(req, caseId) {
   const token = (req.headers.get('authorization') || '').match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) throw driveError('Login diperlukan.', 401);
+
+  const isIntake = validIntake(caseId);
+  if (!validCase(caseId) && !isIntake) throw driveError('Format ID kasus/penerimaan tidak valid.', 400);
 
   const supabase = getSupabaseConfig();
   const supabaseOrigin = supabase.url;
@@ -130,42 +141,35 @@ async function authAndCase(req, caseId) {
     apikey: supabase.publishableKey,
     Authorization: `Bearer ${token}`
   };
+  const table = isIntake ? 'stocktrace_intakes' : 'cases';
+  const field = isIntake ? 'id_intake' : 'id_kasus';
 
+  // Record lookup can start while Supabase validates the access token.
+  const recordPromise = fetch(
+    `${supabaseOrigin}/rest/v1/${table}?select=${field}&${field}=eq.${encodeURIComponent(caseId)}&limit=1`,
+    { headers }
+  ).then(response => ({ response }), error => ({ error }));
   const userResponse = await fetch(`${supabaseOrigin}/auth/v1/user`, { headers });
   if (!userResponse.ok) throw driveError('Sesi login tidak valid.', 401);
-
   const user = await userResponse.json();
   if (!user.id) throw driveError('Akun tidak dikenal.', 401);
 
-  const profileResponse = await fetch(
-    `${supabaseOrigin}/rest/v1/users?select=role&id_user=eq.${encodeURIComponent(user.id)}&limit=1`,
-    { headers }
-  );
+  // Role and record access are independent once the authenticated user is known.
+  const [profileResponse, recordResult] = await Promise.all([
+    fetch(`${supabaseOrigin}/rest/v1/users?select=role&id_user=eq.${encodeURIComponent(user.id)}&limit=1`, { headers }),
+    recordPromise
+  ]);
   if (!profileResponse.ok) throw driveError('Profil tidak bisa diperiksa.', 403);
-
   const profiles = await profileResponse.json();
   const role = String(profiles?.[0]?.role || '').toLowerCase().trim();
   if (!ROLES.has(role)) throw driveError('Role tidak memiliki akses upload.', 403);
-
-  const isIntake = validIntake(caseId);
-  if (!validCase(caseId) && !isIntake) {
-    throw driveError('Format ID kasus/penerimaan tidak valid.', 400);
-  }
-
-  const table = isIntake ? 'stocktrace_intakes' : 'cases';
-  const field = isIntake ? 'id_intake' : 'id_kasus';
-  const recordResponse = await fetch(
-    `${supabaseOrigin}/rest/v1/${table}?select=${field}&${field}=eq.${encodeURIComponent(caseId)}&limit=1`,
-    { headers }
-  );
-
+  if (recordResult.error) throw driveError('Koneksi untuk memeriksa dokumen gagal.', 502);
+  const recordResponse = recordResult.response;
   if (!recordResponse.ok) throw driveError('Hak akses dokumen ditolak.', 403);
-
   const rows = await recordResponse.json();
   if (!Array.isArray(rows) || rows.length !== 1) {
     throw driveError('Dokumen tidak ditemukan atau tidak boleh diakses.', 403);
   }
-
   return { user, isIntake };
 }
 
@@ -211,20 +215,19 @@ export default {
       const body = await req.json();
       const action = String(body.action || '');
       const caseId = String(body.case_id || '');
+      if (!['start', 'verify'].includes(action)) return fail('INVALID_ACTION', 'Gunakan action start atau verify.', 400);
+      if (!validCase(caseId) && !validIntake(caseId)) return fail('INVALID_CASE_ID', 'Format ID kasus/penerimaan tidak valid.', 400);
       // Validate file metadata before network/auth calls; reject oversized or invalid uploads early.
-      const expectedFile = (action === 'start' || action === 'verify') ? fileInput(body) : null;
+      const expectedFile = fileInput(body);
       const { user, isIntake } = await authAndCase(req, caseId);
+      const google = await googleToken();
 
       const targetFolder = folderFor(isIntake);
       const folderLabel = isIntake ? 'penerimaan barang' : 'laporan R1';
-      const google = await googleToken();
-      const accountEmail = await googleAccountEmail(google);
-
-      // Validate that the OAuth user (not the Sheets service account) can access
-      // the exact destination folder and add children to it.
-      await checkFolderAccess(targetFolder, google, folderLabel, accountEmail);
 
       if (action === 'start') {
+        // Folder permission is checked once per warm instance and reused briefly.
+        await checkFolderAccess(targetFolder, google, folderLabel);
         const { filename, size, type } = expectedFile;
         const metadata = {
           name: `${caseId}__${filename}`,
@@ -254,8 +257,8 @@ export default {
         if (!response.ok) {
           const detail = await response.json().catch(() => ({}));
           const reason = String(detail?.error?.message || `HTTP ${response.status}`).slice(0, 220);
-          console.error('StockTrace OAuth Drive session start:', response.status, reason, accountEmail);
-          throw driveError(`Google Drive gagal membuka sesi upload: ${reason}. Akun OAuth: ${accountEmail || 'tidak diketahui'}.`, response.status);
+          console.error('StockTrace OAuth Drive session start:', response.status, reason);
+          throw driveError(`Google Drive gagal membuka sesi upload: ${reason}. Periksa izin akun OAuth dan folder tujuan.`, response.status);
         }
 
         const sessionUrl = response.headers.get('location');
@@ -267,7 +270,6 @@ export default {
           success: true,
           session_url: sessionUrl,
           max_file_bytes: MAX_BYTES,
-          drive_account: accountEmail
         });
       }
 
@@ -301,7 +303,6 @@ export default {
           success: true,
           drive_file_id: data.id,
           drive_link: data.webViewLink || `https://drive.google.com/file/d/${encodeURIComponent(data.id)}/view`,
-          drive_account: accountEmail
         });
       }
 

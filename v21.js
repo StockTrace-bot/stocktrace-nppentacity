@@ -3,6 +3,7 @@
  * No official inventory/cashier integration and never mutates official stock quantities.
  */
 let v21Intakes=[],v21Items=[],v21IntakeEvidence=[],v21Cashier=[],v21SelectedIntake=null,v21SelectedCashier=null;
+let v21IntakesLoadedAt=0,v21CashierLoadedAt=0,v21IntakesPromise=null,v21CashierPromise=null;
 const cashierStatuses=['Diajukan','Diteruskan ke Kasir','Sedang Diproses','Selesai (Dikonfirmasi)','Ditolak'];
 const v21Int=id=>{const v=Number(id.value);return id.value!==''&&Number.isSafeInteger(v)&&v>=0&&v<=999999999?v:null;};
 function v21DateBalikpapan(){const ps=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Makassar',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(x=>[x.type,x.value]));return `${ps.year}-${ps.month}-${ps.day}`;}
@@ -20,27 +21,47 @@ function v21CollectRows(){const rows=[...el('intakeItemsBody').rows].map(row=>({
  const keys=new Set();for(const r of rows){const key=r.sku.toUpperCase();if(!r.sku||r.sku.length>80||r.product_name.length<2||r.qty_document===null||r.qty_received===null)throw Error('Lengkapi SKU, nama produk (minimal 2 huruf) dan kedua jumlah yang valid.');if(keys.has(key))throw Error('SKU duplikat pada satu dokumen: '+r.sku+'. Gabungkan ke satu baris.');keys.add(key);}
  return rows;
 }
-async function v21ReadPaged(table,sortKey='created_at',max=5000){
- const rows=[],batch=500;for(let start=0;start<max;start+=batch){
-  const {data,error}=await sb.from(table).select('*').order(sortKey,{ascending:false}).range(start,start+batch-1);
+async function v21ReadPaged(table,sortKey='created_at',max=5000,columns='*'){
+ const rows=[],batch=1000;
+ for(let start=0;start<max;start+=batch){
+  const {data,error}=await sb.from(table).select(columns).is('deleted_at',null).order(sortKey,{ascending:false}).range(start,start+batch-1);
   if(error)throw Error('Tabel '+table+' belum siap atau akses ditolak: '+error.message+' (cek SQL 10 V2.1 staging).');
   rows.push(...(data||[]));if(!data||data.length<batch)break;
  }
  return {rows,truncated:rows.length===max};
 }
-async function loadIntakes(){
+async function loadIntakes(options={}){
  if(!activeUser||mustChangePassword)return;
- el('intakeNotice').textContent='Memuat penerimaan & rincian...';
- try{
-  const [headers,items,evid]=await Promise.all([v21ReadPaged('stocktrace_intakes'),v21ReadPaged('stocktrace_intake_items','id_intake'),v21ReadPaged('stocktrace_intake_evidence','waktu_unggah')]);
-  v21Intakes=headers.rows.filter(x=>!x.deleted_at);v21Items=items.rows.filter(x=>!x.deleted_at);v21IntakeEvidence=evid.rows.filter(x=>!x.deleted_at);
-  v21RenderIntakes();el('intakeNotice').textContent=`${v21Intakes.length} dokumen, ${v21Items.length} baris SKU. ${headers.truncated||items.truncated||evid.truncated?'Batas 5.000 baris tercapai; ekspor hanya data yang termuat.':''}`;
-  if(v21SelectedIntake)v21OpenIntake(v21SelectedIntake);
- }catch(e){el('intakeNotice').textContent='Gagal memuat penerimaan: '+e.message;}
+ const force=options?.force===true;
+ if(!force&&v21IntakesLoadedAt&&Date.now()-v21IntakesLoadedAt<15000){
+  v21RenderIntakes();if(v21SelectedIntake)v21OpenIntake(v21SelectedIntake);return;
+ }
+ if(v21IntakesPromise)return v21IntakesPromise;
+ const task=(async()=>{
+  el('intakeNotice').textContent='Memuat penerimaan & rincian...';
+  try{
+   const [headers,items,evid]=await Promise.all([
+    v21ReadPaged('stocktrace_intakes','created_at',5000,'id_intake,document_no,received_on,supplier,note,created_by,created_at,deleted_at'),
+    v21ReadPaged('stocktrace_intake_items','id_intake',5000,'id_intake,sku,product_name,qty_document,qty_received,qty_difference,deleted_at'),
+    v21ReadPaged('stocktrace_intake_evidence','waktu_unggah',5000,'id_file,id_intake,nama_file_asli,drive_file_id,drive_view_url,waktu_unggah,deleted_at')
+   ]);
+   v21Intakes=headers.rows;v21Items=items.rows;v21IntakeEvidence=evid.rows;v21IntakesLoadedAt=Date.now();
+   v21RenderIntakes();el('intakeNotice').textContent=`${v21Intakes.length} dokumen, ${v21Items.length} baris SKU. ${headers.truncated||items.truncated||evid.truncated?'Batas 5.000 baris tercapai; ekspor hanya data yang termuat.':''}`;
+   if(v21SelectedIntake)v21OpenIntake(v21SelectedIntake);
+  }catch(e){el('intakeNotice').textContent='Gagal memuat penerimaan: '+e.message;}
+ })();
+ v21IntakesPromise=task;
+ try{return await task;}finally{if(v21IntakesPromise===task)v21IntakesPromise=null;}
 }
 function v21RenderIntakes(){
+ const itemsByIntake=new Map();
+ for(const item of v21Items){
+  const key=String(item.id_intake);
+  if(!itemsByIntake.has(key))itemsByIntake.set(key,[]);
+  itemsByIntake.get(key).push(item);
+ }
  const html=v21Intakes.map(h=>{
-  const list=v21Items.filter(x=>String(x.id_intake)===String(h.id_intake));
+  const list=itemsByIntake.get(String(h.id_intake))||[];
   const diff=list.filter(x=>x.qty_difference!==0).length;
   const count=list.reduce((sum,x)=>sum+Math.abs(x.qty_difference||0),0);
   return `<tr><td><strong>${htmlEscape(h.id_intake)}</strong><div class="text-xs text-slate-500">${htmlEscape(h.received_on)}</div></td>
@@ -97,18 +118,7 @@ async function v21AttachFiles(files,id,progress){
  if(!files.length)return {count:0,errors:[]};
  if(!validateFiles(files))throw Error('Pemeriksaan berkas gagal.');
  const {data:{session}}=await sb.auth.getSession();if(!session?.access_token)throw Error('Sesi login berakhir.');
- let count=0;const errors=[];
- for(const [i,file] of files.entries()){
-  try{
-   if(progress)progress.textContent=`Mengunggah ${i+1}/${files.length}: ${file.name}...`;
-   const data=await uploadToBackend(file,id,session.access_token,pct=>{if(progress)progress.textContent=`${file.name}: ${pct}%`;});
-   const {error}=await sb.from('stocktrace_intake_evidence').insert([{id_intake:id,nama_file_asli:file.name,drive_file_id:data.drive_file_id,drive_view_url:data.drive_link}]);
-   if(error)throw Error('File mungkin berhasil masuk Drive namun metadata gagal: '+error.message);
-   count++;
-  }catch(e){errors.push(file.name+': '+e.message);}
- }
- if(progress)progress.textContent=`${count}/${files.length} lampiran dicatat. ${errors.length?'Periksa Drive sebelum mencoba upload ulang.':''}`;
- return {count,errors};
+ return uploadFileBatch(files,id,session,progress,{table:'stocktrace_intake_evidence',idField:'id_intake'});
 }
 async function v21SaveIntake(event){
  event.preventDefault();if(!activeUser||mustChangePassword)return;
@@ -124,7 +134,7 @@ async function v21SaveIntake(event){
   // The document is committed atomically BEFORE optional media upload. Failure cannot erase document.
   let upload={count:0,errors:[]};if(files.length)upload=await v21AttachFiles(files,id,el('intakeUploadProgress'));
   el('formIntake').reset();el('intakeItemsBody').replaceChildren();v21Row();el('intakeDate').value=v21DateBalikpapan();
-  await loadIntakes();v21OpenIntake(id);
+  await loadIntakes({force:true});v21OpenIntake(id);
   await notice(upload.errors.length?'Dokumen tersimpan, sebagian bukti gagal':'Penerimaan tersimpan',`ID ${id}. ${items.length} SKU. ${files.length?`Lampiran ${upload.count}/${files.length}.`:''} ${upload.errors.join('; ')} ${upload.errors.length?'Periksa Drive sebelum mencoba ulang.':''}`,upload.errors.length?'warning':'success');
  }catch(e){await notice('Gagal menyimpan penerimaan',e.message,'error');}
  finally{button.disabled=false;button.textContent='Simpan penerimaan';}
@@ -132,7 +142,8 @@ async function v21SaveIntake(event){
 function v21Export(){
  if(!v21Intakes.length&&!v21Cashier.length)return notice('Belum ada data','Buka penerimaan dan kasir, kemudian muat data terlebih dahulu.','warning');
  if(!globalThis.StockTraceXlsx?.save)return notice('Ekspor belum siap','Modul XLSX tidak termuat.','error');
- const details=v21Items.filter(x=>v21Intakes.some(h=>h.id_intake===x.id_intake));
+ const intakeIds=new Set(v21Intakes.map(h=>String(h.id_intake)));
+ const details=v21Items.filter(x=>intakeIds.has(String(x.id_intake)));
  const sheets=[
   {name:'Penerimaan',rows:[['ID Penerimaan','No Dokumen','Tanggal Terima','Pengirim','Catatan','Pembuat','Waktu Dibuat'],...v21Intakes.map(h=>[h.id_intake,h.document_no,h.received_on,h.supplier,h.note,displayPerson(h.created_by),niceDate(h.created_at)])]},
   {name:'Detail SKU',rows:[['ID Penerimaan','SKU','Nama Produk','Qty Dokumen','Qty Fisik','Selisih Fisik - Dokumen','Hasil'],...details.map(i=>[i.id_intake,i.sku,i.product_name,i.qty_document,i.qty_received,i.qty_difference,i.qty_difference===0?'Sesuai':i.qty_difference<0?'Kurang':'Lebih'])]},
@@ -142,11 +153,24 @@ function v21Export(){
  try{StockTraceXlsx.save(sheets,'StockTrace_Penerimaan_Kasir_'+v21DateBalikpapan()+'.xlsx');}
  catch(e){notice('Ekspor XLSX gagal',e.message,'error');}
 }
-async function loadCashier(){
+async function loadCashier(options={}){
  if(!activeUser||mustChangePassword)return;
- el('cashierNotice').textContent='Memuat permintaan update stok...';
- try{const data=await v21ReadPaged('stocktrace_cashier_requests');v21Cashier=data.rows.filter(x=>!x.deleted_at);v21RenderCashier();el('cashierNotice').textContent=`${v21Cashier.length} permintaan termuat. ${data.truncated?'Batas 5.000 baris tercapai.':''}`;if(v21SelectedCashier)await v21OpenCashier(v21SelectedCashier);}
- catch(e){el('cashierNotice').textContent='Gagal memuat permintaan: '+e.message;}
+ const force=options?.force===true;
+ if(!force&&v21CashierLoadedAt&&Date.now()-v21CashierLoadedAt<15000){
+  v21RenderCashier();if(v21SelectedCashier)await v21OpenCashier(v21SelectedCashier);return;
+ }
+ if(v21CashierPromise)return v21CashierPromise;
+ const task=(async()=>{
+  el('cashierNotice').textContent='Memuat permintaan update stok...';
+  try{
+   const data=await v21ReadPaged('stocktrace_cashier_requests','created_at',5000,'id_request,sku,product_name,qty_system,qty_physical,qty_difference,reason,status_request,id_kasus,id_intake,created_by,created_at,updated_at,deleted_at');
+   v21Cashier=data.rows;v21CashierLoadedAt=Date.now();v21RenderCashier();
+   el('cashierNotice').textContent=`${v21Cashier.length} permintaan termuat. ${data.truncated?'Batas 5.000 baris tercapai.':''}`;
+   if(v21SelectedCashier)await v21OpenCashier(v21SelectedCashier);
+  }catch(e){el('cashierNotice').textContent='Gagal memuat permintaan: '+e.message;}
+ })();
+ v21CashierPromise=task;
+ try{return await task;}finally{if(v21CashierPromise===task)v21CashierPromise=null;}
 }
 function v21RenderCashier(){
  const f=el('cashierFilter').value,list=v21Cashier.filter(r=>!f||r.status_request===f);
@@ -190,7 +214,7 @@ async function v21SaveCashier(event){
  try{
   const {data,error}=await sb.rpc('stocktrace_request_cashier_update',{p_sku:sku,p_product:prod,p_system_qty:system,p_counted_qty:physical,p_reason:reason,p_case_id:id||null,p_intake_id:intake||null});
   if(error)throw Error(error.message);if(!data?.ok)throw Error('Database belum mengonfirmasi permintaan.');
-  el('formCashierRequest').reset();await loadCashier();await v21OpenCashier(data.id_request);
+  el('formCashierRequest').reset();await loadCashier({force:true});await v21OpenCashier(data.id_request);
   await notice('Permintaan dibuat',`ID ${data.id_request} tersimpan dan menunggu tindak lanjut; stok kasir resmi tidak berubah.`,'success');
  }catch(e){await notice('Permintaan tidak tersimpan',e.message,'error');}
  finally{btn.disabled=false;btn.textContent='Kirim permintaan';}
@@ -203,7 +227,7 @@ async function v21UpdateCashier(id){
  try{
   const {data,error}=await sb.rpc('stocktrace_update_cashier_status',{p_request_id:id,p_status:status,p_note:note});
   if(error)throw Error(error.message);if(!data?.ok)throw Error('Perubahan belum dikonfirmasi.');
-  await loadCashier();await notice('Status tersimpan','Perubahan status dan catatan ditambahkan ke riwayat. Tidak ada perubahan otomatis ke kasir resmi.','success');
+  await loadCashier({force:true});await notice('Status tersimpan','Perubahan status dan catatan ditambahkan ke riwayat. Tidak ada perubahan otomatis ke kasir resmi.','success');
  }catch(e){await notice('Gagal menyimpan status',e.message,'error');}
  finally{btn.disabled=false;}
 }
@@ -212,8 +236,8 @@ el('btnAddIntakeRow').addEventListener('click',()=>{if(el('intakeItemsBody').row
 el('intakeItemsBody').addEventListener('click',e=>{if(e.target.closest('[data-remove-row]')){e.target.closest('tr').remove();if(!el('intakeItemsBody').rows.length)v21Row();}});
 el('intakeItemsBody').addEventListener('input',e=>{const row=e.target.closest('tr');if(row)v21UpdateRowDiff(row);});
 el('formIntake').addEventListener('submit',v21SaveIntake);
-el('btnRefreshIntakes').addEventListener('click',loadIntakes);
-el('btnExportIntake').addEventListener('click',async()=>{await Promise.all([loadIntakes(),loadCashier()]);v21Export();});
+el('btnRefreshIntakes').addEventListener('click',()=>loadIntakes({force:true}));
+el('btnExportIntake').addEventListener('click',async()=>{await Promise.all([loadIntakes({force:true}),loadCashier({force:true})]);v21Export();});
 el('intakeDetail').addEventListener('click',async e=>{
  const target=e.target.closest('button');if(!target)return;
  if(target.dataset.closeIntake){v21SelectedIntake=null;el('intakeDetail').replaceChildren();return;}
@@ -222,12 +246,12 @@ el('intakeDetail').addEventListener('click',async e=>{
   if(target.dataset.archiveRecord){archiveRecord(target.dataset.archiveRecord,target.dataset.archiveId);return;}
  if(target.dataset.intakeToCashier){showView('cashier');el('cashierIntake').value=target.dataset.intakeToCashier;return;}
  if(target.dataset.uploadIntake){const files=[...el('intakeDetailFiles').files];if(!files.length)return notice('Pilih bukti','Pilih berkas dahulu.','warning');target.disabled=true;
-  try{const r=await v21AttachFiles(files,target.dataset.uploadIntake,el('intakeDetailProgress'));await loadIntakes();await notice(r.errors.length?'Unggah sebagian':'Bukti tersimpan',`${r.count}/${files.length} bukti dicatat. ${r.errors.join('; ')}` ,r.errors.length?'warning':'success');}
+  try{const r=await v21AttachFiles(files,target.dataset.uploadIntake,el('intakeDetailProgress'));await loadIntakes({force:true});await notice(r.errors.length?'Unggah sebagian':'Bukti tersimpan',`${r.count}/${files.length} bukti dicatat. ${r.errors.join('; ')}` ,r.errors.length?'warning':'success');}
   catch(err){await notice('Unggah gagal',err.message,'error');}finally{target.disabled=false;}
  }
 });
 el('formCashierRequest').addEventListener('submit',v21SaveCashier);
-el('btnRefreshCashier').addEventListener('click',loadCashier);
+el('btnRefreshCashier').addEventListener('click',()=>loadCashier({force:true}));
 el('cashierFilter').addEventListener('change',v21RenderCashier);
 el('cashierDetail').addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;if(t.dataset.closeCashier){v21SelectedCashier=null;el('cashierDetail').replaceChildren();}else if(t.dataset.saveCashier)v21UpdateCashier(t.dataset.saveCashier);else if(t.dataset.archiveCashier)archiveRecord('cashier_request',t.dataset.archiveCashier);});
 if(!el('intakeItemsBody').rows.length)v21Row();el('intakeDate').value=v21DateBalikpapan();

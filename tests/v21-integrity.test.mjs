@@ -21,7 +21,8 @@ test('new workflow uses atomic RPC, keeps evidence attachment, and no official P
  assert.match(code,/rpc\('stocktrace_create_intake'/);
  assert.match(code,/rpc\('stocktrace_request_cashier_update'/);
  assert.match(code,/rpc\('stocktrace_update_cashier_status'/);
- assert.match(code,/uploadToBackend\(file,id/);
+ assert.match(code,/uploadFileBatch\(files,id,session/);
+ assert.match(app,/uploadToBackend\(file,id/);
  assert.match(code,/stocktrace_intake_evidence/);
  assert.match(drive,/stocktrace_intakes/);
  assert.match(sql,/qty_difference integer GENERATED ALWAYS/);
