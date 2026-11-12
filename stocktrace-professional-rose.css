@@ -674,3 +674,24 @@ body.st-password-required #view-account .bg-white{border-color:#F59E0B}
   }
   #intakeDetail,#cashierDetail { scroll-margin-top:10px; }
 }
+
+
+/* V2.2.3 — keep the restore action on one line in narrow archive table columns. */
+.st-restore-action{
+  white-space:nowrap!important;
+  word-break:keep-all;
+  overflow-wrap:normal;
+  flex:0 0 auto;
+  width:max-content;
+  min-width:max-content;
+}
+@media(max-width:767px){
+  #view-archive #archiveBody td:last-child{min-width:88px}
+  #view-archive #archiveBody td:last-child>div{align-items:flex-start}
+  #view-archive #archiveBody .st-restore-action{
+    min-height:34px;
+    padding:6px 8px;
+    font-size:11px!important;
+    line-height:1.2;
+  }
+}

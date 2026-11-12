@@ -1,9 +1,7 @@
-STOCKTRACE V2.2.1 FINAL SOURCE
-Build date: 2026-11-11
-Source basis: user-uploaded StockTrace V2.2 final source ZIP
-Primary guide: README_FINAL_STOCKTRACE_V22.md
-Database patch to apply after V2.2.1 Production deploy: sql/13_DRIVE_ARCHIVE_FOLDER_MIGRATION.sql
-Existing Production database already has SQL 12; do not run SQL 12 again.
-Drive archive behavior: evidence moves into auto-created "ARSIP STOCKTRACE" subfolders; restore returns files to the original active folder.
-Automated QA: 66 passed / 0 failed; 28 JS/MJS syntax checks passed.
+STOCKTRACE V2.2.3 MOBILE UI REFINEMENT
+Build date: 2026-11-12
+Source basis: StockTrace V2.2.2 mobile toolbar/compact-layout package.
+UI refinements: login card vertically and horizontally centered; archive Pulihkan action stays on one line while Unduh and Pulihkan may stack naturally in the action column.
+No database schema, RLS, API route, OAuth, Google Drive, Google Sheets, or role-permission changes.
+Automated QA: 78 passed / 0 failed; JavaScript syntax check included in package validation.
 This ZIP is source code only; it has not been deployed to Vercel or applied to the live Supabase database.
