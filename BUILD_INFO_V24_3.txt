@@ -1,0 +1,4 @@
+StockTrace V2.4.3 — Login Render Stability Fix
+Scope: login page self-contained rendering + delayed auth boot reveal.
+No SQL, Supabase schema, webhook, Google Sheets, Google Drive, or Vercel environment changes.
+Full test suite: run by APPLY_STOCKTRACE_V243_LOGIN_RENDER.ps1 before commit/push.

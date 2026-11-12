@@ -11,12 +11,13 @@ const publicConfig = read('api/public-config.mjs');
 const drive = read('api/drive-upload.mjs');
 const idLogin = read('api/id-login.mjs');
 
-test('external UI libraries no longer block HTML parsing', () => {
-  for (const html of [index, login]) {
-    assert.match(html, /<script defer src="https:\/\/cdn\.tailwindcss\.com"><\/script>/);
-    assert.match(html, /<script defer src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@2"><\/script>/);
-  }
+test('external UI libraries do not control the login page first paint', () => {
+  assert.match(index, /<script defer src="https:\/\/cdn\.tailwindcss\.com"><\/script>/);
+  assert.match(index, /<script defer src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@2"><\/script>/);
   assert.match(index, /rel="preconnect" href="https:\/\/cdn\.jsdelivr\.net"/);
+  assert.doesNotMatch(login, /cdn\.tailwindcss\.com|stocktrace-professional-rose\.css|fonts\.googleapis\.com/);
+  assert.match(login, /<script defer src="https:\/\/cdn\.jsdelivr\.net\/npm\/@supabase\/supabase-js@2"><\/script>/);
+  assert.match(login, /<style>[\s\S]*body\.st-login-page[\s\S]*\.st-login-card[\s\S]*<\/style>/);
   assert.match(login, /DOMContentLoaded',initClient/);
 });
 
