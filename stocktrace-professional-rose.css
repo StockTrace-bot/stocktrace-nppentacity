@@ -486,3 +486,36 @@ body.st-password-required #view-account .bg-white{border-color:#F59E0B}
   .st-archive-action,.st-restore-action{padding:8px 9px;font-size:11px}
   #view-archive .st-data-table table{min-width:680px}
 }
+
+
+/* Mobile detail actions: clear, reliable touch targets in horizontally-scrolled tables. */
+.st-open-detail-action{
+  display:inline-flex!important;
+  align-items:center;
+  justify-content:center;
+  min-width:64px;
+  min-height:40px;
+  padding:8px 12px;
+  border:1px solid #BFDBFE;
+  border-radius:8px;
+  background:#EFF6FF;
+  color:#1D4ED8;
+  text-decoration:none;
+  font-size:12px;
+  font-weight:700;
+  line-height:1.2;
+  cursor:pointer;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+  position:relative;
+  z-index:1;
+}
+.st-open-detail-action:active{background:#DBEAFE}
+@media(max-width:767px){
+  #view-intake .st-open-detail-action,
+  #view-cashier .st-open-detail-action{
+    min-width:68px;
+    min-height:44px;
+    padding:10px 13px;
+  }
+}

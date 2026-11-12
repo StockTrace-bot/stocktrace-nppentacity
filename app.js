@@ -7,6 +7,7 @@ const toText=v=>v===null||v===undefined?'':String(v);
 const htmlEscape=v=>toText(v).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const allowedExtensions=new Set(['jpg','jpeg','png','pdf','mp4','webm','doc','docx','xls','xlsx','csv','txt']);
 const statuses=['Baru Dilaporkan','Dalam Pemeriksaan','Menunggu Tindak Lanjut IT/MD','Dalam Penyelesaian','Selesai'];
+const picProgressStatuses=['Sedang Diperiksa','Menunggu Informasi','Selesai Diperiksa'];
 let activeUser=null,activeRole='Staff',cachedCases=[],selectedCase=null,staffDirectory=[],mustChangePassword=false;
 const directoryNameById=new Map();
 function displayPerson(id){return directoryNameById.get(String(id||''))||(id===activeUser?.id?'Saya':'Pengguna tercatat');}
@@ -141,7 +142,44 @@ async function openCase(id){
  }
  el('detailEvidence').textContent='Memuat bukti...';el('detailHistory').textContent='Memuat riwayat...';
  showView('detail-kasus');
- await Promise.all([loadEvidence(id),loadHistory(id)]);
+ await Promise.all([loadEvidence(id),loadHistory(id),loadPICProgress(id,c)]);
+}
+async function loadPICProgress(id,c=selectedCase){
+ const panel=el('panelPICProgress'),editor=el('picProgressEditor');
+ const isLeader=canManageCases();
+ const isPIC=Boolean(c?.pic_id)&&String(c.pic_id)===String(activeUser?.id);
+ const canView=Boolean(c?.pic_id)&&(isLeader||isPIC);
+ panel.classList.toggle('hidden',!canView);
+ if(!canView)return;
+ const canEdit=isPIC&&c.status_kasus!=='Selesai';
+ editor.classList.toggle('hidden',!canEdit);
+ el('picProgressStatus').textContent='Memuat...';
+ el('picProgressNoteCurrent').textContent='';
+ el('picProgressMeta').textContent='';
+ try{
+  const {data,error}=await sb.from('stocktrace_pic_progress')
+   .select('progress_status,progress_note,updated_by,updated_at')
+   .eq('id_kasus',id).maybeSingle();
+  if(error)throw new Error(error.message);
+  el('picProgressStatus').textContent=data?.progress_status||'Belum Dimulai';
+  el('picProgressNoteCurrent').textContent=data?.progress_note||'Belum ada catatan progres.';
+  el('picProgressMeta').textContent=data
+   ?`Diperbarui ${niceDate(data.updated_at)} · ${displayPerson(data.updated_by)}`
+   :'Belum ada pembaruan.';
+  if(isPIC&&c.status_kasus!=='Selesai'){
+   el('picProgressSelect').value=picProgressStatuses.includes(data?.progress_status)?data.progress_status:picProgressStatuses[0];
+   el('picProgressNote').value='';
+  }
+  el('picProgressHint').textContent=c.status_kasus==='Selesai'
+   ?'Kasus sudah diselesaikan oleh Leader. Progres tidak dapat diubah.'
+   :'Hanya PIC yang ditugaskan dapat memperbarui progres. Status akhir tetap ditentukan Leader.';
+ }catch(error){
+  el('picProgressStatus').textContent='Belum tersedia';
+  el('picProgressNoteCurrent').textContent='Fitur progres PIC belum aktif.';
+  console.warn('PIC progress could not be loaded:',error.message);
+  el('picProgressMeta').textContent='Fitur belum aktif. Hubungi admin.';
+  editor.classList.add('hidden');
+ }
 }
 async function loadEvidence(id){
   const {data,error}=await sb.from('evidence_files').select('id_file,id_kasus,nama_file_asli,drive_file_id,drive_view_url,waktu_unggah,uploaded_by,deleted_at').eq('id_kasus',id).order('waktu_unggah',{ascending:false}).limit(150);
@@ -189,6 +227,28 @@ async function savePIC(){
  }catch(e){await notice('Gagal memperbarui PIC',e.message,'error');}
  finally{btn.disabled=false;btn.textContent='Simpan penugasan PIC';}
 }
+async function savePICProgress(){
+ const c=selectedCase;
+ if(!c||!Boolean(c.pic_id)||String(c.pic_id)!==String(activeUser?.id))
+  return notice('Akses ditolak','Hanya PIC yang ditugaskan pada kasus ini yang dapat memperbarui progres.','warning');
+ if(c.status_kasus==='Selesai')
+  return notice('Kasus sudah selesai','Progres tidak dapat diubah setelah Leader menyelesaikan kasus.','warning');
+ const status=el('picProgressSelect').value,note=el('picProgressNote').value.trim(),id=c.id_kasus;
+ if(!picProgressStatuses.includes(status)||note.length<8||note.length>2000)
+  return notice('Catatan belum lengkap','Pilih progres dan isi catatan minimal 8 karakter.','warning');
+ const btn=el('btnSavePICProgress');btn.disabled=true;btn.textContent='Menyimpan...';
+ try{
+  const {data,error}=await sb.rpc('stocktrace_update_pic_progress',{
+   p_case_id:id,p_progress_status:status,p_note:note
+  });
+  if(error)throw new Error(error.message);
+  if(!data?.ok)throw new Error('Database tidak mengonfirmasi pembaruan progres.');
+  await loadCases();await openCase(id);
+  await notice('Progres tersimpan','Pembaruan progres tercatat di timeline. Status akhir kasus tidak berubah.','success');
+ }catch(error){await notice('Gagal menyimpan progres',error.message,'error');}
+ finally{btn.disabled=false;btn.textContent='Simpan progres';}
+}
+
 function validateFiles(files){
  if(!files.length){notice('Bukti belum dipilih','Pilih foto, PDF, atau berkas lain dahulu.','warning');return false;}
  for(const f of files){
