@@ -29,6 +29,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 @media print { .mobile-bottom-nav,.mobile-signout { display:none!important; } }
 </style>
 <link rel="stylesheet" href="stocktrace-professional-rose.css?v=2.3.1-plain-links">
+<link rel="stylesheet" href="stocktrace-actions-safe.css?v=2.4.4">
 <style id="stocktrace-critical-shell">
 /* Keep the application shell hidden until Supabase session and user role are verified. */
 html, body { min-height: 100%; }
@@ -226,7 +227,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                         </div>
                         <div class="col-span-1 md:col-span-2 pt-4 flex justify-end st-form-actions">
                             <button type="button" onclick="showView('dashboard')" class="px-5 py-2 mr-3 border rounded-lg text-sm">Batal</button>
-                            <button type="submit" id="btnSubmitLaporan" class="px-5 py-2 bg-npnavy text-white rounded-lg text-sm">Kirim Laporan</button>
+                            <button type="submit" id="btnSubmitLaporan" class="px-5 py-2 bg-npnavy text-white rounded-lg text-sm st-report-submit" style="display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:12px 20px;background-color:#1e293b;color:#ffffff;border:1px solid #1e293b;border-radius:10px;font-weight:650;">Kirim Laporan</button>
                         </div>
                     </form>
                 </div>
