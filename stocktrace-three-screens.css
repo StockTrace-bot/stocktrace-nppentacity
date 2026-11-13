@@ -1,0 +1,80 @@
+/* StockTrace V2.4.5: focused visual fix for the final three screenshots.
+   No database or JavaScript behavior is changed. */
+
+/* 1) Rekap & Ekspor: dark CSV action with visible white text, even when Tailwind theme fails. */
+#view-reports button[onclick="exportCasesCSV()"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #1e293b !important;
+  border-radius: 9px;
+  background: #1e293b !important;
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#view-reports button[onclick="exportCasesCSV()"]:hover:not(:disabled) {
+  background: #334155 !important;
+  background-color: #334155 !important;
+  border-color: #334155 !important;
+}
+#view-reports button[onclick="exportCasesCSV()"]:focus-visible {
+  outline: 3px solid #60a5fa;
+  outline-offset: 3px;
+}
+#view-reports button[onclick="exportCasesCSV()"]:disabled { opacity: .65; cursor: wait; }
+
+/* 2) Penerimaan Barang: center numeric inputs and derived results only. */
+#intakeItemsBody input[data-field="qty_document"],
+#intakeItemsBody input[data-field="qty_received"],
+#intakeItemsBody input[data-field="qty_rejected"],
+#intakeItemsBody strong[data-field="qty_accepted"],
+#intakeItemsBody strong[data-field="accepted_difference"],
+#intakeItemsBody strong[data-field="difference"] {
+  text-align: center !important;
+}
+#intakeItemsBody td:nth-child(6),
+#intakeItemsBody td:nth-child(7),
+#intakeItemsBody td:nth-child(9) {
+  text-align: center !important;
+  vertical-align: middle;
+}
+
+/* 3) Akun Saya: center only the help sentence below the password form. */
+#view-account > .bg-white > p:last-child {
+  width: 100%;
+  text-align: center !important;
+}
+
+/* Mobile: enlarge and widen the SKU/product fields within the horizontally scrolling table. */
+@media (max-width: 767px) {
+  #intakeItemsBody input[data-field="sku"],
+  #intakeItemsBody input[data-field="product_name"] {
+    box-sizing: border-box;
+    width: 170px !important;
+    min-width: 170px !important;
+    min-height: 46px;
+    padding: 11px 12px !important;
+    font-size: 16px !important;
+    line-height: 1.35;
+    color: #1e293b;
+  }
+  #intakeItemsBody input[data-field="sku"]::placeholder,
+  #intakeItemsBody input[data-field="product_name"]::placeholder {
+    font-size: 15px;
+    color: #64748b;
+    opacity: 1;
+  }
+  #intakeItemsBody input[data-field="qty_document"],
+  #intakeItemsBody input[data-field="qty_received"],
+  #intakeItemsBody input[data-field="qty_rejected"] {
+    font-size: 16px !important;
+  }
+}
