@@ -996,3 +996,17 @@ button.st-open-detail-action:focus-visible,
 
 /* Bulk import: compact, mobile-safe dialog. */
 #bulkDialog{width:min(94vw,780px);max-height:88dvh}#bulkDialog #bulkMap>div{min-width:0}#bulkDialog select,#bulkDialog input{max-width:100%}#bulkDialog .st-data-table{max-height:35vh;overflow:auto}#bulkDialog td{overflow-wrap:anywhere}#bulkDialog #bulkMap{gap:12px}@media(max-width:520px){#bulkDialog{padding:14px}#bulkDialog #bulkMap{grid-template-columns:1fr}}
+
+/* StockTrace: grouped sidebar profile actions */
+.st-sidebar-profile .st-profile-row{display:flex;align-items:center;gap:6px;min-width:0}
+.st-sidebar-profile .st-profile-identity{display:flex;align-items:flex-start;gap:9px;flex:1 1 0;min-width:0}
+.st-sidebar-profile .st-profile-avatar{display:grid;place-items:center;width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:#475569;color:#fff;font-weight:700;font-size:14px;margin-top:1px}
+.st-sidebar-profile .st-profile-text{min-width:0;flex:1 1 0}
+.st-sidebar-profile .st-profile-text #displayUserName{margin:0;font-size:14px;line-height:19px;max-width:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-sidebar-profile .st-profile-text #displayUserRole{margin:0;font-size:12px;line-height:17px;white-space:nowrap}
+.st-sidebar-profile .st-profile-actions{display:flex;align-items:center;gap:2px;flex:0 0 auto;margin-left:auto}
+.st-sidebar-profile .st-profile-actions button{display:grid;place-items:center;flex:0 0 36px;width:36px;height:44px;min-width:0;margin:0;padding:0;border:0;border-radius:8px;background:transparent;cursor:pointer}
+.st-sidebar-profile .st-profile-actions button i{font-size:20px;line-height:1}
+.st-sidebar-profile .st-profile-actions button:hover,.st-sidebar-profile .st-profile-actions button.st-active-nav{background:#334155;color:#fff}
+.st-sidebar-profile .st-profile-actions button[aria-label="Keluar"]:hover{color:#fca5a5}
+@media(max-width:767px){.st-sidebar-profile .st-profile-actions button{width:44px;flex-basis:44px}.st-sidebar-profile .st-profile-row{gap:4px}.st-sidebar-profile .st-profile-identity{gap:8px}}

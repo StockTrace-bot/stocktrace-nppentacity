@@ -127,15 +127,18 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
 
         </nav>
         <div class="st-sidebar-profile p-4 border-t border-slate-700">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                    <div class="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center font-bold" id="profilInisial">U</div>
-                    <div class="ml-3">
+            <div class="st-profile-row">
+                <div class="st-profile-identity">
+                    <div class="st-profile-avatar" id="profilInisial">U</div>
+                    <div class="st-profile-text">
                         <p class="text-sm font-medium" id="displayUserName">Memuat...</p>
                         <p class="text-xs text-slate-400" id="displayUserRole">Memuat...</p>
                     </div>
                 </div>
-                <button type="button" data-nav-view="account" onclick="showView('account')" aria-label="Pengaturan akun" title="Pengaturan akun" class="text-slate-300"><i class="ph ph-gear text-xl"></i></button><button onclick="logout()" class="text-slate-400 hover:text-red-400"><i class="ph ph-sign-out text-xl"></i></button>
+                <div class="st-profile-actions">
+                    <button type="button" data-nav-view="account" onclick="showView('account')" aria-label="Pengaturan akun" title="Pengaturan akun" class="text-slate-300"><i class="ph ph-gear text-xl" aria-hidden="true"></i></button>
+                    <button type="button" onclick="logout()" aria-label="Keluar" title="Keluar" class="text-slate-400 hover:text-red-400"><i class="ph ph-sign-out text-xl" aria-hidden="true"></i></button>
+                </div>
             </div>
         </div>
     </aside>
