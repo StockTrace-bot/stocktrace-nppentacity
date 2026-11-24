@@ -203,10 +203,10 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                             </div>
                             <div class="st-form-field">
                                 <label class="st-form-label" for="inputNama">Nama Produk</label>
-                                <input type="text" id="inputNama" placeholder="Masukkan nama produk" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
+                                <p id="caseEstimate" class="text-xs text-slate-600" role="status"></p><input type="text" id="inputNama" placeholder="Masukkan nama produk" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
                             </div>
                             <div class="flex gap-4 st-stock-fields">
-                                <div class="st-stock-field"><label class="text-xs text-slate-500" for="inputSistem">Stok Sistem</label><input type="number" id="inputSistem" value="0" min="0" step="1" required class="w-full p-2 border rounded text-center"></div>
+                                <div class="st-stock-field"><label class="text-xs text-slate-500" for="inputSistem">Stok Kasir</label><input type="number" id="inputSistem" value="0" min="0" step="1" required class="w-full p-2 border rounded text-center"></div>
                                 <div class="st-stock-field"><label class="text-xs text-slate-500" for="inputFisik">Stok Fisik</label><input type="number" id="inputFisik" value="0" min="0" step="1" required class="w-full p-2 border rounded text-center"></div>
                             </div>
                         </div>
@@ -252,7 +252,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                 <div id="detailCaseGrid" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div id="detailMainCard" class="lg:col-span-2 bg-white p-6 rounded-xl border">
                         <h3 class="font-semibold border-b pb-2 mb-4">Informasi Kasus</h3>
-                        <div id="detailInfo" class="text-sm text-slate-600">Belum ada kasus dipilih.</div>
+                        <div id="detailInfo" class="text-sm text-slate-600">Belum ada kasus dipilih.</div><p id="caseCorrectionStatus" class="text-sm" role="status"></p>
                         <button type="button" id="btnCaseCorrection" class="st-primary-btn mt-3">Ajukan koreksi stok kasir</button>
                         <section id="panelPICProgress" class="hidden mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3" aria-live="polite">
                             <div class="flex flex-wrap items-center justify-between gap-2">
@@ -383,7 +383,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="cashierSku">SKU</label><input id="cashierSku" class="st-field" maxlength="80" required/></div><div><label class="st-field-label" for="cashierProduct">Nama produk</label><input id="cashierProduct" class="st-field" maxlength="150" required/></div></div>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="cashierSystem">Jumlah tercatat di kasir</label><input type="number" id="cashierSystem" class="st-field" min="0" max="999999999" step="1" required/></div><div><label class="st-field-label" for="cashierPhysical">Jumlah hasil pengecekan</label><input type="number" id="cashierPhysical" class="st-field" min="0" max="999999999" step="1" required/></div></div>
                   <div><label class="st-field-label" for="cashierReason">Alasan permintaan / tindak lanjut</label><textarea id="cashierReason" rows="3" minlength="8" maxlength="2000" class="st-field" required placeholder="Masukkan alasan permintaan..."></textarea></div>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="cashierCase">ID laporan terkait (opsional)</label><input id="cashierCase" class="st-field" maxlength="64" placeholder="ST-..."/></div><div><label class="st-field-label" for="cashierIntake">ID penerimaan terkait (opsional)</label><input id="cashierIntake" class="st-field" maxlength="64" placeholder="IN-..."/></div></div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="cashierCase">ID laporan terkait (jika ada)</label><input id="cashierCase" class="st-field" maxlength="64" placeholder="ST-..."/></div><div><label class="st-field-label" for="cashierIntake">ID penerimaan terkait (opsional)</label><input id="cashierIntake" class="st-field" maxlength="64" placeholder="IN-..."/></div></div>
                   <button id="btnSubmitCashier" class="st-primary-btn" type="submit">Kirim permintaan</button>
                 </form>
               </div>
@@ -426,7 +426,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
  <label for="retailOpeningNote">Catatan pemeriksaan</label><textarea id="retailOpeningNote" class="st-field" minlength="8" maxlength="1000" required></textarea>
  <div class="st-retail-actions"><button type="submit" class="st-primary-btn" id="retailOpeningSave">Simpan stok awal</button><button type="button" class="st-secondary-btn" id="retailBalanceRefresh">Muat ulang</button></div>
  </form><p id="retailBalanceStatus" role="status"></p>
- <div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>SKU / produk</th><th>Tanggal stok awal</th><th>Stok awal</th><th>Diterima (layak jual)</th><th>Terjual</th><th>Retur layak jual</th><th>Estimasi stok</th><th>Terakhir diverifikasi</th></tr></thead><tbody id="retailBalanceRows"></tbody></table></div><details class="text-xs text-slate-500"><summary class="cursor-pointer">Cara menghitung estimasi stok</summary><p class="mt-2">Stok awal adalah jumlah stok fisik sebelum transaksi pada tanggal yang dipilih. Estimasi dihitung dari stok awal dan pergerakan barang yang tercatat; bukan stok resmi.</p></details></div>
+ <div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>SKU / produk</th><th>Tanggal stok awal</th><th>Stok awal</th><th>Diterima (layak jual)</th><th>Terjual</th><th>Retur layak jual</th><th>Estimasi stok</th><th>Terakhir diverifikasi</th><th>Aksi</th></tr></thead><tbody id="retailBalanceRows"></tbody></table></div><details class="text-xs text-slate-500"><summary class="cursor-pointer">Cara menghitung estimasi stok</summary><p class="mt-2">Stok awal adalah jumlah stok fisik sebelum transaksi pada tanggal yang dipilih. Estimasi dihitung dari stok awal dan pergerakan barang yang tercatat; bukan stok resmi.</p></details></div>
  <div class="st-retail-panel" id="retailReturnQueue" hidden><h2 class="font-semibold">Retur menunggu persetujuan</h2><button type="button" id="retailQueueRefresh" class="st-secondary-btn">Muat ulang retur</button><p id="retailQueueStatus" role="status"></p><div id="retailQueueRows"></div></div>
 </section>
 <dialog id="retailScanDialog" class="st-retail-dialog"><form id="retailScanForm" class="space-y-3"><h2 class="font-semibold">Pindai produk</h2><video id="retailVideo" playsinline muted hidden></video><p id="retailScanStatus" role="status">Gunakan kamera, scanner eksternal, atau ketik kode.</p><label for="retailScanCode">Barcode / QR / SKU</label><input id="retailScanCode" class="st-field" maxlength="512" autocomplete="off" required><div class="st-retail-actions"><button type="button" class="st-secondary-btn" id="retailCamera">Aktifkan kamera</button><button type="submit" class="st-primary-btn">Cari produk</button><button type="button" class="st-secondary-btn" id="retailCloseScan">Tutup</button></div></form></dialog>
@@ -449,7 +449,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
         </div>
     </main>
 
-    <script defer src="assets/app-bundle.js?v=3.0.3"></script>
+    <script defer src="assets/app-bundle.js?v=3.1.0"></script>
 
 
 

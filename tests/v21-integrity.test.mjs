@@ -20,7 +20,7 @@ test('intake and correction navigation and separate views remain available',()=>
  for(const x of ['intakeDoc','intakeDate','intakeSupplier','intakeItemsBody','intakeFile','cashierSku','cashierSystem','cashierPhysical','cashierReason','cashierBody'])assert.match(html,new RegExp('id="'+x+'"'));
 });
 test('new workflow uses atomic RPC, keeps evidence attachment, and no official POS writes',()=>{
- assert.match(code,/rpc\('stocktrace_create_intake'/);
+ assert.match(code,/rpc\('st_create_intake_once'/);
  assert.match(code,/rpc\('stocktrace_request_cashier_update'/);
  assert.match(code,/rpc\('stocktrace_update_cashier_status'/);
  assert.match(code,/uploadFileBatch\(files,id,session/);

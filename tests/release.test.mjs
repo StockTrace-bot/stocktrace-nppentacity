@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const html=fs.readFileSync('index.html','utf8'),bundle=fs.readFileSync('assets/app-bundle.js','utf8'),css=fs.readFileSync('assets/style.css','utf8'),sql=fs.readFileSync('sql/17_VERIFIED_OPENING_BALANCES.sql','utf8');
-test('consolidated browser runtime parses as a single classic script',()=>{assert.doesNotThrow(()=>new vm.Script(bundle));assert.equal((html.match(/src="assets\/app-bundle\.js\?v=3\.0\.3"/g)||[]).length,1);assert.equal((html.match(/href="assets\/style\.css\?v=3\.0"/g)||[]).length,1);});
+test('consolidated browser runtime parses as a single classic script',()=>{assert.doesNotThrow(()=>new vm.Script(bundle));assert.equal((html.match(/src="assets\/app-bundle\.js\?v=3\.1\.0"/g)||[]).length,1);assert.equal((html.match(/href="assets\/style\.css\?v=3\.0"/g)||[]).length,1);});
 test('public legal paths retain routing and actual target files',()=>{const v=JSON.parse(fs.readFileSync('vercel.json'));for(const page of ['about.html','privacy.html','terms.html']){const r=v.rewrites.find(x=>x.source==='/'+page);assert.ok(r);assert.ok(fs.existsSync('.'+r.destination));}});
 test('opening balances append verifications and block direct authenticated writes',()=>{assert.match(sql,/REVOKE ALL ON public\.st_opening_balances FROM PUBLIC,anon,authenticated/);assert.match(sql,/GRANT SELECT ON public\.st_opening_balances TO authenticated/);assert.match(sql,/st_verify_opening[\s\S]*?stocktrace_v21_member\(\)[\s\S]*?stocktrace_is_leader\(\)[\s\S]*?INSERT INTO public\.st_opening_balances/);assert.doesNotMatch(sql,/UPDATE public\.st_opening_balances/);});
 test('balance is null until verified; archived intake and voided sales excluded',()=>{assert.match(sql,/CASE WHEN o\.id IS NOT NULL THEN o\.qty\+a\.n-b\.n\+c\.n END/);assert.match(sql,/h\.deleted_at IS NULL AND i\.deleted_at IS NULL/);assert.match(sql,/h\.voided_at IS NULL/);assert.match(sql,/r\.status='approved' AND r\.condition='layak'/);assert.match(bundle,/Belum ditetapkan/);});
@@ -15,3 +15,36 @@ test('opening balance sheet is included in sales target',()=>{const api=fs.readF
  test('one stock correction sidebar entry with both original views reachable',()=>{const sidebar=html.match(/<aside id="appSidebar"[\s\S]*?<\/aside>/)[0];assert.match(sidebar,/Selisih &amp; Koreksi Stok/);assert.doesNotMatch(sidebar,/data-nav-view="cashier"/);for(const id of ['view-form-laporan','view-cashier','btnCaseCorrection','retailCaseScan','retailCashierScan','retailMasterIntakeScan'])assert.ok(html.includes('id="'+id+'"'));});
  test('case and intake correction transfer actual source fields without inventing POS quantities',async()=>{const f=bundle.slice(bundle.indexOf('async function prepareStockCorrection('),bundle.indexOf("el('btnCaseCorrection').addEventListener"));const fields=new Map();const el=id=>{if(!fields.has(id))fields.set(id,{_value:'',get value(){return this._value;},set value(v){this._value=String(v);},focus(){},reset(){for(const x of fields.values())x.value='';}});return fields.get(id);};const ctx=vm.createContext({el,activeUser:{id:'a'},mustChangePassword:false,findOpenCorrection:async()=>null,showView(){},window:{confirm:()=>true},notice(){throw Error('Unexpected notice');}});vm.runInContext(f,ctx);await vm.runInContext("prepareStockCorrection({sku:'A',name:'Blouse',caseId:'ST-1',system:20,physical:17,reason:'Check again'})",ctx);assert.equal(el('cashierSystem').value,'20');assert.equal(el('cashierPhysical').value,'17');assert.equal(el('cashierCase').value,'ST-1');await vm.runInContext("prepareStockCorrection({sku:'B',name:'Rok',intake:'IN-1'})",ctx);assert.equal(el('cashierSystem').value,'');assert.equal(el('cashierPhysical').value,'');assert.equal(el('cashierIntake').value,'IN-1');assert.equal(el('cashierCase').value,'');});
  test('master registration alone does not save receipt; explicit receive action uses draft',()=>{const f=bundle.slice(bundle.indexOf('async function retailApplyProduct('),bundle.indexOf('function retailCartTotals('));assert.match(f,/target==='intake-from-master'/);assert.match(f,/showView\('intake'\);target='intake'/);assert.doesNotMatch(f,/stocktrace_create_intake|retailRpc\(/);assert.match(bundle,/data-product-receive/);assert.match(bundle,/findOpenCorrection\(sku,id,intake\)/);});
+
+test('integrated workflow uses database constraints and atomic report/correction linking',()=>{
+ const migration=fs.readFileSync('sql/18_INTEGRATED_STOCK_WORKFLOW.sql','utf8');
+ assert.match(migration,/CREATE UNIQUE INDEX IF NOT EXISTS st_one_active_correction_per_sku/);
+ assert.match(migration,/CREATE UNIQUE INDEX IF NOT EXISTS st_one_active_correction_per_case/);
+ assert.match(migration,/SELECT \* INTO p FROM public\.st_products[\s\S]*?FOR UPDATE/);
+ assert.match(migration,/INSERT INTO public\.cases[\s\S]*?INSERT INTO public\.stocktrace_cashier_requests/);
+ assert.match(migration,/c\.stok_sistem<>p_system_qty OR c\.stok_fisik<>p_counted_qty/);
+ assert.match(migration,/BEFORE UPDATE OF status_kasus,deleted_at ON public\.cases/);
+ assert.match(migration,/AFTER INSERT OR UPDATE OF status_request,deleted_at ON public\.stocktrace_cashier_requests/);
+ assert.doesNotMatch(migration,/DELETE FROM|TRUNCATE|DROP TABLE/i);
+});
+test('receipt retry uses the same key and does not re-upload evidence on replay',()=>{
+ const migration=fs.readFileSync('sql/18_INTEGRATED_STOCK_WORKFLOW.sql','utf8');
+ assert.match(migration,/CREATE UNIQUE INDEX IF NOT EXISTS st_intake_request_key_unique/);
+ assert.match(migration,/pg_advisory_xact_lock\(hashtextextended\(p_request_key::text,0\)\)/);
+ assert.match(migration,/v_prior\.request_fingerprint IS DISTINCT FROM v_fingerprint/);
+ assert.match(migration,/'replayed',true/);
+ assert.match(bundle,/intakeRequestKey \|\|= crypto\.randomUUID\(\)/);
+ assert.match(bundle,/files\.length&&!data\.replayed/);
+ assert.match(bundle,/savedId=id/);
+});
+test('product identity and balance stay independent from official POS correction',()=>{
+ const migration=fs.readFileSync('sql/18_INTEGRATED_STOCK_WORKFLOW.sql','utf8');
+ assert.match(migration,/BEFORE INSERT ON public\.cases/);
+ assert.match(migration,/BEFORE INSERT ON public\.stocktrace_intake_items/);
+ assert.match(migration,/o\.qty\+a\.n-b\.n\+c\.n/);
+ assert.match(bundle,/data-check-stock/);
+ assert.match(bundle,/Estimasi StockTrace:/);
+ assert.match(bundle,/p_system_qty:c\.stok_sistem,p_counted_qty:c\.stok_fisik/);
+ assert.match(bundle,/loadLinkedCorrection\(id\)/);
+ assert.doesNotMatch(migration,/UPDATE public\.st_opening_balances/);
+});
