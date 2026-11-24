@@ -33,9 +33,9 @@ test('reject migration is additive, validates counts, and remains backward compa
 });
 
 test('Excel and Google Sheets include reject and accepted quantities',()=>{
-  assert.match(code,/Qty Reject/);
-  assert.match(code,/Qty Diterima Layak/);
-  assert.match(code,/Selisih Layak - Dokumen/);
+  assert.match(code,/Jumlah reject/);
+  assert.match(code,/Diterima \(layak jual\)/);
+  assert.match(code,/Selisih layak vs dokumen/);
   assert.match(sheets,/Qty Reject/);
   assert.match(sheets,/Qty Diterima Layak/);
   assert.match(sheets,/Selisih Layak - Dokumen/);
