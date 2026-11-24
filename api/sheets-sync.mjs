@@ -1,12 +1,13 @@
 /* StockTrace → Google Sheets.
- * R1 tables keep using GOOGLE_SHEETS_SPREADSHEET_ID.
+ * STOCKTRACE_OPERATIONS_SPREADSHEET_ID routes all 14 existing tabs to one workbook.
+ * Without it, R1 tables keep using GOOGLE_SHEETS_SPREADSHEET_ID.
  * V2.1 intake/cashier tables use GOOGLE_SHEETS_PENERIMAAN_SPREADSHEET_ID.
  * Secrets stay on Vercel. Never place service-account JSON in this source.
  * Manual full resync reads only data visible to the authenticated Leader through RLS.
  */
 import { google } from 'googleapis';
 import { timingSafeEqual } from 'node:crypto';
-import { getGoogleSheetsServiceAccount, getSheetsSpreadsheetId, getSupabaseConfig, getWebhookSecret } from './_lib/stocktrace-config.mjs';
+import { getGoogleSheetsServiceAccount, getUnifiedSheetsId, getSheetsSpreadsheetId, getSupabaseConfig, getWebhookSecret } from './_lib/stocktrace-config.mjs';
 
 const SHEETS = {
   // R1 — keep the existing spreadsheet and mappings intact.
@@ -145,6 +146,7 @@ function getSpreadsheetId(target){
   const kind=TARGETS[target]?.spreadsheetTarget;
   if(!kind)throw Object.assign(new Error('Spreadsheet target tidak dikenal.'),{code:'CONFIG_MISSING',status:503});
   try{
+    const unified=getUnifiedSheetsId();if(unified)return unified;
     if(kind==='sales'){const id=String(process.env.GOOGLE_SHEETS_SALES_SPREADSHEET_ID||'').trim();if(!/^[A-Za-z0-9_-]{10,128}$/.test(id)||[getSheetsSpreadsheetId('r1'),getSheetsSpreadsheetId('intake')].includes(id))throw Object.assign(new Error('Spreadsheet penjualan harus terpisah dan ID-nya valid.'),{status:503,code:'SALES_TARGET_MISSING'});return id;}
     return getSheetsSpreadsheetId(kind);
   }

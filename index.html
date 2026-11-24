@@ -30,7 +30,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 /* Navigation layout shared between laptop and phone. Legacy bottom-nav rules removed. */
 @media print { .mobile-bottom-nav,.mobile-signout { display:none!important; } }
 </style>
-<link rel="stylesheet" href="assets/style.css?v=4.0">
+<link rel="stylesheet" href="assets/style.css?v=4.1">
 
 
 <style id="stocktrace-critical-shell">
@@ -151,6 +151,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                 <i class="ph ph-magnifying-glass text-slate-400" aria-hidden="true"></i>
                 <input type="search" id="searchCases" placeholder="Cari ID kasus, SKU, produk..." aria-label="Cari kasus" class="bg-transparent border-none outline-none text-sm ml-2 w-full min-w-0">
             </div>
+<button type="button" id="retailTopScan" class="st-top-scan" aria-label="Scan barcode atau QR Code" title="Scan barcode atau QR Code"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H4a1 1 0 0 0-1 1v4m13-5h4a1 1 0 0 1 1 1v4M3 16v4a1 1 0 0 0 1 1h4m13-5v4a1 1 0 0 1-1 1h-4M7 8v8m3-8v8m4-8v8m3-8v8"/></svg><span>Scan</span></button>
 </header>
 <div class="flex-1 overflow-y-auto p-4 md:p-8 relative">
             <div id="inventoryNav" class="st-workspace-nav" hidden aria-label="Persediaan dan pelaporan">
@@ -204,7 +205,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                         <div class="space-y-4 st-form-section">
                             <h3 class="font-semibold text-slate-800 border-b pb-2">Informasi Produk</h3>
                             <div class="st-form-field">
-                                <div class="st-field-heading"><label class="st-form-label" for="inputSKU">SKU Produk</label><button type="button" id="retailCaseScan" class="st-secondary-btn">Cari / scan produk</button></div>
+                                <div class="st-field-heading"><label class="st-form-label" for="inputSKU">SKU Produk</label></div>
                                 <input type="text" id="inputSKU" placeholder="Contoh: NP-SC-BLU" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
                             </div>
                             <div class="st-form-field">
@@ -332,7 +333,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                 <div class="flex flex-wrap gap-3 justify-between items-center"><div><h1 class="text-2xl font-bold">Rekap & Ekspor</h1></div>
                     <div class="flex flex-wrap gap-2"><button onclick="window.print()" class="px-4 py-2 bg-white border rounded-lg text-sm">Cetak / Simpan PDF</button>
                     <button onclick="exportCasesCSV()" class="px-4 py-2 bg-npnavy text-white rounded-lg text-sm">Ekspor CSV</button>
-                    <button id="btnSyncSheets" type="button" onclick="syncSheetsNow()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm" style="display:none">Sinkronkan Semua Google Sheets</button></div>
+                    <button id="btnSyncSheets" type="button" onclick="syncSheetsNow()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm" style="display:none">Sinkronkan Google Sheets</button></div>
                 </div>
                 <h2 class="font-semibold">Rekap selisih stok</h2><div class="bg-white rounded-xl p-4 border flex gap-3 flex-wrap items-end">
                     <div><label class="block text-xs text-slate-500 mb-1" for="reportFrom">Dari tanggal</label><input class="border p-2 rounded text-sm" id="reportFrom" type="date"></div>
@@ -362,7 +363,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                     <div><label class="st-field-label" for="intakeSupplier">Pengirim / sumber barang</label><input id="intakeSupplier" class="st-field" maxlength="150" required placeholder="Contoh: Gudang pusat"/></div>
                   </div>
                   <div><label class="st-field-label" for="intakeNote">Catatan penerimaan (opsional)</label><textarea id="intakeNote" rows="2" maxlength="2000" class="st-field" placeholder="Catatan tambahan..."></textarea></div>
-                  <div class="flex gap-3 items-center justify-between flex-wrap"><h3 class="font-semibold">Rincian SKU</h3><button type="button" id="retailIntakeScan" class="st-secondary-btn">Scan barcode / QR</button><button type="button" id="retailNewIntakeProduct" class="st-secondary-btn">Daftarkan produk baru</button><button type="button" id="btnAddIntakeRow" class="st-secondary-btn">+ Tambah SKU</button></div>
+                  <div class="flex gap-3 items-center justify-between flex-wrap"><h3 class="font-semibold">Rincian SKU</h3><button type="button" id="retailNewIntakeProduct" class="st-secondary-btn">Daftarkan produk baru</button><button type="button" id="btnAddIntakeRow" class="st-secondary-btn">+ Tambah SKU</button></div>
                   <div class="st-data-table overflow-x-auto border rounded-lg"><table class="w-full text-sm st-entry-table"><thead class="bg-slate-50 text-slate-600"><tr><th>SKU</th><th>Produk</th><th>Jumlah sesuai dokumen</th><th>Jumlah barang datang</th><th>Barang reject</th><th>Diterima (layak jual)</th><th>Selisih layak vs dokumen</th><th>Alasan reject</th><th>Selisih datang vs dokumen</th><th>Aksi</th></tr></thead><tbody id="intakeItemsBody"></tbody></table></div>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="intakeEvidenceType">Jenis lampiran</label><select id="intakeEvidenceType" class="st-field"><option value="Bukti Penerimaan">Bukti Penerimaan</option><option value="Bukti Barang Reject">Bukti Barang Reject</option></select></div><div><label class="st-field-label" for="intakeFile">Lampiran (opsional)</label><input type="file" id="intakeFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" class="st-field"/><p id="intakeUploadProgress" role="status" aria-live="polite" class="text-xs text-blue-700"></p></div></div>
                   <button type="submit" id="btnSaveIntake" class="st-primary-btn">Simpan penerimaan</button>
@@ -396,7 +397,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
 <section id="view-products" class="hidden space-y-5">
  <h1 class="text-2xl font-bold">Persediaan &amp; Pelaporan</h1>
  <div class="st-retail-panel">
-  <div class="st-section-heading"><h2 class="font-semibold">Daftar produk</h2><div class="st-retail-actions"><button type="button" class="st-primary-btn" id="retailInventoryScan">Scan produk</button><button type="button" class="st-secondary-btn" id="retailProductRefresh">Muat ulang</button></div></div>
+  <div class="st-section-heading"><h2 class="font-semibold">Daftar produk</h2><div class="st-retail-actions"><button type="button" class="st-secondary-btn" id="retailProductRefresh">Muat ulang</button></div></div>
   <label for="retailProductSearch">Cari SKU, nama, warna, ukuran atau kode</label><input id="retailProductSearch" class="st-field" maxlength="150" placeholder="Cari produk...">
   <p id="retailProductStatus" role="status"></p><div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>SKU</th><th>Produk</th><th>Warna / ukuran</th><th>Harga</th><th>Estimasi stok</th><th>Aksi</th></tr></thead><tbody id="retailProductRows"></tbody></table></div>
  </div>
@@ -420,7 +421,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
  <h1 class="text-2xl font-bold">Penjualan &amp; Retur</h1>
  <div class="st-retail-panel"><h2 class="font-semibold">Catat transaksi</h2><p>Sales: <strong id="retailSeller"></strong></p>
  <form id="retailSaleForm" class="space-y-3"><label for="retailReceipt">Nomor struk kasir</label><input id="retailReceipt" class="st-field" required maxlength="100" placeholder="Nomor struk">
- <div class="st-retail-actions"><button type="button" class="st-primary-btn" id="retailSaleScan">Scan barcode / QR</button><button type="button" class="st-secondary-btn" id="retailSaleManual">Tambah manual</button></div>
+ <div class="st-retail-actions"><button type="button" class="st-secondary-btn" id="retailSaleManual">Tambah manual</button></div>
  <div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>Produk / SKU</th><th>Jumlah</th><th>Harga satuan (Rp)</th><th>Total diskon (Rp)</th><th>Subtotal</th><th>Aksi</th></tr></thead><tbody id="retailCartRows"></tbody></table></div>
  <p class="font-semibold">Total: <span id="retailCartTotal">Rp0</span></p><button type="submit" class="st-primary-btn" id="retailSaveSale">Simpan penjualan</button><p id="retailSaleStatus" role="status"></p></form></div>
              <div class="st-retail-panel"><h2 class="font-semibold" id="retailSalesHistoryTitle">Riwayat penjualan &amp; retur</h2>
@@ -452,7 +453,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
         </div>
     </main>
 
-    <script defer src="assets/app-bundle.js?v=4.0.0"></script>
+    <script defer src="assets/app-bundle.js?v=4.1.0"></script>
 
 
 

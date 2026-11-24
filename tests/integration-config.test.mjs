@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getDriveFolderId, getSheetsSpreadsheetId, getIntegrationTargets, integrationHealth } from '../api/_lib/stocktrace-config.mjs';
+import { getDriveFolderId, getSheetsSpreadsheetId, getUnifiedSheetsId, getIntegrationTargets, integrationHealth } from '../api/_lib/stocktrace-config.mjs';
 
 const names = [
-  'STOCKTRACE_INTEGRATION_TARGETS_JSON',
+  'STOCKTRACE_INTEGRATION_TARGETS_JSON','STOCKTRACE_OPERATIONS_SPREADSHEET_ID',
   'GOOGLE_DRIVE_FOLDER_ID', 'GOOGLE_DRIVE_INTAKE_FOLDER_ID',
   'GOOGLE_SHEETS_SPREADSHEET_ID', 'GOOGLE_SHEETS_PENERIMAAN_SPREADSHEET_ID',
   'SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'SUPABASE_SERVICE_ROLE_KEY',
@@ -72,4 +72,25 @@ test('health endpoint data is redacted and identifies its configuration source',
   assert.equal(report.supabaseProjectRef,'main-project');
   assert.equal(report.ok,true);
   assert.equal(JSON.stringify(report).includes('case-folder-12345'),false);
+});
+
+test('unified workbook overrides all three sheet destinations without touching Drive',()=>{
+ setCredentials();process.env.STOCKTRACE_INTEGRATION_TARGETS_JSON=JSON.stringify({drive:{r1FolderId:'case-folder-12345',intakeFolderId:'intake-folder-12345'},sheets:{}});
+ process.env.STOCKTRACE_OPERATIONS_SPREADSHEET_ID='operations-workbook-12345';
+ for(const k of ['r1','intake','sales'])assert.equal(getSheetsSpreadsheetId(k),'operations-workbook-12345');
+ assert.equal(getDriveFolderId('r1'),'case-folder-12345');assert.equal(getIntegrationTargets().sheets.intakeSpreadsheetId,'operations-workbook-12345');
+ const health=integrationHealth();assert.equal(health.ok,true);assert.equal(health.sheetsMode,'unified');assert.equal(health.fingerprints.sheetsR1,health.fingerprints.sheetsIntake);
+ process.env.STOCKTRACE_OPERATIONS_SPREADSHEET_ID='https://invalid';assert.throws(()=>getUnifiedSheetsId(),{code:'INTEGRATION_TARGET_MISSING'});assert.equal(integrationHealth().ok,false);
+});
+
+test('actual Sheets webhook and full-sync router retains all 14 distinct managed tabs on unified destination', async()=>{
+ const fs=await import('node:fs'),vm=await import('node:vm');
+ const code=fs.readFileSync('api/sheets-sync.mjs','utf8');
+ const model=code.slice(code.indexOf('const SHEETS = {'),code.indexOf('const FULL_SYNC_LEADER_ROLES'));
+ const fn=code.slice(code.indexOf('function getSpreadsheetId(target)'),code.indexOf('// Keep all webhook-written'));
+ const ctx=vm.createContext({getUnifiedSheetsId,getSheetsSpreadsheetId,process});vm.runInContext(model+'\n'+fn,ctx);
+ process.env.STOCKTRACE_OPERATIONS_SPREADSHEET_ID='operations-workbook-12345';
+ assert.equal(vm.runInContext('Object.keys(SHEETS).length',ctx),14);
+ assert.equal(vm.runInContext('new Set(Object.values(SHEETS).map(s=>s.tab)).size',ctx),14);
+ assert.equal(vm.runInContext('Object.keys(SHEETS).every(t=>getSpreadsheetId(targetForTable(t))=== "operations-workbook-12345")',ctx),true);
 });

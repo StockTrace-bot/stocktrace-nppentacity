@@ -122,6 +122,7 @@ function showView(view){
   const node=el('view-'+name); if(node){node.classList.toggle('hidden',view!==name);node.classList.toggle('block',view===name);}
  }
  // Jaga penanda menu aktif sama di sidebar laptop dan nav HP.
+ el('retailTopScan').disabled=mustChangePassword||(view==='form-laporan'&&el('inputSKU').readOnly);
  const section=['cases','form-laporan','detail-kasus','reports','cashier','archive','products'].includes(view);
  const activeView=section?'products':view;
  el('inventoryNav').hidden=!section;
@@ -222,7 +223,7 @@ async function syncSheetsNow(){
  }catch(e){
   const partial=completed.length?`Berhasil: ${completed.join('; ')}. `:'';
   await notice('Sinkronisasi belum lengkap',partial+e.message,'error');
- }finally{if(btn){btn.disabled=false;btn.textContent='Sinkronkan Semua Google Sheets';}}
+ }finally{if(btn){btn.disabled=false;btn.textContent='Sinkronkan Google Sheets';}}
 }
 async function logout(){try{await sb?.auth.signOut();}catch(e){console.warn(e)}try{sessionStorage.removeItem('user_role');sessionStorage.removeItem('user_name');}catch(_){}redirectLogin();}
 function displayCases(){
@@ -988,7 +989,7 @@ async function prepareStockCorrection(source){
   if((el('inputSKU').value.trim()||el('inputKronologi').value.trim()||el('inputFile').files.length)&&!window.confirm('Ganti pemeriksaan yang belum disimpan?'))return;
   showView('form-laporan');el('formLaporanLengkap').reset();await retailApplyProduct(p,'case');
   caseSourceIntake=source.intake;el('caseIntakeSource').textContent='Penerimaan: '+source.intake;el('caseIntakeSource').hidden=false;
-  el('inputSKU').readOnly=true;el('retailCaseScan').disabled=true;el('inputPenyebab').value='Selisih Dokumen Penerimaan';el('inputSistem').focus();
+  el('inputSKU').readOnly=true;el('retailTopScan').disabled=true;el('inputPenyebab').value='Selisih Dokumen Penerimaan';el('inputSistem').focus();
  }catch(e){await notice('Pemeriksaan belum dibuka',e.message,'error');}
 }
 el('btnCaseCorrection').addEventListener('click',async()=>{
@@ -1229,7 +1230,7 @@ function retailOpenScan(target,manual=false){
 async function retailSubmitScan(e){
  e?.preventDefault();if(retailLookupBusy)return;const code=retailVal('retailScanCode');if(!code||code.length>512)return;
  retailLookupBusy=true;const target=retailScanTarget,gen=retailLookupGeneration;retailStopCamera();retailStatus('retailScanStatus','Mencari produk...');
- try{const p=await retailFindCode(code);if(gen!==retailLookupGeneration||!el('retailScanDialog').open)return;if(p){await retailApplyProduct(p,target);el('retailScanDialog').close();}else{el('retailScanDialog').close();if(['case','inventory','sales'].includes(target))return notice('Produk belum terdaftar','Daftarkan produk melalui penerimaan barang.','warning');retailOpenProduct(null,code,target);}}
+ try{const p=await retailFindCode(code);if(gen!==retailLookupGeneration||!el('retailScanDialog').open)return;if(p){await retailApplyProduct(p,target);el('retailScanDialog').close();}else{el('retailScanDialog').close();if(['case','inventory','lookup','sales'].includes(target))return notice('Produk belum terdaftar','Daftarkan produk melalui penerimaan barang.','warning');retailOpenProduct(null,code,target);}}
  catch(err){if(gen===retailLookupGeneration)retailStatus('retailScanStatus',err.message);}finally{if(gen===retailLookupGeneration)retailLookupBusy=false;}
 }
 function retailStopCamera(){
@@ -1252,10 +1253,11 @@ async function retailStartCamera(){
   if(gen!==retailCameraGeneration)return;
   if(lib){const reader=new lib.BrowserMultiFormatReader();const controls=await reader.decodeFromConstraints({audio:false,video:{facingMode:{ideal:'environment'}}},video,(result)=>{if(result)accept(result.getText());});if(gen!==retailCameraGeneration){controls.stop();return;}retailCameraControls=controls;}
   else{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});if(gen!==retailCameraGeneration){stream.getTracks().forEach(t=>t.stop());return;}retailCameraStream=stream;video.srcObject=stream;await video.play();const detector=new BarcodeDetector();const tick=async()=>{if(gen!==retailCameraGeneration)return;try{const codes=await detector.detect(video);if(codes.length){accept(codes[0].rawValue);return;}}catch(_){}setTimeout(tick,180);};tick();}
-  if(gen===retailCameraGeneration)retailStatus('retailScanStatus','Arahkan kamera ke kode. Satu pemindaian menambah satu barang.');
+  if(gen===retailCameraGeneration)retailStatus('retailScanStatus',['intake','sales'].includes(retailScanTarget)?'Arahkan kamera ke kode. Satu pemindaian menambah satu barang.':'Arahkan kamera ke barcode atau QR Code.');
  }catch(e){if(gen===retailCameraGeneration){retailStopCamera();retailStatus('retailScanStatus','Kamera tidak dapat dipakai: '+e.message+'. Gunakan input manual.');}}
 }
 async function retailApplyProduct(p,target){
+ if(target==='lookup'){if(!activeUser||mustChangePassword)throw Error('Sesi tidak tersedia.');showView('products');target='inventory';}
  if(target==='intake-from-master'){if(mustChangePassword||!activeUser)throw Error('Sesi tidak tersedia.');showView('intake');target='intake-register';}
  if(target==='inventory'){el('retailProductSearch').value=p.sku;await retailLoadProducts();await retailOpenDetail(p);return;}
  if(target==='case'){
@@ -1312,12 +1314,17 @@ async function retailAskReason(title){if(window.Swal?.fire){const r=await Swal.f
 async function retailDecision(id,approve){const note=await retailAskReason(approve?'Setujui retur?':'Tolak retur?');if(!note)return;try{await retailRpc('st_decide_return',{p_id:id,p_approve:approve,p_note:note});await Promise.all([retailLoadSales(),retailLoadQueue()]);}catch(e){await notice('Retur gagal',e.message,'error');}}
 async function retailVoid(id){const reason=await retailAskReason('Batalkan transaksi?');if(!reason)return;try{await retailRpc('st_void_sale',{p_id:id,p_reason:reason});await retailLoadSales();}catch(e){await notice('Pembatalan gagal',e.message,'error');}}
 function retailBind(id,event,fn){el(id).addEventListener(event,fn);}
-retailBind('retailIntakeScan','click',()=>retailOpenScan('intake'));retailBind('retailSaleScan','click',()=>retailOpenScan('sales'));retailBind('retailSaleManual','click',()=>retailOpenScan('sales',true));retailBind('retailNewIntakeProduct','click',()=>retailOpenProduct(null,'','intake-register'));retailBind('retailProductRefresh','click',()=>{retailLoadProducts();if(canManageCases())retailLoadBalances();});retailBind('retailProductSearch','input',retailRenderProducts);
+function retailTopScanTarget(view){return view==='intake'?'intake':view==='sales'?'sales':view==='form-laporan'?'case':view==='products'?'inventory':'lookup';}
+function retailTopScan(){
+ if(!activeUser||mustChangePassword||el('retailTopScan').disabled)return;
+ const view=['intake','sales','form-laporan','products'].find(v=>!el('view-'+v).classList.contains('hidden'));
+ if(view==='form-laporan'&&el('inputSKU').readOnly)return;
+ const target=retailTopScanTarget(view);retailOpenScan(target);retailStartCamera();
+}
+retailBind('retailTopScan','click',retailTopScan);retailBind('retailSaleManual','click',()=>retailOpenScan('sales',true));retailBind('retailNewIntakeProduct','click',()=>retailOpenProduct(null,'','intake-register'));retailBind('retailProductRefresh','click',()=>{retailLoadProducts();if(canManageCases())retailLoadBalances();});retailBind('retailProductSearch','input',retailRenderProducts);
 retailBind('retailScanForm','submit',retailSubmitScan);retailBind('retailCamera','click',retailStartCamera);retailBind('retailCloseScan','click',()=>el('retailScanDialog').close());retailBind('retailScanDialog','close',retailStopCamera);retailBind('retailScanDialog','cancel',retailStopCamera);window.addEventListener('pagehide',retailStopCamera);document.addEventListener('visibilitychange',()=>{if(document.hidden)retailStopCamera();});
 retailBind('retailProductForm','submit',retailSaveProduct);retailBind('retailCloseProduct','click',()=>el('retailProductDialog').close());
 retailBind('retailProductRows','click',e=>{const b=e.target.closest('[data-product-detail]');if(b){const p=retailProducts.find(x=>x.id===b.dataset.productDetail);if(p)retailOpenDetail(p);}});
-retailBind('retailInventoryScan','click',()=>retailOpenScan('inventory'));
-retailBind('retailCaseScan','click',()=>retailOpenScan('case',true));
 retailBind('retailCartRows','input',retailCartInput);retailBind('retailCartRows','click',e=>{const b=e.target.closest('[data-cart-remove]');if(b){retailCart.splice(Number(b.dataset.cartRemove),1);retailRenderCart();}});retailBind('retailSaleForm','submit',retailSaveSale);
 retailBind('retailMonth','change',retailLoadSales);retailBind('retailSalesFilter','change',retailRenderReport);retailBind('retailReceiptSearch','input',retailRenderReport);retailBind('retailSalesRefresh','click',retailLoadSales);retailBind('retailExport','click',retailExport);retailBind('retailHistory','click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.returnItem)retailOpenReturn(b.dataset.returnItem);if(b.dataset.voidSale&&canManageCases())retailVoid(b.dataset.voidSale);});
 retailBind('retailReturnForm','submit',retailSaveReturn);retailBind('retailCloseReturn','click',()=>el('retailReturnDialog').close());retailBind('retailQueueRefresh','click',retailLoadQueue);retailBind('retailQueueRows','click',e=>{const b=e.target.closest('button');if(!b||!canManageCases())return;if(b.dataset.returnApprove)retailDecision(b.dataset.returnApprove,true);if(b.dataset.returnReject)retailDecision(b.dataset.returnReject,false);});
@@ -1361,7 +1368,7 @@ async function showCaseEstimate(sku){
  }catch(e){if(gen===caseEstimateGeneration)node.textContent='Estimasi tidak tersedia.';}
 }
 retailBind('inputSKU','input',()=>{caseEstimateGeneration++;el('caseEstimate').textContent='';el('inputNama').value='';el('inputSistem').value='';el('inputFisik').value='';retailPreviewDifference();});
-retailBind('formLaporanLengkap','reset',()=>{caseEstimateGeneration++;el('caseEstimate').textContent='';caseSourceIntake=null;el('caseIntakeSource').hidden=true;el('caseIntakeSource').textContent='';el('inputSKU').readOnly=false;el('retailCaseScan').disabled=false;});
+retailBind('formLaporanLengkap','reset',()=>{caseEstimateGeneration++;el('caseEstimate').textContent='';caseSourceIntake=null;el('caseIntakeSource').hidden=true;el('caseIntakeSource').textContent='';el('inputSKU').readOnly=false;el('retailTopScan').disabled=false;});
 for(const [skuId,nameId,target] of [['inputSKU','inputNama','case']]){
  retailBind(skuId,'change',async()=>{const code=el(skuId).value.trim();if(!code)return;
  try{const p=await retailFindCode(code);if(el(skuId).value.trim()!==code)return;if(!p){el(nameId).value='';return;}el(skuId).value=p.sku;el(nameId).value=p.name;if(target==='case')await showCaseEstimate(p.sku);}catch(e){await notice('Pencarian produk gagal',e.message,'error');}});

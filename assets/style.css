@@ -988,3 +988,8 @@ button.st-open-detail-action:focus-visible,
 #caseEvidenceFields[hidden]{display:none!important;}
 
 #retailDetailHistory[hidden]{display:none!important;}
+
+/* Shared scan entry point; keeps the header search usable on small screens. */
+.st-top-scan{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:0 0 auto;margin-left:8px;min-height:40px;padding:8px 12px;border:1px solid #1e293b;border-radius:10px;background:#1e293b;color:#fff;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation;}
+.st-top-scan:hover{background:#334155}.st-top-scan:focus-visible{outline:3px solid #60a5fa;outline-offset:2px}.st-top-scan:disabled{opacity:.4;cursor:not-allowed}body.st-password-required .st-top-scan{display:none!important}
+@media(max-width:767px){.st-top-scan{margin-left:0;width:40px;height:40px;min-height:40px;padding:7px;}.st-top-scan span{display:none;}}

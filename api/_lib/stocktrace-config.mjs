@@ -59,8 +59,16 @@ function validateId(value, label) {
   return value;
 }
 
+// Explicit one-workbook opt-in. Leaving this unset preserves the old routing.
+export function getUnifiedSheetsId() {
+  const id=String(process.env.STOCKTRACE_OPERATIONS_SPREADSHEET_ID||'').trim();
+  return id?validateId(id,'Spreadsheet operasional'):null;
+}
+
 export function getIntegrationTargets() {
   const targets = readTargets();
+  const unified=getUnifiedSheetsId();
+  if(unified)targets.sheets={r1SpreadsheetId:unified,intakeSpreadsheetId:unified};
   for (const [key, label] of [
     ['r1FolderId', 'Folder Drive bukti kasus R1'],
     ['intakeFolderId', 'Folder Drive bukti penerimaan'],
@@ -73,7 +81,7 @@ export function getIntegrationTargets() {
   if (targets.drive.r1FolderId === targets.drive.intakeFolderId) {
     throw configError('Folder Drive bukti kasus dan bukti penerimaan harus berbeda.', 'DRIVE_FOLDER_COLLISION');
   }
-  if (targets.sheets.r1SpreadsheetId === targets.sheets.intakeSpreadsheetId) {
+  if (!unified && targets.sheets.r1SpreadsheetId === targets.sheets.intakeSpreadsheetId) {
     throw configError('Spreadsheet R1 dan penerimaan harus berbeda sesuai pemetaan StockTrace V2.1.', 'SHEETS_TARGET_COLLISION');
   }
   return targets;
@@ -91,6 +99,8 @@ export function getDriveFolderId(kind) {
 }
 
 export function getSheetsSpreadsheetId(kind) {
+  const unified=getUnifiedSheetsId();
+  if(unified&&['r1','intake','sales'].includes(kind))return unified;
   const targets = readTargets();
   const value = kind === 'intake' ? targets.sheets.intakeSpreadsheetId : kind === 'r1' ? targets.sheets.r1SpreadsheetId : '';
   const label = kind === 'intake' ? 'Spreadsheet penerimaan' : 'Spreadsheet R1';
@@ -133,6 +143,9 @@ export function getWebhookSecret() {
 
 export function integrationHealth() {
   const targets = readTargets();
+  const unifiedRequested=!!String(process.env.STOCKTRACE_OPERATIONS_SPREADSHEET_ID||'').trim();
+  let unified=null;try{unified=getUnifiedSheetsId();}catch{}
+  if(unified)targets.sheets={r1SpreadsheetId:unified,intakeSpreadsheetId:unified};
   const supabase = getSupabaseConfig();
   const oauth = getGoogleOAuthConfig();
   let serviceAccountReady = false;
@@ -155,12 +168,13 @@ export function integrationHealth() {
     driveFoldersDistinct: driveDistinct,
     sheetsR1: valid(targets.sheets.r1SpreadsheetId),
     sheetsIntake: valid(targets.sheets.intakeSpreadsheetId),
-    sheetsDistinct
+    sheetsRouting: unifiedRequested?!!unified:sheetsDistinct
   };
   return {
     ok: Object.values(checks).every(Boolean),
     environment: process.env.VERCEL_ENV || 'local',
     targetConfigSource: targets.source,
+    sheetsMode: unifiedRequested?'unified':'legacy',
     supabaseProjectRef: projectRef,
     checks,
     fingerprints: {

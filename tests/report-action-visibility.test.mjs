@@ -9,7 +9,7 @@ const app=readFrontend('app.js');
 
 test('report submit remains a real submit button and is styled locally',()=>{
   assert.match(html,/<button\b(?=[^>]*id="btnSubmitLaporan")(?=[^>]*type="submit")(?=[^>]*st-report-submit)[^>]*>Kirim Laporan<\/button>/s);
-  assert.match(html,/<link rel="stylesheet" href="assets\/style\.css\?v=4\.0">/);
+  assert.match(html,/<link rel="stylesheet" href="assets\/style\.css\?v=4\.1">/);
   assert.match(css,/#formLaporanLengkap #btnSubmitLaporan\s*\{/);
   assert.match(css,/display:\s*inline-flex\s*!important/);
   assert.match(css,/background-color:\s*#1e293b\s*!important/);

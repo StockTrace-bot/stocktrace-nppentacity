@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const html=fs.readFileSync('index.html','utf8'),bundle=fs.readFileSync('assets/app-bundle.js','utf8'),css=fs.readFileSync('assets/style.css','utf8'),sql=fs.readFileSync('sql/17_VERIFIED_OPENING_BALANCES.sql','utf8');
-test('consolidated browser runtime parses as a single classic script',()=>{assert.doesNotThrow(()=>new vm.Script(bundle));assert.equal((html.match(/src="assets\/app-bundle\.js\?v=4\.0\.0"/g)||[]).length,1);assert.equal((html.match(/href="assets\/style\.css\?v=4\.0"/g)||[]).length,1);});
+test('consolidated browser runtime parses as a single classic script',()=>{assert.doesNotThrow(()=>new vm.Script(bundle));assert.equal((html.match(/src="assets\/app-bundle\.js\?v=4\.1\.0"/g)||[]).length,1);assert.equal((html.match(/href="assets\/style\.css\?v=4\.1"/g)||[]).length,1);});
 test('public legal paths retain routing and actual target files',()=>{const v=JSON.parse(fs.readFileSync('vercel.json'));for(const page of ['about.html','privacy.html','terms.html']){const r=v.rewrites.find(x=>x.source==='/'+page);assert.ok(r);assert.ok(fs.existsSync('.'+r.destination));}});
 test('opening balances append verifications and block direct authenticated writes',()=>{assert.match(sql,/REVOKE ALL ON public\.st_opening_balances FROM PUBLIC,anon,authenticated/);assert.match(sql,/GRANT SELECT ON public\.st_opening_balances TO authenticated/);assert.match(sql,/st_verify_opening[\s\S]*?stocktrace_v21_member\(\)[\s\S]*?stocktrace_is_leader\(\)[\s\S]*?INSERT INTO public\.st_opening_balances/);assert.doesNotMatch(sql,/UPDATE public\.st_opening_balances/);});
 test('balance is null until verified; archived intake and voided sales excluded',()=>{assert.match(sql,/CASE WHEN o\.id IS NOT NULL THEN o\.qty\+a\.n-b\.n\+c\.n END/);assert.match(sql,/h\.deleted_at IS NULL AND i\.deleted_at IS NULL/);assert.match(sql,/h\.voided_at IS NULL/);assert.match(sql,/r\.status='approved' AND r\.condition='layak'/);assert.match(bundle,/belum ditetapkan/i);});
@@ -16,7 +16,7 @@ test('one inspection entry; no separate correction form or duplicate menu',()=>{
  const sidebar=html.match(/<aside id="appSidebar"[\s\S]*?<\/aside>/)[0];
  assert.match(sidebar,/data-nav-view="products"[\s\S]*?Persediaan &amp; Pelaporan/);assert.doesNotMatch(sidebar,/data-nav-view="cases"/);assert.match(html,/data-workspace-view="cases"/);
  assert.doesNotMatch(sidebar,/data-nav-view="cashier"|data-nav-view="form-laporan"/);
- for(const id of ['view-cases','view-form-laporan','view-cashier','caseCorrectionDetail','btnCaseCorrection','retailCaseScan'])assert.ok(html.includes('id="'+id+'"'));
+ for(const id of ['view-cases','view-form-laporan','view-cashier','caseCorrectionDetail','btnCaseCorrection','retailTopScan'])assert.ok(html.includes('id="'+id+'"'));
  for(const id of ['formCashierRequest','cashierSku','retailCashierScan','retailMasterIntakeScan','retailNewProduct'])assert.ok(!html.includes('id="'+id+'"'));
  assert.match(bundle,/caseCorrectionDetail'\)\.append\(el\('cashierDetail'\)\)/);
  assert.match(bundle,/retailRpc\('stocktrace_request_cashier_update',\{p_sku:c\.sku_produk,p_product:c\.nama_produk,p_system_qty:c\.stok_sistem,p_counted_qty:c\.stok_fisik/);
@@ -88,10 +88,17 @@ test('V4 one sync action attempts every target even if one target fails',async()
  assert.equal((html.match(/id="btnSyncSheets"/g)||[]).length,1);assert.doesNotMatch(html,/id="retailSyncSheets"/);
 });
 test('V4 product detail connects SKU to receiving, sale, inspection and read-only ledger',()=>{
- for(const id of ['retailDetailReceive','retailDetailSell','retailDetailCheck','retailDetailHistory','retailInventoryScan','retailDetailCases'])assert.ok(html.includes('id="'+id+'"'));
+ for(const id of ['retailDetailReceive','retailDetailSell','retailDetailCheck','retailDetailHistory','retailTopScan','retailDetailCases'])assert.ok(html.includes('id="'+id+'"'));
  assert.match(bundle,/retailInspectProduct\(retailSelectedProduct\)/);assert.match(bundle,/retailApplyProduct\(p,'intake-from-master'\)/);assert.match(bundle,/retailApplyProduct\(p,'sales'\)/);assert.match(bundle,/q=>q\.eq\('sku_produk',p\.sku\)/);assert.match(bundle,/st_stock_for_sku/);assert.doesNotMatch(html,/id="retailBalanceRows"/);
  assert.match(html,/id="btnArchiveCase"[^>]*>[\s\S]*?Hapus laporan<\/button>/);assert.match(bundle,/stocktrace_restore_record/);
 });
 test('V4 matching counts do not require evidence or write a case',()=>{
  const start=bundle.indexOf('async function submitReport(ev)');const f=bundle.slice(start,bundle.indexOf('const id=makeCaseId()',start));assert.ok(f.indexOf('if(sys===fis)')<f.indexOf('validateFiles(files)'));assert.match(f,/showView\('products'\);return notice\('Stok sesuai'/);assert.match(bundle,/inputKronologi'\)\.required=!match/);assert.match(bundle,/inputFile'\)\.required=!match/);
+});
+
+test('single toolbar scanner routes by visible view without duplicate local camera buttons',()=>{
+ const toolbar=html.match(/<header id="appToolbar"[\s\S]*?<\/header>/)[0];assert.match(toolbar,/id="retailTopScan"/);for(const id of ['retailCaseScan','retailIntakeScan','retailSaleScan','retailInventoryScan'])assert.ok(!html.includes('id="'+id+'"'));
+ const f=bundle.slice(bundle.indexOf('function retailTopScanTarget('),bundle.indexOf("retailBind('retailTopScan'"));const ctx=vm.createContext({});vm.runInContext(f,ctx);
+ for(const [v,t] of [['intake','intake'],['sales','sales'],['form-laporan','case'],['products','inventory'],['dashboard','lookup'],['reports','lookup']])assert.equal(vm.runInContext('retailTopScanTarget('+JSON.stringify(v)+')',ctx),t);
+ assert.match(f,/mustChangePassword/);assert.match(f,/inputSKU'\)\.readOnly/);assert.match(bundle,/if\(target==='lookup'\)[^\n]*showView\('products'\);target='inventory'/);
 });
