@@ -1,10 +1,11 @@
+import {readFrontend} from './frontend-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const login=fs.readFileSync('login.html','utf8');
-const css=fs.readFileSync('stocktrace-professional-rose.css','utf8');
-const app=fs.readFileSync('app.js','utf8');
+const css=fs.readFileSync('assets/style.css','utf8');
+const app=readFrontend('app.js');
 
 test('login card is centered vertically and horizontally in the viewport',()=>{
   assert.match(login,/<body class="st-login-page/);

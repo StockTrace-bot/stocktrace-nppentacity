@@ -63,7 +63,14 @@ const SHEETS = {
     columns: ['id_request','action','note','id_user','created_at','id_log'],
     labels: ['ID Permintaan','Aksi','Catatan','ID Pengguna','Waktu','_ID_LOG_INTERNAL'],
     mapRow: r => [r.id_request,r.action,r.note,r.id_user,formatWitaTimestamp(r.created_at),r.id_log]
-  }
+  },
+  st_products: {tab:'Master Produk',key:'id',sortTimeKey:'created_at',columns:['id','sku','name','color','size','price','created_by','created_at','updated_by','updated_at'],labels:['ID Produk','SKU','Nama Produk','Warna','Ukuran','Harga','Pembuat','Waktu Dibuat','Pengubah','Waktu Diubah']},
+  st_product_codes: {tab:'Kode Produk',key:'code',sortTimeKey:'created_at',columns:['code','product_id','created_by','created_at'],labels:['Kode','ID Produk','Pembuat','Waktu Dibuat']},
+  st_sales: {tab:'Penjualan',key:'id',sortTimeKey:'created_at',columns:['id','receipt','seller','seller_name','created_at','voided_at','voided_by','void_reason'],labels:['ID Penjualan','No Struk','ID Sales','Nama Sales','Waktu Transaksi','Waktu Batal','Pembatal','Alasan Batal']},
+  st_sale_items: {tab:'Detail Item Terjual',key:'id',groupSortKey:'sale_id',columns:['id','sale_id','product_id','sku','name','color','size','qty','unit_price','discount'],labels:['ID Item','ID Penjualan','ID Produk','SKU','Nama Produk','Warna','Ukuran','Qty','Harga Satuan','Diskon Item']},
+  st_opening_balances: {tab:'Saldo Awal',key:'id',sortTimeKey:'verified_at',columns:['id','product_id','opening_on','qty','note','verified_by','verified_at'],labels:['ID Saldo','ID Produk','Tanggal Awal','Qty','Catatan','Verifikator','Waktu Verifikasi']},
+  st_returns: {tab:'Retur Pelanggan',key:'id',sortTimeKey:'created_at',columns:['id','item_id','qty','condition','kind','reason','requested_by','created_at','status','decided_by','decided_at','decision_note','refund'],labels:['ID Retur','ID Item','Qty','Kondisi','Jenis','Alasan','Pemohon','Waktu Permintaan','Status','Penyetuju','Waktu Keputusan','Catatan','Nilai Retur']}
+
 };
 const TARGETS = {
   r1: {
@@ -73,7 +80,8 @@ const TARGETS = {
   penerimaan: {
     spreadsheetTarget: 'intake',
     tables: ['stocktrace_intakes','stocktrace_intake_items','stocktrace_intake_evidence','stocktrace_cashier_requests','stocktrace_cashier_logs']
-  }
+  },
+  sales: {spreadsheetTarget:'sales',tables:['st_products','st_product_codes','st_sales','st_sale_items','st_returns','st_opening_balances']}
 };
 const FULL_SYNC_LEADER_ROLES=new Set(['leader']);
 const MAX_BODY_BYTES=512*1024;
@@ -92,7 +100,7 @@ function googleValue(x){
 }
 // Convert UTC timestamps from Supabase to readable Balikpapan local time.
 // Google Sheets stores this as readable text; Supabase retains original UTC values.
-const TIMESTAMP_COLUMNS = new Set(['created_at','updated_at','waktu_unggah','waktu_aksi','pic_ditetapkan_pada']);
+const TIMESTAMP_COLUMNS = new Set(['created_at','updated_at','waktu_unggah','waktu_aksi','pic_ditetapkan_pada','voided_at','decided_at']);
 const WITA_FORMATTER = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Makassar',
   year: 'numeric', month: '2-digit', day: '2-digit',
@@ -136,7 +144,10 @@ function colLetter(n){let result='';while(n>0){n--;result=String.fromCharCode(65
 function getSpreadsheetId(target){
   const kind=TARGETS[target]?.spreadsheetTarget;
   if(!kind)throw Object.assign(new Error('Spreadsheet target tidak dikenal.'),{code:'CONFIG_MISSING',status:503});
-  try{return getSheetsSpreadsheetId(kind);}
+  try{
+    if(kind==='sales'){const id=String(process.env.GOOGLE_SHEETS_SALES_SPREADSHEET_ID||'').trim();if(!/^[A-Za-z0-9_-]{10,128}$/.test(id)||[getSheetsSpreadsheetId('r1'),getSheetsSpreadsheetId('intake')].includes(id))throw Object.assign(new Error('Spreadsheet penjualan harus terpisah dan ID-nya valid.'),{status:503,code:'SALES_TARGET_MISSING'});return id;}
+    return getSheetsSpreadsheetId(kind);
+  }
   catch(error){throw Object.assign(new Error(error.message),{code:error.code||'CONFIG_MISSING',status:error.status||503});}
 }
 function targetForTable(table){
@@ -417,10 +428,11 @@ export default {
         return json({ok:true,kind:'webhook',target,table:body.table,action});
       }
       // Existing mode "full" remains R1-only. V2.1 uses a separate explicit mode.
-      const target=body?.mode==='full'?'r1':body?.mode==='full_penerimaan'?'penerimaan':null;
+      const target=body?.mode==='full'?'r1':body?.mode==='full_penerimaan'?'penerimaan':body?.mode==='full_penjualan'?'sales':null;
       if(!target)return fail(401,'UNAUTHORIZED','Akses hanya untuk webhook terotorisasi, Leader (mode full), atau Leader (mode full_penerimaan).');
       const identity=await findLeader(request);
       if(!identity)return fail(403,'LEADER_REQUIRED','Hanya akun Leader aktif yang dapat sinkronisasi penuh.');
+      if(target==='sales'){const ready=await fetch(`${identity.origin}/rest/v1/rpc/stocktrace_v21_member`,{method:'POST',headers:{...identity.headers,'Content-Type':'application/json'},body:'{}'});if(!ready.ok||await ready.json()!==true)return fail(403,'ACCOUNT_NOT_READY','Akun belum dapat mengakses data penjualan.');}
       const client=getClient(),sid=getSpreadsheetId(target),counts=await fullSync(client,sid,identity,TARGETS[target].tables);
       return json({ok:true,kind:'full',target,counts});
     }catch(err){

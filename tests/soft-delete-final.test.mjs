@@ -1,3 +1,4 @@
+import {readFrontend} from './frontend-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,13 +6,13 @@ import fs from 'node:fs';
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 const sql = read('sql/12_SOFT_DELETE_ARCHIVE_FINAL.sql');
 const driveArchiveMigration = read('sql/13_DRIVE_ARCHIVE_FOLDER_MIGRATION.sql');
-const app = read('app.js');
-const v21 = read('v21.js');
+const app = readFrontend('app.js');
+const v21 = readFrontend('v21.js');
 const login = read('login.html');
 const sheets = read('api/sheets-sync.mjs');
 const drive = read('api/drive-delete.mjs');
 const html = read('index.html');
-const css = read('stocktrace-professional-rose.css');
+const css = read('assets/style.css');
 
 test('soft-delete migration is additive and never grants or runs hard deletion', () => {
   assert.match(sql, /ADD COLUMN IF NOT EXISTS deleted_at/);

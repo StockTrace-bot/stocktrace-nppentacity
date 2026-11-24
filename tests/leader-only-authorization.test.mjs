@@ -1,3 +1,4 @@
+import {readFrontend} from './frontend-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -21,7 +22,7 @@ test('fresh installs and later RPC migration retain shared Leader-only guard',()
 });
 
 test('UI and manual Sheets API reject Admin as operator',()=>{
- const app=read('app.js'); const sheets=read('api/sheets-sync.mjs');
+ const app=readFrontend('app.js'); const sheets=read('api/sheets-sync.mjs');
  assert.match(app,/function canManageCases\(\)\{return activeRole\.toLowerCase\(\)\.trim\(\)===?=?'leader'/);
  assert.match(sheets,/FULL_SYNC_LEADER_ROLES=new Set\(\['leader'\]\)/);
 });

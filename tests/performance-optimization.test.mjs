@@ -1,3 +1,4 @@
+import {readFrontend} from './frontend-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,8 +6,8 @@ import fs from 'node:fs';
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 const index = read('index.html');
 const login = read('login.html');
-const app = read('app.js');
-const v21 = read('v21.js');
+const app = readFrontend('app.js');
+const v21 = readFrontend('v21.js');
 const publicConfig = read('api/public-config.mjs');
 const drive = read('api/drive-upload.mjs');
 const idLogin = read('api/id-login.mjs');

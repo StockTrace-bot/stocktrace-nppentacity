@@ -1,3 +1,4 @@
+import {readFrontend} from './frontend-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -6,9 +7,9 @@ import {writeFileSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 const html=fs.readFileSync('index.html','utf8');
-const code=fs.readFileSync('v21.js','utf8');
+const code=readFrontend('v21.js');
 const sql=fs.readFileSync('sql/10_V2_1_PENERIMAAN_DAN_MONITORING_KASIR_STAGING.sql','utf8');
-const app=fs.readFileSync('app.js','utf8');
+const app=readFrontend('app.js');
 const drive=fs.readFileSync('api/drive-upload.mjs','utf8');
 test('new modules and fields exist in LEFT sidebar and separate views',()=>{
  for(const x of ['intake','cashier']){
@@ -38,7 +39,7 @@ test('new SQL does not modify pre-existing StockTrace tables or delete any data'
  assert.match(sql,/GRANT EXECUTE ON FUNCTION public.stocktrace_update_cashier_status/);
 });
 test('packaged XLSX writer emits binary ZIP with required OpenXML parts and escaped text',()=>{
- const src=fs.readFileSync('xlsx-export.js','utf8');
+ const src=readFrontend('xlsx-export.js');
  const context={TextEncoder,Uint8Array,Uint32Array,Number,Error};context.globalThis=context;
  vm.runInNewContext(src,context);
  const bytes=context.StockTraceXlsx.create([

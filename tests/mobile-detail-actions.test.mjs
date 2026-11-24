@@ -1,10 +1,11 @@
+import {readFrontend} from './frontend-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const code=fs.readFileSync('v21.js','utf8');
+const code=readFrontend('v21.js');
 const html=fs.readFileSync('index.html','utf8');
-const css=fs.readFileSync('stocktrace-professional-rose.css','utf8');
+const css=fs.readFileSync('assets/style.css','utf8');
 
 test('intake Buka action binds directly to generated mobile button',()=>{
   assert.match(code,/querySelectorAll\('button\[data-open-intake\]'\)/);
@@ -36,7 +37,7 @@ test('detail actions remain accessible, finger-sized, plain blue underlined text
   assert.match(css,/border:0!important/);
   assert.match(css,/button\.st-open-detail-action,[\s\S]*?\{[^}]*background:transparent!important/s);
   assert.match(css,/button\.st-open-detail-action,[\s\S]*?\{[^}]*border:0!important/s);
-  assert.match(html,/stocktrace-professional-rose\.css\?v=2\.3\.1-plain-links/);
+  assert.match(html,/assets\/style\.css\?v=3\.0/);
 });
 
 test('mobile toolbar remains visible and the content pane scrolls independently',()=>{

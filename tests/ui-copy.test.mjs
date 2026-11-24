@@ -1,3 +1,4 @@
+import {readFrontend} from './frontend-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,8 +6,8 @@ import fs from 'node:fs';
 const read = path => fs.readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 const html = read('index.html');
 const login = read('login.html');
-const app = read('app.js');
-const v21 = read('v21.js');
+const app = readFrontend('app.js');
+const v21 = readFrontend('v21.js');
 
 test('operational UI removes explanatory notes and redundant helper copy', () => {
   assert.doesNotMatch(html, /Dokumentasi dan penanganan selisih stok|Geser tabel|Maks\. 100 MiB per berkas|Data arsip dapat dipulihkan oleh Leader|Pencatatan ini tidak mengubah stok kasir|Persetujuan dan perubahan stok dilakukan di luar StockTrace|Hanya Leader yang dapat mengubah status dan catatan|Pelapor dicatat otomatis dari akun login|Buka halaman untuk memuat|Buka kasus untuk membaca riwayat|Total kasus yang termuat/i);

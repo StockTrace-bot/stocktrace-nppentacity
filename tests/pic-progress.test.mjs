@@ -1,9 +1,10 @@
+import {readFrontend} from './frontend-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const html=fs.readFileSync('index.html','utf8');
-const app=fs.readFileSync('app.js','utf8');
+const app=readFrontend('app.js');
 const sql=fs.readFileSync('sql/14_PIC_PROGRESS_UPDATE.sql','utf8');
 
 test('PIC progress editor is inside the shared case detail, not Leader-only sidebar',()=>{

@@ -1,14 +1,15 @@
+import {readFrontend} from './frontend-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
-const css=readFileSync(new URL('../stocktrace-actions-safe.css',import.meta.url),'utf8');
-const app=readFileSync(new URL('../app.js',import.meta.url),'utf8');
+const css=readFileSync(new URL('../assets/style.css',import.meta.url),'utf8');
+const app=readFrontend('app.js');
 
 test('report submit remains a real submit button and is styled locally',()=>{
   assert.match(html,/<button\b(?=[^>]*id="btnSubmitLaporan")(?=[^>]*type="submit")(?=[^>]*st-report-submit)[^>]*>Kirim Laporan<\/button>/s);
-  assert.match(html,/<link rel="stylesheet" href="stocktrace-actions-safe\.css\?v=2\.4\.4">/);
+  assert.match(html,/<link rel="stylesheet" href="assets\/style\.css\?v=3\.0">/);
   assert.match(css,/#formLaporanLengkap #btnSubmitLaporan\s*\{/);
   assert.match(css,/display:\s*inline-flex\s*!important/);
   assert.match(css,/background-color:\s*#1e293b\s*!important/);

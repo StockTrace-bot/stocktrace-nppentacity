@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/about.html",
+      "destination": "/assets/pages/about.html"
+    },
+    {
+      "source": "/privacy.html",
+      "destination": "/assets/pages/privacy.html"
+    },
+    {
+      "source": "/terms.html",
+      "destination": "/assets/pages/terms.html"
+    }
+  ]
+}

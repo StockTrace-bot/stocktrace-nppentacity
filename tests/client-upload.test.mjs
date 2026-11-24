@@ -1,8 +1,9 @@
+import {readFrontend} from './frontend-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const src=fs.readFileSync(new URL('../app.js', import.meta.url),'utf8');
+const src=readFrontend('app.js');
 const start=src.indexOf('// Upload larger media directly browser');
 const end=src.indexOf('async function uploadFiles(',start);
 assert(start>0&&end>start);

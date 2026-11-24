@@ -1,9 +1,10 @@
+import {readFrontend} from './frontend-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const html=fs.readFileSync('index.html','utf8');
-const code=fs.readFileSync('v21.js','utf8');
-const app=fs.readFileSync('app.js','utf8');
+const code=readFrontend('v21.js');
+const app=readFrontend('app.js');
 const migration=fs.readFileSync('sql/15_PENERIMAAN_BARANG_REJECT.sql','utf8');
 const sheets=fs.readFileSync('api/sheets-sync.mjs','utf8');
 

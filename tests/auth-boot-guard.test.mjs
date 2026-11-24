@@ -1,9 +1,10 @@
+import {readFrontend} from './frontend-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const html = fs.readFileSync('index.html', 'utf8');
-const app = fs.readFileSync('app.js', 'utf8');
+const app = readFrontend('app.js');
 
 test('application shell is hidden on the very first paint until auth is verified', () => {
   assert.match(html, /<body class="st-auth-pending[^"]*"/);

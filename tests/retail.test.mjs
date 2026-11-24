@@ -1,0 +1,16 @@
+import {readFrontend} from './frontend-source.mjs';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const src=readFrontend('retail.js'),sql=fs.readFileSync('sql/16_PRODUCT_SALES_RETURNS.sql','utf8'),html=fs.readFileSync('index.html','utf8');
+const node={addEventListener(){}};const ctx=vm.createContext({htmlEscape:String,el:()=>node,window:{addEventListener(){}},document:{addEventListener(){}},Intl,Date});vm.runInContext(src,ctx);
+const evaluate=expr=>JSON.parse(JSON.stringify(vm.runInContext(expr,ctx)));
+test('WITA month uses inclusive start and exclusive next month',()=>assert.deepEqual(evaluate(`retailMonthRange('2026-12')`),['2026-11-30T16:00:00.000Z','2026-12-31T16:00:00.000Z']));
+test('gross, discount and approved return are distinct; pending return does not reduce net',()=>assert.deepEqual(evaluate(`retailItemTotals({qty:3,unit_price:100000,discount:15000,st_returns:[{qty:1,refund:95000,status:'approved'},{qty:1,refund:95000,status:'pending'}]})`),{qty:3,returned:1,pending:1,gross:300000,discount:15000,refund:95000,net:190000}));
+test('void transactions excluded and seller totals separate',()=>{const v=evaluate(`retailSummarize([{seller:'a',seller_name:'A',st_sale_items:[{qty:1,unit_price:200,discount:10}]},{seller:'b',seller_name:'B',st_sale_items:[{qty:2,unit_price:100,discount:0}]},{seller:'a',seller_name:'A',voided_at:'yes',st_sale_items:[{qty:100,unit_price:100,discount:0}]}])`);assert.equal(v.total.transactions,2);assert.equal(v.total.net,390);assert.equal(v.groups.length,2);});
+test('strict numeric validation',()=>{for(const v of ['','-1','1.5','Infinity','10000'])assert.throws(()=>vm.runInContext(`retailInt(${JSON.stringify(v)},1,9999)`,ctx));});
+test('sale RPC uses auth identity; no direct write grant and receipt uniqueness',()=>{assert.match(sql,/INSERT INTO public\.st_sales\(id,receipt,seller,seller_name\) VALUES\(p_id,btrim\(p_receipt\),auth\.uid\(\)/);assert.match(sql,/GRANT SELECT ON public/);assert.match(sql,/CREATE UNIQUE INDEX st_sales_receipt_unique/);assert.match(sql,/seller=auth\.uid\(\) OR public\.stocktrace_is_leader\(\)/);});
+test('return approval uses lock, leader guard and proportional amount',()=>{assert.match(sql,/st_decide_return[\s\S]*?stocktrace_is_leader\(\)[\s\S]*?FOR UPDATE[\s\S]*?already_qty\+r.qty/);assert.match(sql,/\(\(already_qty\+r.qty\)\*net\/i.qty\)-\(already_qty\*net\/i.qty\)/);});
+test('scan controls present and scanner does not change intake document quantity',()=>{for(const id of ['retailIntakeScan','retailSaleScan','retailScanDialog','retailProductDialog','retailReturnDialog'])assert.match(html,new RegExp(`id="${id}"`));assert.match(src,/const input=get\(row,'qty_received'\);input.value=retailInt/);assert.match(src,/getTracks\(\).forEach\(t=>t.stop\(\)\)/);});
+test('new movement calculation is separate from stock and excludes archived intakes',()=>{assert.match(sql,/h.deleted_at IS NULL AND i.deleted_at IS NULL/);assert.match(sql,/a.incoming-a.outgoing\+a.good/);assert.match(html,/Bukan saldo stok resmi/);});
