@@ -33,3 +33,6 @@ Empat file utama: `index.html`, `login.html`, `package.json`, `README.md`. Dua k
 
 ### Reset data dummy
 Reset bukan bagian dari deployment otomatis. Gunakan tiga skrip audit/reset/verifikasi terpisah di paket rilis, setelah staging lulus dan sebelum penggunaan resmi. Backup database, spreadsheet dan Drive terlebih dahulu. Pindahkan hanya bukti uji yang terverifikasi ke Trash; pertahankan akun, autentikasi, security, konfigurasi, webhook dan folder. Setelah reset, jalankan full sync lama dan penjualan pada target yang benar, lalu cocokkan jumlah baris dengan database. Jangan aktifkan skrip reset jika data operasional nyata sudah tercatat.
+
+## V4.0 — Alur operasional
+Empat menu utama: Dashboard, Penerimaan Barang, Penjualan & Retur, Persediaan & Pelaporan. Identitas produk dipakai bersama. Detail produk menghubungkan penerimaan, penjualan, pemeriksaan dan riwayat; hak Leader/Staff dan arsip tetap menggunakan RPC lama. Satu tombol sinkronisasi menjalankan tiga target Google Sheets. Perubahan ini menggunakan SQL 01–19 yang sudah diterapkan; tidak ada migrasi baru. Workbook monitoring tambahan (opsional, terpisah dari source) membaca tiga spreadsheet lama dan memiliki jadwal pembaruan tersendiri; bukan sumber data utama. Uji Production sebelum reset data dummy.

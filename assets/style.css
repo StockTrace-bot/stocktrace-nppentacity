@@ -974,3 +974,17 @@ button.st-open-detail-action:focus-visible,
 #view-form-laporan input[readonly],#view-intake input[readonly],#retailOpeningSku[readonly]{background:#f8fafc;color:#334155}
 @media(max-width:767px){.st-field-heading{gap:8px}.st-field-heading button{font-size:13px;min-height:44px}.st-section-heading button{min-height:44px}.st-section-heading h1{font-size:20px}#caseCorrectionDetail .st-detail-box{padding:12px}}
 #btnCaseCorrection[hidden],#btnCaseSourceIntake[hidden],#caseIntakeSource[hidden]{display:none!important}
+
+/* V4 operational workspace */
+.st-workspace-nav {display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;border-bottom:1px solid #e2e8f0;padding-bottom:10px;}
+.st-workspace-nav[hidden],.st-workspace-nav button[hidden],#retailBalancePanel[hidden],#retailDetailEdit[hidden]{display:none!important;}
+.st-workspace-nav button {border:1px solid #cbd5e1;border-radius:9px;padding:9px 13px;background:#fff;color:#334155;font-size:13px;font-weight:600;}
+.st-workspace-nav .st-workspace-active {background:#1e293b;color:white;border-color:#1e293b;}
+.st-detail-report {display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:13px;}
+#retailBalancePanel {margin-top:14px;border-top:1px solid #e2e8f0;padding-top:14px;}
+#retailProductDetail {scroll-margin-top:12px;}
+#retailProductDetail .st-retail-kpis {margin:12px 0;}
+@media(max-width:767px){.st-workspace-nav button {flex:1 1 42%;min-height:44px;}.st-sidebar-profile .ml-3{max-width:112px;}}
+#caseEvidenceFields[hidden]{display:none!important;}
+
+#retailDetailHistory[hidden]{display:none!important;}
