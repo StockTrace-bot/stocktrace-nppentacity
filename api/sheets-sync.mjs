@@ -251,7 +251,7 @@ async function readSheetRows(client,sid,schema){
 async function upsertOne(client,sid,schema,record){
   const fields=keyFields(schema);
   const keyValues=fields.map(field=>String(record?.[field]??''));
-  if(keyValues.some(v=>!v)||keyValues.some(v=>v.length>160))
+  if(keyValues.some(v=>!v)||keyValues.some(v=>v.length>(schema===SHEETS.st_product_codes?512:160)))
     throw Object.assign(new Error('Kunci record tidak valid.'),{status:400,code:'RECORD_ID_INVALID'});
   await ensureHeader(client,sid,schema);
   const rows=await readSheetRows(client,sid,schema);
@@ -374,12 +374,22 @@ async function fullSync(client,sid,identity,tables){
       summaries.set(id,summary);
     }
   }
-  const metadata=await client.spreadsheets.get({spreadsheetId:sid,fields:'sheets(properties(title))'});
+  const metadata=await client.spreadsheets.get({spreadsheetId:sid,fields:'sheets(properties(sheetId,title,gridProperties(rowCount,columnCount)))'});
   const names=new Set((metadata.data.sheets||[]).map(s=>s.properties?.title));
   for(const table of tables){
     const config=SHEETS[table];
     if(!names.has(config.tab))throw Object.assign(new Error(`Buat tab Google Sheets bernama ${config.tab} terlebih dahulu.`),{status:409,code:'SHEET_NOT_FOUND'});
   }
+  // Grow destination grids before clearing, including large catalog imports.
+  const growth=[];
+  for(const table of tables){
+    const config=SHEETS[table],props=metadata.data.sheets.find(s=>s.properties?.title===config.tab)?.properties;
+    const rows=Number(props?.gridProperties?.rowCount),cols=Number(props?.gridProperties?.columnCount);
+    if(!Number.isInteger(rows)||!Number.isInteger(cols)||!Number.isInteger(props?.sheetId))throw Object.assign(new Error('Ukuran tab tidak dapat diperiksa.'),{status:409,code:'SHEET_GRID_UNKNOWN'});
+    if(datasets[table].length+1>rows)growth.push({appendDimension:{sheetId:props.sheetId,dimension:'ROWS',length:datasets[table].length+1-rows}});
+    if(Math.max(26,config.columns.length)>cols)growth.push({appendDimension:{sheetId:props.sheetId,dimension:'COLUMNS',length:Math.max(26,config.columns.length)-cols}});
+  }
+  if(growth.length)await client.spreadsheets.batchUpdate({spreadsheetId:sid,requestBody:{requests:growth}});
   const ranges=tables.map(table=>a1(SHEETS[table].tab,'A:Z'));
   await client.spreadsheets.values.batchClear({spreadsheetId:sid,requestBody:{ranges}});
   const data=tables.map(table=>[table,SHEETS[table]]).map(([table,c])=>({
