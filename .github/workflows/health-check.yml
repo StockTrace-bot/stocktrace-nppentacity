@@ -1,0 +1,36 @@
+
+name: Database Health Check
+
+on:
+  schedule:
+    - cron: '17 0,8,16 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check database connection
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CONFIG=$(curl -fsS --max-time 30 \
+            https://stocktrace-nppentacity.vercel.app/api/public-config)
+
+          URL=$(echo "$CONFIG" | jq -er '.supabase_url')
+          KEY=$(echo "$CONFIG" | jq -er '.supabase_publishable_key')
+
+          RESPONSE=$(curl -fsS --max-time 30 \
+            -X POST "$URL/rest/v1/rpc/stocktrace_health" \
+            -H "apikey: $KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+
+          test "$RESPONSE" = "true"
+
+          echo "Database connection successful."
