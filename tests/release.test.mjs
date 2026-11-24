@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const html=fs.readFileSync('index.html','utf8'),bundle=fs.readFileSync('assets/app-bundle.js','utf8'),css=fs.readFileSync('assets/style.css','utf8'),sql=fs.readFileSync('sql/17_VERIFIED_OPENING_BALANCES.sql','utf8');
-test('consolidated browser runtime parses as a single classic script',()=>{assert.doesNotThrow(()=>new vm.Script(bundle));assert.equal((html.match(/src="assets\/app-bundle\.js\?v=3\.1\.0"/g)||[]).length,1);assert.equal((html.match(/href="assets\/style\.css\?v=3\.0"/g)||[]).length,1);});
+test('consolidated browser runtime parses as a single classic script',()=>{assert.doesNotThrow(()=>new vm.Script(bundle));assert.equal((html.match(/src="assets\/app-bundle\.js\?v=3\.2\.0"/g)||[]).length,1);assert.equal((html.match(/href="assets\/style\.css\?v=3\.2"/g)||[]).length,1);});
 test('public legal paths retain routing and actual target files',()=>{const v=JSON.parse(fs.readFileSync('vercel.json'));for(const page of ['about.html','privacy.html','terms.html']){const r=v.rewrites.find(x=>x.source==='/'+page);assert.ok(r);assert.ok(fs.existsSync('.'+r.destination));}});
 test('opening balances append verifications and block direct authenticated writes',()=>{assert.match(sql,/REVOKE ALL ON public\.st_opening_balances FROM PUBLIC,anon,authenticated/);assert.match(sql,/GRANT SELECT ON public\.st_opening_balances TO authenticated/);assert.match(sql,/st_verify_opening[\s\S]*?stocktrace_v21_member\(\)[\s\S]*?stocktrace_is_leader\(\)[\s\S]*?INSERT INTO public\.st_opening_balances/);assert.doesNotMatch(sql,/UPDATE public\.st_opening_balances/);});
 test('balance is null until verified; archived intake and voided sales excluded',()=>{assert.match(sql,/CASE WHEN o\.id IS NOT NULL THEN o\.qty\+a\.n-b\.n\+c\.n END/);assert.match(sql,/h\.deleted_at IS NULL AND i\.deleted_at IS NULL/);assert.match(sql,/h\.voided_at IS NULL/);assert.match(sql,/r\.status='approved' AND r\.condition='layak'/);assert.match(bundle,/Belum ditetapkan/);});
@@ -12,9 +12,39 @@ test('opening balance sheet is included in sales target',()=>{const api=fs.readF
 
  test('operational panels keep calculation notes collapsed and retain stock warning',()=>{for(const title of ['Cara menghitung omzet','Cara menghitung pergerakan barang','Cara menghitung estimasi stok'])assert.ok(html.includes('<summary class="cursor-pointer">'+title+'</summary>'));assert.doesNotMatch(html,/<p class="text-sm">(?:Bukan saldo stok resmi|Isi stok fisik sebelum transaksi)/);assert.match(bundle,/estimated_qty!=null&&Number\(r\.estimated_qty\)<0/);});
 
- test('one stock correction sidebar entry with both original views reachable',()=>{const sidebar=html.match(/<aside id="appSidebar"[\s\S]*?<\/aside>/)[0];assert.match(sidebar,/Selisih &amp; Koreksi Stok/);assert.doesNotMatch(sidebar,/data-nav-view="cashier"/);for(const id of ['view-form-laporan','view-cashier','btnCaseCorrection','retailCaseScan','retailCashierScan','retailMasterIntakeScan'])assert.ok(html.includes('id="'+id+'"'));});
- test('case and intake correction transfer actual source fields without inventing POS quantities',async()=>{const f=bundle.slice(bundle.indexOf('async function prepareStockCorrection('),bundle.indexOf("el('btnCaseCorrection').addEventListener"));const fields=new Map();const el=id=>{if(!fields.has(id))fields.set(id,{_value:'',get value(){return this._value;},set value(v){this._value=String(v);},focus(){},reset(){for(const x of fields.values())x.value='';}});return fields.get(id);};const ctx=vm.createContext({el,activeUser:{id:'a'},mustChangePassword:false,findOpenCorrection:async()=>null,showView(){},window:{confirm:()=>true},notice(){throw Error('Unexpected notice');}});vm.runInContext(f,ctx);await vm.runInContext("prepareStockCorrection({sku:'A',name:'Blouse',caseId:'ST-1',system:20,physical:17,reason:'Check again'})",ctx);assert.equal(el('cashierSystem').value,'20');assert.equal(el('cashierPhysical').value,'17');assert.equal(el('cashierCase').value,'ST-1');await vm.runInContext("prepareStockCorrection({sku:'B',name:'Rok',intake:'IN-1'})",ctx);assert.equal(el('cashierSystem').value,'');assert.equal(el('cashierPhysical').value,'');assert.equal(el('cashierIntake').value,'IN-1');assert.equal(el('cashierCase').value,'');});
- test('master registration alone does not save receipt; explicit receive action uses draft',()=>{const f=bundle.slice(bundle.indexOf('async function retailApplyProduct('),bundle.indexOf('function retailCartTotals('));assert.match(f,/target==='intake-from-master'/);assert.match(f,/showView\('intake'\);target='intake'/);assert.doesNotMatch(f,/stocktrace_create_intake|retailRpc\(/);assert.match(bundle,/data-product-receive/);assert.match(bundle,/findOpenCorrection\(sku,id,intake\)/);});
+test('one inspection entry; no separate correction form or duplicate menu',()=>{
+ const sidebar=html.match(/<aside id="appSidebar"[\s\S]*?<\/aside>/)[0];
+ assert.match(sidebar,/data-nav-view="cases"[\s\S]*?Selisih Stok/);
+ assert.doesNotMatch(sidebar,/data-nav-view="cashier"|data-nav-view="form-laporan"/);
+ for(const id of ['view-cases','view-form-laporan','view-cashier','caseCorrectionDetail','btnCaseCorrection','retailCaseScan'])assert.ok(html.includes('id="'+id+'"'));
+ for(const id of ['formCashierRequest','cashierSku','retailCashierScan','retailMasterIntakeScan','retailNewProduct'])assert.ok(!html.includes('id="'+id+'"'));
+ assert.match(bundle,/caseCorrectionDetail'\)\.append\(el\('cashierDetail'\)\)/);
+ assert.match(bundle,/retailRpc\('stocktrace_request_cashier_update',\{p_sku:c\.sku_produk,p_product:c\.nama_produk,p_system_qty:c\.stok_sistem,p_counted_qty:c\.stok_fisik/);
+});
+test('receipt inspection reuses source and leaves POS and physical counts blank',async()=>{
+ const f=bundle.slice(bundle.indexOf('let caseSourceIntake='),bundle.indexOf("el('btnCaseCorrection').addEventListener"));
+ const fields=new Map(),views=[],opened=[];let prior=[];
+ const el=id=>{if(!fields.has(id))fields.set(id,{value:'',files:[],focus(){},reset(){for(const x of fields.values())x.value='';}});return fields.get(id);};
+ const ctx=vm.createContext({el,activeUser:{id:'a'},mustChangePassword:false,retailFindCode:async()=>({sku:'B',name:'Rok'}),retailRead:async()=>prior,loadCases:async()=>{},openCase:async id=>opened.push(id),retailApplyProduct:async p=>{el('inputSKU').value=p.sku;el('inputNama').value=p.name;},showView:v=>views.push(v),window:{confirm:()=>true},notice(){throw Error('Unexpected notice');}});
+ vm.runInContext(f,ctx);await vm.runInContext("prepareStockCorrection({sku:'B',name:'Rok',intake:'IN-1'})",ctx);
+ assert.equal(el('inputSKU').value,'B');assert.equal(el('inputNama').value,'Rok');assert.equal(el('inputSistem').value,'');assert.equal(el('inputFisik').value,'');assert.equal(vm.runInContext('caseSourceIntake',ctx),'IN-1');assert.equal(el('inputSKU').readOnly,true);assert.equal(views[0],'form-laporan');
+ prior=[{id_kasus:'ST-1'}];await vm.runInContext("prepareStockCorrection({sku:'B',intake:'IN-1'})",ctx);assert.deepEqual(opened,['ST-1']);assert.equal(views.length,1);
+});
+test('manual registration and catalogue shortcut do not count stock until receipt saved',()=>{
+ const f=bundle.slice(bundle.indexOf('async function retailApplyProduct('),bundle.indexOf('function retailCartTotals('));
+ assert.match(f,/target==='intake-from-master'/);assert.match(f,/showView\('intake'\);target='intake-register'/);assert.doesNotMatch(f,/stocktrace_create_intake|retailRpc\(/);assert.match(bundle,/data-product-receive/);assert.match(f,/if\(target==='intake'\)input\.value=retailInt/);
+ assert.match(bundle,/retailOpenProduct\(null,'','intake-register'\)/);
+});
+test('receipt reference is durable and inherited by correction; no duplicate open inspection',()=>{
+ const m=fs.readFileSync('sql/19_LINK_INTAKE_INSPECTION.sql','utf8');assert.match(m,/ADD COLUMN IF NOT EXISTS source_intake_id text REFERENCES public\.stocktrace_intakes/);assert.match(m,/upper\(btrim\(i\.sku\)\)=upper\(btrim\(NEW\.sku_produk\)\)/);assert.match(m,/GRANT INSERT \(source_intake_id\) ON public\.cases TO authenticated/);assert.match(m,/CREATE UNIQUE INDEX IF NOT EXISTS st_one_open_inspection_per_intake_sku/);assert.match(m,/NEW\.id_intake:=origin/);assert.match(m,/BEFORE INSERT ON public\.stocktrace_cashier_requests/);assert.doesNotMatch(m,/DROP TABLE|TRUNCATE|DELETE FROM/i);assert.match(bundle,/source_intake_id:caseSourceIntake\|\|null/);
+});
+test('inventory and sales reports each have one home',()=>{
+ const inventory=html.slice(html.indexOf('id="view-products"'),html.indexOf('id="view-sales"'));
+ const reports=html.slice(html.indexOf('id="view-reports"'),html.indexOf('id="view-intake"'));
+ for(const id of ['retailProductRows','retailBalanceRows','retailMovementRows'])assert.ok(inventory.includes('id="'+id+'"'));
+ for(const id of ['retailSalesSummary','retailHistory','btnExportIntake'])assert.ok(reports.includes('id="'+id+'"'));
+ const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length);
+});
 
 test('integrated workflow uses database constraints and atomic report/correction linking',()=>{
  const migration=fs.readFileSync('sql/18_INTEGRATED_STOCK_WORKFLOW.sql','utf8');
@@ -43,7 +73,7 @@ test('product identity and balance stay independent from official POS correction
  assert.match(migration,/BEFORE INSERT ON public\.stocktrace_intake_items/);
  assert.match(migration,/o\.qty\+a\.n-b\.n\+c\.n/);
  assert.match(bundle,/data-check-stock/);
- assert.match(bundle,/Estimasi StockTrace:/);
+ assert.match(bundle,/Estimasi stok:/);
  assert.match(bundle,/p_system_qty:c\.stok_sistem,p_counted_qty:c\.stok_fisik/);
  assert.match(bundle,/loadLinkedCorrection\(id\)/);
  assert.doesNotMatch(migration,/UPDATE public\.st_opening_balances/);

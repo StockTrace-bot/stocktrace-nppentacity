@@ -26,11 +26,11 @@
 #view-detail-kasus.staff-detail-centered #detailCaseGrid { grid-template-columns:minmax(0,1fr); }
 #view-detail-kasus.staff-detail-centered #detailMainCard { grid-column:1 / -1; min-width:0; }
 #view-detail-kasus.staff-detail-centered #detailLeaderColumn { display:none; }
-button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #60a5fa;outline-offset:2px}.bar{height:10px;background:#3b82f6;border-radius:100px}.status-chip{font-size:12px;padding:3px 8px;background:#dbeafe;color:#1e40af;border-radius:100px} @media print{aside,header,.md\:hidden,#view-dashboard,#view-form-laporan,#view-detail-kasus,#view-archive,#view-intake,#view-cashier,#view-account,button{display:none!important}main,main>div{height:auto!important;overflow:visible!important}#view-reports{display:block!important}body{overflow:visible!important;height:auto!important}}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #60a5fa;outline-offset:2px}.bar{height:10px;background:#3b82f6;border-radius:100px}.status-chip{font-size:12px;padding:3px 8px;background:#dbeafe;color:#1e40af;border-radius:100px} @media print{aside,header,.md\:hidden,#view-dashboard,#view-cases,#view-form-laporan,#view-detail-kasus,#view-archive,#view-intake,#view-cashier,#view-account,button{display:none!important}main,main>div{height:auto!important;overflow:visible!important}#view-reports{display:block!important}body{overflow:visible!important;height:auto!important}}
 /* Navigation layout shared between laptop and phone. Legacy bottom-nav rules removed. */
 @media print { .mobile-bottom-nav,.mobile-signout { display:none!important; } }
 </style>
-<link rel="stylesheet" href="assets/style.css?v=3.0">
+<link rel="stylesheet" href="assets/style.css?v=3.2">
 
 
 <style id="stocktrace-critical-shell">
@@ -121,12 +121,12 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
         </div>
         <nav class="st-sidebar-nav flex-1 px-4 py-6 space-y-2">
             <button data-nav-view="dashboard" onclick="showView('dashboard')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-squares-four text-lg mr-3"></i><span class="st-nav-label">Dashboard</span></button>
-            <button data-nav-view="form-laporan" onclick="showView('form-laporan')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-file-plus text-lg mr-3"></i><span class="st-nav-label">Selisih &amp; Koreksi Stok</span></button>
-            <button data-nav-view="archive" onclick="showView('archive')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-folder-open text-lg mr-3"></i><span class="st-nav-label">Arsip & Sampah</span></button>
-            <button data-nav-view="reports" onclick="showView('reports')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-chart-bar text-lg mr-3"></i><span class="st-nav-label">Rekap & Ekspor</span></button>
             <button data-nav-view="intake" onclick="showView('intake')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-truck text-lg mr-3"></i><span class="st-nav-label">Penerimaan Barang</span></button>
-            <button data-nav-view="products" onclick="showView('products')" class="w-full flex items-center px-4 py-3 rounded-lg text-sm font-medium"><i class="ph ph-package text-lg mr-3"></i><span class="st-nav-label">Master Produk</span></button>
             <button data-nav-view="sales" onclick="showView('sales')" class="w-full flex items-center px-4 py-3 rounded-lg text-sm font-medium"><i class="ph ph-shopping-bag text-lg mr-3"></i><span class="st-nav-label">Penjualan & Retur</span></button>
+            <button data-nav-view="products" onclick="showView('products')" class="w-full flex items-center px-4 py-3 rounded-lg text-sm font-medium"><i class="ph ph-package text-lg mr-3"></i><span class="st-nav-label">Persediaan</span></button>
+            <button data-nav-view="cases" onclick="showView('cases')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-file-plus text-lg mr-3"></i><span class="st-nav-label">Selisih Stok</span></button>
+            <button data-nav-view="reports" onclick="showView('reports')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-chart-bar text-lg mr-3"></i><span class="st-nav-label">Rekap & Ekspor</span></button>
+            <button data-nav-view="archive" onclick="showView('archive')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-folder-open text-lg mr-3"></i><span class="st-nav-label">Arsip & Sampah</span></button>
             <button data-nav-view="account" onclick="showView('account')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-user-circle text-lg mr-3"></i><span class="st-nav-label">Akun Saya</span></button>
         </nav>
         <div class="st-sidebar-profile p-4 border-t border-slate-700">
@@ -161,53 +161,57 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
             <div id="view-dashboard" class="block space-y-6">
                 <div class="st-dashboard-heading flex justify-between items-center gap-3">
                     <div class="st-dashboard-heading-text">
-                        <h1 class="text-2xl font-bold text-slate-800">Dashboard Utama</h1>
+                        <h1 class="text-2xl font-bold text-slate-800">Dashboard</h1>
                     </div>
                     <button onclick="showView('form-laporan')" class="st-dashboard-action bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center">
-                        <i class="ph ph-plus mr-2"></i> Lapor Kasus
+                        <i class="ph ph-plus mr-2"></i> Pemeriksaan baru
                     </button>
                 </div>
                 <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
-                    <div class="bg-white border rounded-xl p-5"><p class="text-xs text-slate-500">Total kasus</p><p class="text-3xl font-bold mt-2" id="countTotal">—</p></div>
-                    <div class="bg-white border rounded-xl p-5"><p class="text-xs text-slate-500">Kasus belum selesai</p><p class="text-3xl font-bold mt-2" id="countOpen">—</p></div>
-                    <div class="bg-white border rounded-xl p-5"><p class="text-xs text-slate-500">Kasus selesai</p><p class="text-3xl font-bold mt-2" id="countClosed">—</p></div>
+                    <div class="bg-white border rounded-xl p-5"><p class="text-xs text-slate-500">Total laporan</p><p class="text-3xl font-bold mt-2" id="countTotal">—</p></div>
+                    <div class="bg-white border rounded-xl p-5"><p class="text-xs text-slate-500">Belum selesai</p><p class="text-3xl font-bold mt-2" id="countOpen">—</p></div>
+                    <div class="bg-white border rounded-xl p-5"><p class="text-xs text-slate-500">Selesai</p><p class="text-3xl font-bold mt-2" id="countClosed">—</p></div>
                     <div class="bg-white border rounded-xl p-5"><p class="text-xs text-slate-500">Menunggu tindak lanjut IT/MD</p><p class="text-3xl font-bold mt-2" id="countEscalated">—</p></div>
                 </div>
+                <div class="st-retail-actions"><button type="button" class="st-secondary-btn" onclick="showView('cases')">Lihat pemeriksaan stok</button><button type="button" class="st-secondary-btn" onclick="showView('intake')">Penerimaan barang</button><button type="button" class="st-secondary-btn" onclick="showView('sales')">Penjualan &amp; retur</button><button type="button" class="st-secondary-btn" onclick="showView('products')">Persediaan</button></div>
+            </div>
+            <section id="view-cases" class="hidden space-y-5">
+                <div class="st-section-heading"><h1 class="text-2xl font-bold">Selisih Stok</h1><button type="button" class="st-primary-btn" onclick="showView('form-laporan')">+ Pemeriksaan baru</button></div>
                 <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
                     <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-                        <h2 class="font-semibold">Daftar kasus</h2>
+                        <h2 class="font-semibold">Daftar pemeriksaan</h2>
                         <select id="filterCasePIC" aria-label="Filter penugasan" class="text-sm p-2 border rounded-lg"><option value="">Semua penugasan</option><option value="mine">PIC saya</option><option value="reported">Laporan saya</option><option value="unassigned">Belum ada PIC</option></select>
                         <select id="filterCaseStatus" aria-label="Filter status" class="text-sm p-2 border rounded-lg"><option value="">Semua status</option><option>Baru Dilaporkan</option><option>Dalam Pemeriksaan</option><option>Menunggu Tindak Lanjut IT/MD</option><option>Dalam Penyelesaian</option><option>Selesai</option></select>
                         <button type="button" onclick="loadCases({force:true})" class="text-sm text-blue-600 hover:underline">Muat ulang</button>
                     </div>
                     <p id="dashboardNotice" role="status" class="text-sm text-slate-500">Memuat data...</p>
                     <div class="overflow-x-auto st-data-table"><table class="w-full text-sm text-left">
-                        <thead class="text-xs uppercase text-slate-500 border-b"><tr><th class="py-3 pr-4">ID Kasus</th><th class="py-3 pr-4">Produk / SKU</th><th class="py-3 pr-4">Selisih</th><th class="py-3 pr-4">Pelapor / PIC</th><th class="py-3">Status</th></tr></thead>
+                        <thead class="text-xs uppercase text-slate-500 border-b"><tr><th class="py-3 pr-4">ID Laporan</th><th class="py-3 pr-4">Produk / SKU</th><th class="py-3 pr-4">Selisih</th><th class="py-3 pr-4">Pelapor / PIC</th><th class="py-3">Status</th></tr></thead>
                         <tbody id="dashboardCasesBody"></tbody>
                     </table></div>
 
                 </div>
-            </div>
+            </section>
 
             <!-- FORM LAPORAN VIEW -->
             <div id="view-form-laporan" class="hidden space-y-6">
-                <h1 class="text-2xl font-bold text-slate-800">Selisih &amp; Koreksi Stok</h1>
-                <div class="st-retail-actions"><button type="button" class="st-primary-btn" aria-current="page">Buat laporan</button><button type="button" class="st-secondary-btn" onclick="showView('dashboard')">Daftar laporan</button><button type="button" class="st-secondary-btn" data-nav-view="cashier" onclick="showView('cashier')">Koreksi stok kasir</button></div>
+                <div class="st-section-heading"><h1 class="text-2xl font-bold">Pemeriksaan Stok</h1><button type="button" class="st-secondary-btn" onclick="showView('cases')">Kembali</button></div>
                 <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
                     <form id="formLaporanLengkap" class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div class="space-y-4 st-form-section">
                             <h3 class="font-semibold text-slate-800 border-b pb-2">Informasi Produk</h3>
                             <div class="st-form-field">
-                                <label class="st-form-label" for="inputSKU">SKU Produk</label><button type="button" id="retailCaseScan" class="st-secondary-btn">Cari / scan produk</button>
+                                <div class="st-field-heading"><label class="st-form-label" for="inputSKU">SKU Produk</label><button type="button" id="retailCaseScan" class="st-secondary-btn">Cari / scan produk</button></div>
                                 <input type="text" id="inputSKU" placeholder="Contoh: NP-SC-BLU" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
                             </div>
                             <div class="st-form-field">
                                 <label class="st-form-label" for="inputNama">Nama Produk</label>
-                                <p id="caseEstimate" class="text-xs text-slate-600" role="status"></p><input type="text" id="inputNama" placeholder="Masukkan nama produk" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
+                                <input type="text" id="inputNama" placeholder="Nama produk" readonly required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
                             </div>
+                            <p id="caseEstimate" class="text-xs text-slate-600" role="status"></p><p id="caseIntakeSource" class="text-xs text-slate-600" hidden></p>
                             <div class="flex gap-4 st-stock-fields">
-                                <div class="st-stock-field"><label class="text-xs text-slate-500" for="inputSistem">Stok Kasir</label><input type="number" id="inputSistem" value="0" min="0" step="1" required class="w-full p-2 border rounded text-center"></div>
-                                <div class="st-stock-field"><label class="text-xs text-slate-500" for="inputFisik">Stok Fisik</label><input type="number" id="inputFisik" value="0" min="0" step="1" required class="w-full p-2 border rounded text-center"></div>
+                                <div class="st-stock-field"><label class="text-xs text-slate-500" for="inputSistem">Stok Kasir</label><input type="number" id="inputSistem" value="" min="0" step="1" required class="w-full p-2 border rounded text-center"></div>
+                                <div class="st-stock-field"><label class="text-xs text-slate-500" for="inputFisik">Stok Fisik</label><input type="number" id="inputFisik" value="" min="0" step="1" required class="w-full p-2 border rounded text-center"></div>
                             </div>
                         </div>
                         <div class="space-y-4 st-form-section">
@@ -232,7 +236,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                             <p id="uploadProgressReport" role="status" aria-live="polite" class="text-sm text-blue-700 font-medium" aria-label="Kemajuan upload"></p>
                         </div>
                         <div class="col-span-1 md:col-span-2 pt-4 flex justify-end st-form-actions">
-                            <button type="button" onclick="showView('dashboard')" class="px-5 py-2 mr-3 border rounded-lg text-sm">Batal</button>
+                            <button type="button" onclick="document.getElementById('formLaporanLengkap').reset();showView('cases')" class="px-5 py-2 mr-3 border rounded-lg text-sm">Batal</button>
                             <button type="submit" id="btnSubmitLaporan" class="px-5 py-2 bg-npnavy text-white rounded-lg text-sm st-report-submit" style="display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:12px 20px;background-color:#1e293b;color:#ffffff;border:1px solid #1e293b;border-radius:10px;font-weight:650;">Kirim Laporan</button>
                         </div>
                     </form>
@@ -242,8 +246,8 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
             <!-- DETAIL KASUS VIEW -->
             <div id="view-detail-kasus" class="hidden space-y-6">
                 <div class="flex flex-wrap justify-between items-center gap-3">
-                    <div><button onclick="showView('dashboard')" class="text-blue-600 underline text-sm mb-2">← Kembali ke Dashboard</button>
-                    <h1 id="detailTitle" class="text-2xl font-bold text-slate-800">Detail Kasus</h1></div>
+                    <div><button onclick="showView('cases')" class="text-blue-600 underline text-sm mb-2">← Kembali ke Selisih Stok</button>
+                    <h1 id="detailTitle" class="text-2xl font-bold text-slate-800">Detail Pemeriksaan</h1></div>
                     <div class="flex flex-wrap gap-2">
                      <button id="btnArchiveCase" type="button" onclick="archiveCurrentCase()" class="st-archive-action" style="display:none"><i class="ph ph-archive mr-1"></i> Arsipkan laporan</button>
                      <button onclick="window.print()" class="px-4 py-2 bg-white border rounded-lg text-sm"><i class="ph ph-printer mr-2"></i> Cetak</button>
@@ -251,9 +255,9 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                 </div>
                 <div id="detailCaseGrid" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div id="detailMainCard" class="lg:col-span-2 bg-white p-6 rounded-xl border">
-                        <h3 class="font-semibold border-b pb-2 mb-4">Informasi Kasus</h3>
-                        <div id="detailInfo" class="text-sm text-slate-600">Belum ada kasus dipilih.</div><p id="caseCorrectionStatus" class="text-sm" role="status"></p>
-                        <button type="button" id="btnCaseCorrection" class="st-primary-btn mt-3">Ajukan koreksi stok kasir</button>
+                        <h3 class="font-semibold border-b pb-2 mb-4">Informasi Pemeriksaan</h3>
+                        <div id="detailInfo" class="text-sm text-slate-600">Belum ada kasus dipilih.</div><button id="btnCaseSourceIntake" type="button" class="st-secondary-btn mt-3" hidden>Buka penerimaan terkait</button><p id="caseCorrectionStatus" class="text-sm" role="status"></p>
+                        <div class="st-retail-actions mt-3"><button type="button" id="btnCaseCorrection" class="st-primary-btn">Ajukan koreksi stok kasir</button></div><div id="caseCorrectionDetail" class="mt-3"></div>
                         <section id="panelPICProgress" class="hidden mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3" aria-live="polite">
                             <div class="flex flex-wrap items-center justify-between gap-2">
                                 <h3 class="font-semibold text-slate-800">Progres pemeriksaan PIC</h3>
@@ -327,7 +331,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                     <button onclick="exportCasesCSV()" class="px-4 py-2 bg-npnavy text-white rounded-lg text-sm">Ekspor CSV</button>
                     <button id="btnSyncSheets" type="button" onclick="syncSheetsNow()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm" style="display:none">Sinkronkan Semua Google Sheets</button></div>
                 </div>
-                <div class="bg-white rounded-xl p-4 border flex gap-3 flex-wrap items-end">
+                <h2 class="font-semibold">Rekap selisih stok</h2><div class="bg-white rounded-xl p-4 border flex gap-3 flex-wrap items-end">
                     <div><label class="block text-xs text-slate-500 mb-1" for="reportFrom">Dari tanggal</label><input class="border p-2 rounded text-sm" id="reportFrom" type="date"></div>
                     <div><label class="block text-xs text-slate-500 mb-1" for="reportTo">Sampai tanggal</label><input class="border p-2 rounded text-sm" id="reportTo" type="date"></div>
                     <button onclick="renderReports()" class="border rounded p-2 text-sm">Terapkan filter</button><button onclick="clearReportDates()" class="p-2 text-sm text-blue-600">Reset</button>
@@ -335,13 +339,20 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5"><div class="bg-white border p-5 rounded-xl"><h2 class="font-semibold mb-4">Distribusi status kasus</h2><div id="reportStatusBars" class="space-y-3"></div></div>
                 <div class="bg-white border p-5 rounded-xl"><h2 class="font-semibold mb-4">SKU paling banyak dilaporkan</h2><div id="reportSkuBars" class="space-y-3"></div></div></div>
 
-            </section>
+             <div class="st-retail-panel"><h2 class="font-semibold">Riwayat penjualan & retur</h2>
+ <div class="st-retail-actions"><div><label for="retailMonth">Bulan transaksi</label><input type="month" id="retailMonth" class="st-field"></div><div><label for="retailSalesFilter">Sales</label><select id="retailSalesFilter" class="st-field"><option value="">Semua</option></select></div><button type="button" id="retailSalesRefresh" class="st-secondary-btn">Muat ulang</button><button type="button" id="retailExport" class="st-secondary-btn">Ekspor Excel</button><button type="button" id="retailSyncSheets" class="st-secondary-btn" hidden>Sinkronkan Google Sheets</button></div>
+ <p id="retailReportStatus" role="status"></p><div class="st-retail-kpis" id="retailKpis"></div>
+ <h3 class="font-semibold">Rekap per sales</h3><div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>Sales</th><th>Transaksi</th><th>Jumlah terjual</th><th>Jumlah retur</th><th>Omzet kotor</th><th>Diskon</th><th>Nilai retur</th><th>Omzet bersih</th></tr></thead><tbody id="retailSalesSummary"></tbody></table></div>
+ <h3 class="font-semibold">Rincian penjualan</h3><div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>Struk / tanggal</th><th>Sales</th><th>SKU / produk</th><th>Jumlah</th><th>Harga / diskon</th><th>Retur</th><th>Nilai bersih</th><th>Aksi</th></tr></thead><tbody id="retailHistory"></tbody></table></div><details class="text-xs text-slate-500"><summary class="cursor-pointer">Cara menghitung omzet</summary><p class="mt-2">Omzet bersih = omzet kotor dikurangi diskon dan retur yang disetujui. Retur mengurangi omzet pada bulan penjualan awal. Transaksi batal tidak dihitung.</p></details>
+ </div>
+<div class="st-retail-panel"><h2 class="font-semibold">Penerimaan &amp; koreksi stok</h2><div class="st-retail-actions"><button type="button" id="btnExportIntake" class="st-secondary-btn">Ekspor Excel</button><button type="button" class="st-secondary-btn" onclick="showView('cashier')">Riwayat koreksi stok</button></div></div>
+</section>
 
             <!-- V2.1 / MODUL PENERIMAAN BARANG: BUKAN PENGUBAHAN INVENTORI RESMI -->
             <section id="view-intake" class="hidden space-y-5">
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div><h1 class="text-2xl font-bold">Penerimaan Barang</h1></div>
-                <button type="button" id="btnExportIntake" class="px-4 py-2 rounded-lg bg-npnavy text-white text-sm">Ekspor Excel</button>
+
               </div>
               <div class="bg-white border rounded-xl p-4 md:p-6">
                 <h2 class="font-semibold mb-4">Penerimaan baru</h2>
@@ -352,7 +363,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                     <div><label class="st-field-label" for="intakeSupplier">Pengirim / sumber barang</label><input id="intakeSupplier" class="st-field" maxlength="150" required placeholder="Contoh: Gudang pusat"/></div>
                   </div>
                   <div><label class="st-field-label" for="intakeNote">Catatan penerimaan (opsional)</label><textarea id="intakeNote" rows="2" maxlength="2000" class="st-field" placeholder="Catatan tambahan..."></textarea></div>
-                  <div class="flex gap-3 items-center justify-between flex-wrap"><h3 class="font-semibold">Rincian SKU</h3><button type="button" id="retailIntakeScan" class="st-secondary-btn">Scan barcode / QR</button><button type="button" id="btnAddIntakeRow" class="st-secondary-btn">+ Tambah SKU</button></div>
+                  <div class="flex gap-3 items-center justify-between flex-wrap"><h3 class="font-semibold">Rincian SKU</h3><button type="button" id="retailIntakeScan" class="st-secondary-btn">Scan barcode / QR</button><button type="button" id="retailNewIntakeProduct" class="st-secondary-btn">Daftarkan produk baru</button><button type="button" id="btnAddIntakeRow" class="st-secondary-btn">+ Tambah SKU</button></div>
                   <div class="st-data-table overflow-x-auto border rounded-lg"><table class="w-full text-sm st-entry-table"><thead class="bg-slate-50 text-slate-600"><tr><th>SKU</th><th>Produk</th><th>Jumlah sesuai dokumen</th><th>Jumlah barang datang</th><th>Barang reject</th><th>Diterima (layak jual)</th><th>Selisih layak vs dokumen</th><th>Alasan reject</th><th>Selisih datang vs dokumen</th><th>Aksi</th></tr></thead><tbody id="intakeItemsBody"></tbody></table></div>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="intakeEvidenceType">Jenis lampiran</label><select id="intakeEvidenceType" class="st-field"><option value="Bukti Penerimaan">Bukti Penerimaan</option><option value="Bukti Barang Reject">Bukti Barang Reject</option></select></div><div><label class="st-field-label" for="intakeFile">Lampiran (opsional)</label><input type="file" id="intakeFile" multiple accept=".jpg,.jpeg,.png,.pdf,.mp4,.webm,.doc,.docx,.xls,.xlsx,.csv,.txt" class="st-field"/><p id="intakeUploadProgress" role="status" aria-live="polite" class="text-xs text-blue-700"></p></div></div>
                   <button type="submit" id="btnSaveIntake" class="st-primary-btn">Simpan penerimaan</button>
@@ -368,8 +379,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
 
             <!-- V2.1 / PERMINTAAN UPDATE KASIR — HANYA MONITORING, TIDAK ADA AKSES TULIS KE KASIR -->
             <section id="view-cashier" class="hidden space-y-5">
-              <h1 class="text-2xl font-bold">Selisih &amp; Koreksi Stok</h1>
-              <div class="st-retail-actions"><button type="button" class="st-secondary-btn" onclick="showView('form-laporan')">Buat laporan</button><button type="button" class="st-secondary-btn" onclick="showView('dashboard')">Daftar laporan</button><button type="button" class="st-primary-btn" aria-current="page">Koreksi stok kasir</button></div>
+              <div class="st-section-heading"><h1 class="text-2xl font-bold">Riwayat Koreksi Stok</h1><button type="button" class="st-secondary-btn" onclick="showView('reports')">Kembali</button></div>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="cashierMetrics">
                 <div class="st-kpi"><p>Total permintaan</p><strong id="cashierTotal">—</strong></div>
                 <div class="st-kpi"><p>Menunggu tindak lanjut</p><strong id="cashierWaiting">—</strong></div>
@@ -377,56 +387,40 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                 <div class="st-kpi"><p>Selesai dikonfirmasi</p><strong id="cashierDone">—</strong></div>
               </div>
               <div class="bg-white border rounded-xl p-4 md:p-6">
-                <h2 class="font-semibold mb-3">Ajukan koreksi stok kasir</h2>
-                <form id="formCashierRequest" class="space-y-3">
-                  <div class="st-retail-actions"><button type="button" id="retailCashierScan" class="st-secondary-btn">Cari / scan produk</button><button type="reset" class="st-secondary-btn">Kosongkan formulir</button></div>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="cashierSku">SKU</label><input id="cashierSku" class="st-field" maxlength="80" required/></div><div><label class="st-field-label" for="cashierProduct">Nama produk</label><input id="cashierProduct" class="st-field" maxlength="150" required/></div></div>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="cashierSystem">Jumlah tercatat di kasir</label><input type="number" id="cashierSystem" class="st-field" min="0" max="999999999" step="1" required/></div><div><label class="st-field-label" for="cashierPhysical">Jumlah hasil pengecekan</label><input type="number" id="cashierPhysical" class="st-field" min="0" max="999999999" step="1" required/></div></div>
-                  <div><label class="st-field-label" for="cashierReason">Alasan permintaan / tindak lanjut</label><textarea id="cashierReason" rows="3" minlength="8" maxlength="2000" class="st-field" required placeholder="Masukkan alasan permintaan..."></textarea></div>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="cashierCase">ID laporan terkait (jika ada)</label><input id="cashierCase" class="st-field" maxlength="64" placeholder="ST-..."/></div><div><label class="st-field-label" for="cashierIntake">ID penerimaan terkait (opsional)</label><input id="cashierIntake" class="st-field" maxlength="64" placeholder="IN-..."/></div></div>
-                  <button id="btnSubmitCashier" class="st-primary-btn" type="submit">Kirim permintaan</button>
-                </form>
-              </div>
-              <div class="bg-white border rounded-xl p-4 md:p-6">
                 <div class="flex items-center justify-between flex-wrap gap-2 mb-4"><h2 class="font-semibold">Riwayat permintaan</h2><div class="flex gap-2 flex-wrap"><select id="cashierFilter" class="border rounded-lg px-3 py-2 text-sm"><option value="">Semua status</option><option>Diajukan</option><option>Diteruskan ke Kasir</option><option>Sedang Diproses</option><option>Selesai (Dikonfirmasi)</option><option>Ditolak</option></select><button type="button" id="btnRefreshCashier" class="st-secondary-btn">Muat ulang</button></div></div>
                 <p id="cashierNotice" role="status" class="text-sm text-slate-500"></p>
                 <div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full text-sm"><thead><tr><th>ID / SKU</th><th>Selisih</th><th>Status</th><th>Pemohon</th><th>Waktu</th><th>Detail</th></tr></thead><tbody id="cashierBody"></tbody></table></div>
-                <div id="cashierDetail" class="mt-4" aria-live="polite"></div>
+                <div id="cashierHistoryDetail"><div id="cashierDetail" class="mt-4" aria-live="polite"></div></div>
               </div>
             </section>
 
 <section id="view-products" class="hidden space-y-5">
- <h1 class="text-2xl font-bold">Master Produk</h1>
+ <h1 class="text-2xl font-bold">Persediaan</h1>
  <div class="st-retail-panel">
-  <div class="st-retail-actions"><button type="button" class="st-primary-btn" id="retailNewProduct">Daftarkan produk</button><button type="button" class="st-secondary-btn" id="retailMasterIntakeScan">Scan barang datang</button><button type="button" class="st-secondary-btn" id="retailProductScan">Scan kode</button><button type="button" class="st-secondary-btn" id="retailProductRefresh">Muat ulang</button></div>
+  <div class="st-section-heading"><h2 class="font-semibold">Daftar produk</h2><button type="button" class="st-secondary-btn" id="retailProductRefresh">Muat ulang</button></div>
   <label for="retailProductSearch">Cari SKU, nama, warna, ukuran atau kode</label><input id="retailProductSearch" class="st-field" maxlength="150" placeholder="Cari produk...">
   <p id="retailProductStatus" role="status"></p><div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>SKU</th><th>Produk</th><th>Warna / ukuran</th><th>Harga</th><th>Kode</th><th>Aksi</th></tr></thead><tbody id="retailProductRows"></tbody></table></div>
  </div>
+ <div class="st-retail-panel" id="retailMovementPanel" hidden><h2 class="font-semibold">Pergerakan barang</h2><div class="st-retail-actions"><div><label for="retailMovementMonth">Bulan</label><input type="month" id="retailMovementMonth" class="st-field"></div><button type="button" id="retailMovementRefresh" class="st-secondary-btn">Muat ulang</button></div><p id="retailMovementStatus" role="status"></p><div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>SKU / produk</th><th>Diterima (layak jual)</th><th>Reject penerimaan</th><th>Terjual</th><th>Retur layak jual</th><th>Retur tidak layak jual</th><th>Perubahan stok tercatat</th></tr></thead><tbody id="retailMovementRows"></tbody></table></div><details class="text-xs text-slate-500"><summary class="cursor-pointer">Cara menghitung pergerakan barang</summary><p class="mt-2">Bukan saldo stok resmi. Perubahan stok = barang masuk layak jual − barang terjual + retur layak jual. Retur dicatat pada bulan persetujuan.</p></details></div>
+ <div class="st-retail-panel" id="retailBalancePanel" hidden>
+ <h2 class="font-semibold">Stok awal &amp; estimasi stok</h2>
+
+ <details id="retailOpeningDetails"><summary class="cursor-pointer">Tetapkan stok awal</summary><form id="retailOpeningForm" class="space-y-3">
+ <div class="st-retail-grid"><div><label for="retailOpeningSku">SKU terdaftar</label><input id="retailOpeningSku" class="st-field" maxlength="80" readonly required></div><div><label for="retailOpeningDate">Tanggal stok awal</label><input type="date" id="retailOpeningDate" class="st-field" required></div></div>
+ <label for="retailOpeningQty">Stok awal layak jual (pcs)</label><input type="number" id="retailOpeningQty" class="st-field" min="0" max="999999999" step="1" required>
+ <label for="retailOpeningNote">Catatan pemeriksaan</label><textarea id="retailOpeningNote" class="st-field" minlength="8" maxlength="1000" required></textarea>
+ <div class="st-retail-actions"><button type="submit" class="st-primary-btn" id="retailOpeningSave">Simpan stok awal</button><button type="button" class="st-secondary-btn" id="retailBalanceRefresh">Muat ulang</button></div>
+ </form></details><p id="retailBalanceStatus" role="status"></p>
+ <div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>SKU / produk</th><th>Tanggal stok awal</th><th>Stok awal</th><th>Diterima (layak jual)</th><th>Terjual</th><th>Retur layak jual</th><th>Estimasi stok</th><th>Terakhir diverifikasi</th><th>Aksi</th></tr></thead><tbody id="retailBalanceRows"></tbody></table></div><details class="text-xs text-slate-500"><summary class="cursor-pointer">Cara menghitung estimasi stok</summary><p class="mt-2">Stok awal adalah jumlah stok fisik sebelum transaksi pada tanggal yang dipilih. Estimasi dihitung dari stok awal dan pergerakan barang yang tercatat; bukan stok resmi.</p></details></div>
 </section>
 <section id="view-sales" class="hidden space-y-5">
- <h1 class="text-2xl font-bold">Penjualan</h1>
+ <h1 class="text-2xl font-bold">Penjualan &amp; Retur</h1>
  <div class="st-retail-panel"><h2 class="font-semibold">Catat transaksi</h2><p>Sales: <strong id="retailSeller"></strong></p>
  <form id="retailSaleForm" class="space-y-3"><label for="retailReceipt">Nomor struk kasir</label><input id="retailReceipt" class="st-field" required maxlength="100" placeholder="Nomor struk">
  <div class="st-retail-actions"><button type="button" class="st-primary-btn" id="retailSaleScan">Scan barcode / QR</button><button type="button" class="st-secondary-btn" id="retailSaleManual">Tambah manual</button></div>
  <div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>Produk / SKU</th><th>Jumlah</th><th>Harga satuan (Rp)</th><th>Total diskon (Rp)</th><th>Subtotal</th><th>Aksi</th></tr></thead><tbody id="retailCartRows"></tbody></table></div>
  <p class="font-semibold">Total: <span id="retailCartTotal">Rp0</span></p><button type="submit" class="st-primary-btn" id="retailSaveSale">Simpan penjualan</button><p id="retailSaleStatus" role="status"></p></form></div>
- <div class="st-retail-panel"><h2 class="font-semibold">Riwayat penjualan & retur</h2>
- <div class="st-retail-actions"><div><label for="retailMonth">Bulan transaksi</label><input type="month" id="retailMonth" class="st-field"></div><div><label for="retailSalesFilter">Sales</label><select id="retailSalesFilter" class="st-field"><option value="">Semua</option></select></div><button type="button" id="retailSalesRefresh" class="st-secondary-btn">Muat ulang</button><button type="button" id="retailExport" class="st-secondary-btn">Ekspor Excel</button><button type="button" id="retailSyncSheets" class="st-secondary-btn" hidden>Sinkronkan Google Sheets</button></div>
- <p id="retailReportStatus" role="status"></p><div class="st-retail-kpis" id="retailKpis"></div>
- <h3 class="font-semibold">Rekap per sales</h3><div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>Sales</th><th>Transaksi</th><th>Jumlah terjual</th><th>Jumlah retur</th><th>Omzet kotor</th><th>Diskon</th><th>Nilai retur</th><th>Omzet bersih</th></tr></thead><tbody id="retailSalesSummary"></tbody></table></div>
- <h3 class="font-semibold">Rincian penjualan</h3><div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>Struk / tanggal</th><th>Sales</th><th>SKU / produk</th><th>Jumlah</th><th>Harga / diskon</th><th>Retur</th><th>Nilai bersih</th><th>Aksi</th></tr></thead><tbody id="retailHistory"></tbody></table></div><details class="text-xs text-slate-500"><summary class="cursor-pointer">Cara menghitung omzet</summary><p class="mt-2">Omzet bersih = omzet kotor dikurangi diskon dan retur yang disetujui. Retur mengurangi omzet pada bulan penjualan awal. Transaksi batal tidak dihitung.</p></details>
- </div>
- <div class="st-retail-panel" id="retailMovementPanel" hidden><h2 class="font-semibold">Pergerakan barang</h2><p id="retailMovementStatus" role="status"></p><div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>SKU / produk</th><th>Diterima (layak jual)</th><th>Reject penerimaan</th><th>Terjual</th><th>Retur layak jual</th><th>Retur tidak layak jual</th><th>Perubahan stok tercatat</th></tr></thead><tbody id="retailMovementRows"></tbody></table></div><details class="text-xs text-slate-500"><summary class="cursor-pointer">Cara menghitung pergerakan barang</summary><p class="mt-2">Bukan saldo stok resmi. Perubahan stok = barang masuk layak jual − barang terjual + retur layak jual. Retur dicatat pada bulan persetujuan.</p></details></div>
- <div class="st-retail-panel" id="retailBalancePanel" hidden>
- <h2 class="font-semibold">Stok awal dan estimasi stok</h2>
-
- <form id="retailOpeningForm" class="space-y-3">
- <div class="st-retail-grid"><div><label for="retailOpeningSku">SKU terdaftar</label><input id="retailOpeningSku" class="st-field" maxlength="80" required></div><div><label for="retailOpeningDate">Tanggal stok awal</label><input type="date" id="retailOpeningDate" class="st-field" required></div></div>
- <label for="retailOpeningQty">Stok awal layak jual (pcs)</label><input type="number" id="retailOpeningQty" class="st-field" min="0" max="999999999" step="1" required>
- <label for="retailOpeningNote">Catatan pemeriksaan</label><textarea id="retailOpeningNote" class="st-field" minlength="8" maxlength="1000" required></textarea>
- <div class="st-retail-actions"><button type="submit" class="st-primary-btn" id="retailOpeningSave">Simpan stok awal</button><button type="button" class="st-secondary-btn" id="retailBalanceRefresh">Muat ulang</button></div>
- </form><p id="retailBalanceStatus" role="status"></p>
- <div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>SKU / produk</th><th>Tanggal stok awal</th><th>Stok awal</th><th>Diterima (layak jual)</th><th>Terjual</th><th>Retur layak jual</th><th>Estimasi stok</th><th>Terakhir diverifikasi</th><th>Aksi</th></tr></thead><tbody id="retailBalanceRows"></tbody></table></div><details class="text-xs text-slate-500"><summary class="cursor-pointer">Cara menghitung estimasi stok</summary><p class="mt-2">Stok awal adalah jumlah stok fisik sebelum transaksi pada tanggal yang dipilih. Estimasi dihitung dari stok awal dan pergerakan barang yang tercatat; bukan stok resmi.</p></details></div>
+ <div class="st-retail-actions"><button type="button" class="st-secondary-btn" onclick="showView('reports')">Riwayat transaksi &amp; retur</button></div>
  <div class="st-retail-panel" id="retailReturnQueue" hidden><h2 class="font-semibold">Retur menunggu persetujuan</h2><button type="button" id="retailQueueRefresh" class="st-secondary-btn">Muat ulang retur</button><p id="retailQueueStatus" role="status"></p><div id="retailQueueRows"></div></div>
 </section>
 <dialog id="retailScanDialog" class="st-retail-dialog"><form id="retailScanForm" class="space-y-3"><h2 class="font-semibold">Pindai produk</h2><video id="retailVideo" playsinline muted hidden></video><p id="retailScanStatus" role="status">Gunakan kamera, scanner eksternal, atau ketik kode.</p><label for="retailScanCode">Barcode / QR / SKU</label><input id="retailScanCode" class="st-field" maxlength="512" autocomplete="off" required><div class="st-retail-actions"><button type="button" class="st-secondary-btn" id="retailCamera">Aktifkan kamera</button><button type="submit" class="st-primary-btn">Cari produk</button><button type="button" class="st-secondary-btn" id="retailCloseScan">Tutup</button></div></form></dialog>
@@ -449,7 +443,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
         </div>
     </main>
 
-    <script defer src="assets/app-bundle.js?v=3.1.0"></script>
+    <script defer src="assets/app-bundle.js?v=3.2.0"></script>
 
 
 

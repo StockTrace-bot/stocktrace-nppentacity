@@ -11,17 +11,15 @@ const code=readFrontend('v21.js');
 const sql=fs.readFileSync('sql/10_V2_1_PENERIMAAN_DAN_MONITORING_KASIR_STAGING.sql','utf8');
 const app=readFrontend('app.js');
 const drive=fs.readFileSync('api/drive-upload.mjs','utf8');
-test('intake and correction navigation and separate views remain available',()=>{
- for(const x of ['intake','cashier']){
-  assert.equal((html.match(new RegExp('data-nav-view="'+x+'"','g'))||[]).length,1);
-  assert.match(html,new RegExp('id="view-'+x+'"'));
- }
+test('intake is a menu; correction is part of the stock inspection or history',()=>{
+ assert.equal((html.match(/data-nav-view="intake"/g)||[]).length,1);
+ assert.doesNotMatch(html,/data-nav-view="cashier"|id="formCashierRequest"/);
+ for(const x of ['intakeDoc','intakeDate','intakeSupplier','intakeItemsBody','intakeFile','cashierBody','caseCorrectionDetail','btnCaseCorrection'])assert.match(html,new RegExp('id="'+x+'"'));
  assert.match(app,/['"]intake['"],['"]cashier['"]/);
- for(const x of ['intakeDoc','intakeDate','intakeSupplier','intakeItemsBody','intakeFile','cashierSku','cashierSystem','cashierPhysical','cashierReason','cashierBody'])assert.match(html,new RegExp('id="'+x+'"'));
 });
 test('new workflow uses atomic RPC, keeps evidence attachment, and no official POS writes',()=>{
  assert.match(code,/rpc\('st_create_intake_once'/);
- assert.match(code,/rpc\('stocktrace_request_cashier_update'/);
+ assert.match(code,/retailRpc\('stocktrace_request_cashier_update'/);
  assert.match(code,/rpc\('stocktrace_update_cashier_status'/);
  assert.match(code,/uploadFileBatch\(files,id,session/);
  assert.match(app,/uploadToBackend\(file,id/);

@@ -845,7 +845,7 @@ button.st-open-detail-action:focus-visible,
 /* Existing intake/cashier actions already use a local .st-primary-btn rule.
    Keep those controls independent of utility colors as well. */
 #btnSaveIntake,
-#btnSubmitCashier {
+#btnCaseCorrection {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -855,7 +855,7 @@ button.st-open-detail-action:focus-visible,
   -webkit-text-fill-color: #fff !important;
 }
 #btnSaveIntake:disabled,
-#btnSubmitCashier:disabled { opacity: .65; }
+#btnCaseCorrection:disabled { opacity: .65; }
 
 @media (max-width: 767px) {
   #formLaporanLengkap > .st-form-actions {
@@ -961,3 +961,16 @@ button.st-open-detail-action:focus-visible,
 
 /* Keep restricted or inactive controls hidden independently of utility CSS. */
 .hidden, .st-retail-panel[hidden], .st-retail-dialog[hidden] { display: none !important; }
+
+.st-section-heading,.st-field-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;min-width:0}
+.st-section-heading h1,.st-section-heading h2,.st-field-heading label{margin:0}
+.st-field-heading{margin-bottom:8px}
+.st-field-heading button{flex:0 0 auto;min-height:42px}
+.st-field-heading label{flex:1 1 auto}
+#view-cases,#caseCorrectionDetail,#cashierHistoryDetail{min-width:0;max-width:100%}
+#retailOpeningDetails summary{margin-bottom:10px}
+#retailBalanceRows td:last-child button{margin:3px;white-space:normal}
+#view-intake .st-entry-table input[data-field="sku"],#view-intake .st-entry-table input[data-field="product_name"]{min-width:150px}
+#view-form-laporan input[readonly],#view-intake input[readonly],#retailOpeningSku[readonly]{background:#f8fafc;color:#334155}
+@media(max-width:767px){.st-field-heading{gap:8px}.st-field-heading button{font-size:13px;min-height:44px}.st-section-heading button{min-height:44px}.st-section-heading h1{font-size:20px}#caseCorrectionDetail .st-detail-box{padding:12px}}
+#btnCaseCorrection[hidden],#btnCaseSourceIntake[hidden],#caseIntakeSource[hidden]{display:none!important}

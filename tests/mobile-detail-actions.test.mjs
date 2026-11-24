@@ -37,7 +37,7 @@ test('detail actions remain accessible, finger-sized, plain blue underlined text
   assert.match(css,/border:0!important/);
   assert.match(css,/button\.st-open-detail-action,[\s\S]*?\{[^}]*background:transparent!important/s);
   assert.match(css,/button\.st-open-detail-action,[\s\S]*?\{[^}]*border:0!important/s);
-  assert.match(html,/assets\/style\.css\?v=3\.0/);
+  assert.match(html,/assets\/style\.css\?v=3\.2/);
 });
 
 test('mobile toolbar remains visible and the content pane scrolls independently',()=>{
