@@ -121,11 +121,10 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
         </div>
         <nav class="st-sidebar-nav flex-1 px-4 py-6 space-y-2">
             <button data-nav-view="dashboard" onclick="showView('dashboard')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-squares-four text-lg mr-3"></i><span class="st-nav-label">Dashboard</span></button>
-            <button data-nav-view="form-laporan" onclick="showView('form-laporan')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-file-plus text-lg mr-3"></i><span class="st-nav-label">Buat Laporan</span></button>
+            <button data-nav-view="form-laporan" onclick="showView('form-laporan')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-file-plus text-lg mr-3"></i><span class="st-nav-label">Selisih &amp; Koreksi Stok</span></button>
             <button data-nav-view="archive" onclick="showView('archive')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-folder-open text-lg mr-3"></i><span class="st-nav-label">Arsip & Sampah</span></button>
             <button data-nav-view="reports" onclick="showView('reports')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-chart-bar text-lg mr-3"></i><span class="st-nav-label">Rekap & Ekspor</span></button>
             <button data-nav-view="intake" onclick="showView('intake')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-truck text-lg mr-3"></i><span class="st-nav-label">Penerimaan Barang</span></button>
-            <button data-nav-view="cashier" onclick="showView('cashier')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-clipboard-text text-lg mr-3"></i><span class="st-nav-label">Update Stok Kasir</span></button>
             <button data-nav-view="products" onclick="showView('products')" class="w-full flex items-center px-4 py-3 rounded-lg text-sm font-medium"><i class="ph ph-package text-lg mr-3"></i><span class="st-nav-label">Master Produk</span></button>
             <button data-nav-view="sales" onclick="showView('sales')" class="w-full flex items-center px-4 py-3 rounded-lg text-sm font-medium"><i class="ph ph-shopping-bag text-lg mr-3"></i><span class="st-nav-label">Penjualan & Retur</span></button>
             <button data-nav-view="account" onclick="showView('account')" class="w-full flex items-center px-4 py-3 hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors"><i class="ph ph-user-circle text-lg mr-3"></i><span class="st-nav-label">Akun Saya</span></button>
@@ -192,13 +191,14 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
 
             <!-- FORM LAPORAN VIEW -->
             <div id="view-form-laporan" class="hidden space-y-6">
-                <h1 class="text-2xl font-bold text-slate-800">Form Laporan Selisih Stok</h1>
+                <h1 class="text-2xl font-bold text-slate-800">Selisih &amp; Koreksi Stok</h1>
+                <div class="st-retail-actions"><button type="button" class="st-primary-btn" aria-current="page">Buat laporan</button><button type="button" class="st-secondary-btn" onclick="showView('dashboard')">Daftar laporan</button><button type="button" class="st-secondary-btn" data-nav-view="cashier" onclick="showView('cashier')">Koreksi stok kasir</button></div>
                 <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
                     <form id="formLaporanLengkap" class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div class="space-y-4 st-form-section">
                             <h3 class="font-semibold text-slate-800 border-b pb-2">Informasi Produk</h3>
                             <div class="st-form-field">
-                                <label class="st-form-label" for="inputSKU">SKU Produk</label>
+                                <label class="st-form-label" for="inputSKU">SKU Produk</label><button type="button" id="retailCaseScan" class="st-secondary-btn">Cari / scan produk</button>
                                 <input type="text" id="inputSKU" placeholder="Contoh: NP-SC-BLU" required class="w-full px-4 py-2 border rounded-lg text-sm outline-blue-500">
                             </div>
                             <div class="st-form-field">
@@ -253,6 +253,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                     <div id="detailMainCard" class="lg:col-span-2 bg-white p-6 rounded-xl border">
                         <h3 class="font-semibold border-b pb-2 mb-4">Informasi Kasus</h3>
                         <div id="detailInfo" class="text-sm text-slate-600">Belum ada kasus dipilih.</div>
+                        <button type="button" id="btnCaseCorrection" class="st-primary-btn mt-3">Ajukan koreksi stok kasir</button>
                         <section id="panelPICProgress" class="hidden mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-3" aria-live="polite">
                             <div class="flex flex-wrap items-center justify-between gap-2">
                                 <h3 class="font-semibold text-slate-800">Progres pemeriksaan PIC</h3>
@@ -367,7 +368,8 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
 
             <!-- V2.1 / PERMINTAAN UPDATE KASIR — HANYA MONITORING, TIDAK ADA AKSES TULIS KE KASIR -->
             <section id="view-cashier" class="hidden space-y-5">
-              <div><h1 class="text-2xl font-bold">Update Stok Kasir</h1></div>
+              <h1 class="text-2xl font-bold">Selisih &amp; Koreksi Stok</h1>
+              <div class="st-retail-actions"><button type="button" class="st-secondary-btn" onclick="showView('form-laporan')">Buat laporan</button><button type="button" class="st-secondary-btn" onclick="showView('dashboard')">Daftar laporan</button><button type="button" class="st-primary-btn" aria-current="page">Koreksi stok kasir</button></div>
               <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="cashierMetrics">
                 <div class="st-kpi"><p>Total permintaan</p><strong id="cashierTotal">—</strong></div>
                 <div class="st-kpi"><p>Menunggu tindak lanjut</p><strong id="cashierWaiting">—</strong></div>
@@ -375,8 +377,9 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
                 <div class="st-kpi"><p>Selesai dikonfirmasi</p><strong id="cashierDone">—</strong></div>
               </div>
               <div class="bg-white border rounded-xl p-4 md:p-6">
-                <h2 class="font-semibold mb-3">Ajukan permintaan update stok</h2>
+                <h2 class="font-semibold mb-3">Ajukan koreksi stok kasir</h2>
                 <form id="formCashierRequest" class="space-y-3">
+                  <div class="st-retail-actions"><button type="button" id="retailCashierScan" class="st-secondary-btn">Cari / scan produk</button><button type="reset" class="st-secondary-btn">Kosongkan formulir</button></div>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="cashierSku">SKU</label><input id="cashierSku" class="st-field" maxlength="80" required/></div><div><label class="st-field-label" for="cashierProduct">Nama produk</label><input id="cashierProduct" class="st-field" maxlength="150" required/></div></div>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3"><div><label class="st-field-label" for="cashierSystem">Jumlah tercatat di kasir</label><input type="number" id="cashierSystem" class="st-field" min="0" max="999999999" step="1" required/></div><div><label class="st-field-label" for="cashierPhysical">Jumlah hasil pengecekan</label><input type="number" id="cashierPhysical" class="st-field" min="0" max="999999999" step="1" required/></div></div>
                   <div><label class="st-field-label" for="cashierReason">Alasan permintaan / tindak lanjut</label><textarea id="cashierReason" rows="3" minlength="8" maxlength="2000" class="st-field" required placeholder="Masukkan alasan permintaan..."></textarea></div>
@@ -395,7 +398,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
 <section id="view-products" class="hidden space-y-5">
  <h1 class="text-2xl font-bold">Master Produk</h1>
  <div class="st-retail-panel">
-  <div class="st-retail-actions"><button type="button" class="st-primary-btn" id="retailNewProduct">Daftarkan produk</button><button type="button" class="st-secondary-btn" id="retailProductScan">Scan kode</button><button type="button" class="st-secondary-btn" id="retailProductRefresh">Muat ulang</button></div>
+  <div class="st-retail-actions"><button type="button" class="st-primary-btn" id="retailNewProduct">Daftarkan produk</button><button type="button" class="st-secondary-btn" id="retailMasterIntakeScan">Scan barang datang</button><button type="button" class="st-secondary-btn" id="retailProductScan">Scan kode</button><button type="button" class="st-secondary-btn" id="retailProductRefresh">Muat ulang</button></div>
   <label for="retailProductSearch">Cari SKU, nama, warna, ukuran atau kode</label><input id="retailProductSearch" class="st-field" maxlength="150" placeholder="Cari produk...">
   <p id="retailProductStatus" role="status"></p><div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>SKU</th><th>Produk</th><th>Warna / ukuran</th><th>Harga</th><th>Kode</th><th>Aksi</th></tr></thead><tbody id="retailProductRows"></tbody></table></div>
  </div>
@@ -446,7 +449,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
         </div>
     </main>
 
-    <script defer src="assets/app-bundle.js?v=3.0.2"></script>
+    <script defer src="assets/app-bundle.js?v=3.0.3"></script>
 
 
 
