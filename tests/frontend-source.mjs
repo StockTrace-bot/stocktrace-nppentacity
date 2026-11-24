@@ -1,5 +1,5 @@
 import {readFileSync} from 'node:fs';
-const bundle=readFileSync(new URL('../assets/app-bundle.js',import.meta.url),'utf8');
+const bundle=readFileSync(new URL('../assets/app-bundle.js',import.meta.url),'utf8').replace(/\r\n/g,'\n');
 export function readFrontend(name){
  const marker='// --- '+name+' ---\n';const start=bundle.indexOf(marker);
  if(start<0)throw Error('Missing source section: '+name);

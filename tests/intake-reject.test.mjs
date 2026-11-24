@@ -12,8 +12,8 @@ test('intake UI captures reject quantity, accepted quantity, and reason per SKU'
   for(const field of ['qty_rejected','qty_accepted','reject_reason'])assert.match(code,new RegExp(`data-field="${field}"`));
   assert.match(code,/r\.qty_rejected>r\.qty_received/);
   assert.match(code,/r\.qty_rejected>0&&r\.reject_reason\.length<3/);
-  assert.match(html,/Jumlah reject/);
-  assert.match(html,/Diterima layak/);
+  assert.match(html,/Barang reject/);
+  assert.match(html,/Diterima \(layak jual\)/);
 });
 
 test('intake evidence has explicit receipt/reject category and passes it to metadata',()=>{
