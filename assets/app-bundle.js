@@ -230,7 +230,7 @@ async function logout(){try{await sb?.auth.signOut();}catch(e){console.warn(e)}t
 function displayCases(){
  const q=el('searchCases').value.toLowerCase().trim(), filter=el('filterCaseStatus').value, picFilter=el('filterCasePIC').value;
  const list=cachedCases.filter(c=>(!filter||toText(c.status_kasus||statuses[0])===filter)&&(!picFilter||(picFilter==='mine'?c.pic_id===activeUser?.id:picFilter==='reported'?c.id_pelapor===activeUser?.id:picFilter==='unassigned'?!c.pic_id:true))&&[c.id_kasus,c.sku_produk,c.nama_produk].some(x=>toText(x).toLowerCase().includes(q)));
- el('dashboardCasesBody').innerHTML=list.map(c=>`<tr class="border-b"><td class="py-3 pr-4"><button type="button" data-case-id="${htmlEscape(c.id_kasus)}" class="text-blue-600 font-semibold underline">${htmlEscape(c.id_kasus)}</button></td><td class="py-3 pr-4">${htmlEscape(c.nama_produk)}<span class="text-xs text-slate-400 block">${htmlEscape(c.sku_produk)}</span></td><td class="py-3 pr-4">${htmlEscape(c.selisih)}</td><td class="py-3 pr-4 text-xs"><span class="block">Pelapor: ${htmlEscape(displayPerson(c.id_pelapor))}</span><span class="block mt-1 text-slate-500">PIC: ${htmlEscape(c.pic_nama||'Belum ditugaskan')}</span></td><td class="py-3"><span class="status-chip">${htmlEscape(c.status_kasus||statuses[0])}</span></td></tr>`).join('');
+  el('dashboardCasesBody').innerHTML=list.map(c=>`<tr class="border-b"><td class="py-3 pr-4"><button type="button" data-case-id="${htmlEscape(c.id_kasus)}" class="text-blue-600 font-semibold underline">${htmlEscape(c.id_kasus)}</button></td><td class="py-3 pr-4">${htmlEscape(c.nama_produk)}<span class="text-xs text-slate-400 block">${htmlEscape(c.sku_produk)}</span></td><td class="py-3 pr-4">${htmlEscape(c.selisih)}</td><td class="py-3 pr-4 text-xs"><span class="block">Pelapor: ${htmlEscape(displayPerson(c.id_pelapor))}</span><span class="block mt-1 text-slate-500">PIC: ${htmlEscape(c.pic_nama||'Belum ditugaskan')}</span></td><td class="py-3"><span class="status-chip">${htmlEscape(c.status_kasus||statuses[0])}</span></td></tr>`).join('');
  el('dashboardNotice').textContent=list.length?'':(q||filter?'Tidak ada kasus yang cocok.':'Belum ada kasus yang dapat diakses.');
 }
 async function loadCases(options={}){
@@ -436,7 +436,7 @@ async function driveControl(action,details,token){
  const resp=await fetch('/api/drive-upload',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
   body:JSON.stringify({action,...details})});
  const result=await resp.json().catch(()=>({}));
- if(!resp.ok||!result.success)throw new Error(result.error||`Drive ${action} gagal (HTTP ${resp.status}).`);
+  if(!resp.ok||!result.success)throw new Error(result.error||`Drive ${action} gagal (HTTP ${resp.status}).`);
  return result;
 }
 function parseDriveRange(resp){
@@ -672,7 +672,7 @@ async function archiveRecord(type,id){
 }
 async function restoreArchiveRecord(type,id){
  if(!canManageCases())return notice('Akses ditolak','Hanya Leader dapat memulihkan data.','warning');
- const label=({case:'laporan kasus',evidence:'bukti kasus',intake:'dokumen penerimaan',intake_evidence:'bukti penerimaan',cashier_request:'permintaan kasir'})[type]||'data';
+  const label=({case:'laporan kasus',evidence:'bukti kasus',intake:'dokumen penerimaan',intake_evidence:'bukti penerimaan',cashier_request:'permintaan kasir'})[type]||'data';
  const reason=await askArchiveReason('restore',label);if(!reason)return;
  try{
   const {data,error}=await sb.rpc('stocktrace_restore_record',{p_entity_type:type,p_entity_id:String(id),p_reason:reason});
@@ -907,7 +907,7 @@ function v21OpenIntake(id,options={}){
  if(!h){notice('Dokumen tidak ditemukan','Muat ulang daftar penerimaan, lalu coba buka kembali.','warning');return;}
  v21SelectedIntake=String(h.id_intake);
  const items=v21Items.filter(x=>String(x.id_intake)===key);const files=v21IntakeEvidence.filter(x=>String(x.id_intake)===key);
- const lines=items.map(x=>`<tr><td>${htmlEscape(x.sku)}</td><td>${htmlEscape(x.product_name)}</td><td>${x.qty_document}</td><td>${x.qty_received}</td><td>${Number(x.qty_rejected||0)}</td><td><strong class="text-emerald-700">${Number(x.qty_accepted??(x.qty_received-(x.qty_rejected||0)))}</strong></td><td><strong>${Number(x.qty_accepted_difference??((x.qty_received-(x.qty_rejected||0))-x.qty_document))>0?'+':''}${Number(x.qty_accepted_difference??((x.qty_received-(x.qty_rejected||0))-x.qty_document))}</strong></td><td>${htmlEscape(x.reject_reason||'—')}</td><td><strong>${x.qty_difference>0?'+':''}${x.qty_difference}</strong></td><td><button type="button" class="st-secondary-btn" data-intake-correction="${htmlEscape(x.sku)}">Periksa stok</button></td></tr>`).join('');
+  const lines=items.map(x=>`<tr><td>${htmlEscape(x.sku)}</td><td>${htmlEscape(x.product_name)}</td><td>${x.qty_document}</td><td>${x.qty_received}</td><td>${Number(x.qty_rejected||0)}</td><td><strong class="text-emerald-700">${Number(x.qty_accepted??(x.qty_received-(x.qty_rejected||0)))}</strong></td><td><strong>${Number(x.qty_accepted_difference??((x.qty_received-(x.qty_rejected||0))-x.qty_document))>0?'+':''}${Number(x.qty_accepted_difference??((x.qty_received-(x.qty_rejected||0))-x.qty_document))}</strong></td><td>${htmlEscape(x.reject_reason||'—')}</td><td><strong>${x.qty_difference>0?'+':''}${x.qty_difference}</strong></td><td><button type="button" class="st-secondary-btn" data-intake-correction="${htmlEscape(x.sku)}">Periksa stok</button></td></tr>`).join('');
  const links=files.map(f=>`<div class="text-xs py-2 border-b flex justify-between gap-3 flex-wrap"><span class="break-all"><strong>${htmlEscape(f.evidence_type||'Bukti Penerimaan')}</strong> · ${htmlEscape(f.nama_file_asli)} · ${htmlEscape(niceDate(f.waktu_unggah))}</span><span class="flex gap-3"><button type="button" class="st-inline-action" data-download-case="${htmlEscape(key)}" data-download-id="${htmlEscape(f.drive_file_id)}" data-download-name="${htmlEscape(f.nama_file_asli)}">Unduh</button>${canManageCases()?`<button type="button" class="st-archive-action" data-archive-record="intake_evidence" data-archive-id="${htmlEscape(f.id_file)}">Arsipkan</button>`:''}</span></div>`).join('');
  el('intakeDetail').innerHTML=`<div class="st-detail-box space-y-3"><div class="flex flex-wrap justify-between gap-2"><h3 class="font-semibold">Rincian ${htmlEscape(key)}</h3><button type="button" class="st-inline-action" data-close-intake="1">Tutup</button></div>
  <p class="text-xs">Dokumen: <strong>${htmlEscape(h.document_no)}</strong> · Tanggal: ${htmlEscape(h.received_on)} · Pengirim: ${htmlEscape(h.supplier)} · Dicatat: ${htmlEscape(niceDate(h.created_at))}</p>
@@ -1044,7 +1044,7 @@ el('btnCaseCorrection').addEventListener('click',async()=>{
   if(existing){await loadLinkedCorrection(c.id_kasus);return;}
   if(c.status_kasus==='Selesai')return;
   const reason=await retailAskReason('Ajukan koreksi stok kasir?');if(!reason)return;
-  const data=await retailRpc('stocktrace_request_cashier_update',{p_sku:c.sku_produk,p_product:c.nama_produk,p_system_qty:c.stok_sistem,p_counted_qty:c.stok_fisik,p_reason:reason,p_case_id:c.id_kasus,p_intake_id:null});
+    const data=await retailRpc('stocktrace_request_cashier_update',{p_sku:c.sku_produk,p_product:c.nama_produk,p_system_qty:c.stok_sistem,p_counted_qty:c.stok_fisik,p_reason:reason,p_case_id:c.id_kasus,p_intake_id:null});
   if(!data?.ok)throw Error('Koreksi belum dikonfirmasi.');
   await loadCases({force:true});await openCase(c.id_kasus);await notice('Koreksi diajukan',data.id_request,'success');
  }catch(e){await notice('Koreksi belum disimpan',e.message,'error');}finally{btn.disabled=false;}
@@ -1226,30 +1226,18 @@ async function retailRead(table,columns='*',apply=q=>q){
  }
 }
 function openSalesHistory(){showView('sales');requestAnimationFrame(()=>el('retailSalesHistoryTitle').scrollIntoView({block:'start'}));}
-
 function retailLoadSellerOptions(){
- const select=el('retailSellerSelect');
- if(!select)return;
-
- const previous=select.value;
- select.replaceChildren(new Option('Pilih sales',''));
-
- retailSalesDirectory
-  .filter(s=>s.is_active===true && String(s.nama_sales||'').trim())
-  .forEach(s=>{
-   select.add(new Option(s.nama_sales,String(s.id_sales)));
-  });
-
- select.value=[...select.options].some(o=>o.value===previous)
-  ?previous:'';
-
- if(select.options.length===1){
-  retailStatus(
-   'retailSaleStatus',
-   'Daftar sales aktif belum tersedia. Periksa direktori sales.'
-  );
- }
+ const select=el('retailSellerSelect');if(!select)return;
+ const previous=select.value;select.replaceChildren(new Option('Pilih sales',''));
+ retailSalesDirectory.filter(s=>s.is_active===true&&String(s.nama_sales||'').trim())
+  .forEach(s=>select.add(new Option(s.nama_sales,String(s.id_sales))));
+ select.value=[...select.options].some(o=>o.value===previous)?previous:'';
+ if(select.options.length===1)retailStatus('retailSaleStatus','Daftar sales aktif belum tersedia. Hubungi Leader untuk menambahkan sales.');
 }
+function retailRenderSalesDirectory(){
+ const host=el('retailSalesDirectoryRows');if(!host)return;
+ host.replaceChildren();
+ if(!retailSalesDirectory.length){
   const empty=document.createElement('p');empty.className='text-sm text-slate-500';empty.textContent='Belum ada nama sales dalam direktori.';host.append(empty);return;
  }
  for(const salesperson of retailSalesDirectory){
@@ -1322,7 +1310,7 @@ async function retailLoadProducts(){
 function retailRenderProducts(){
  const q=retailVal('retailProductSearch').toLowerCase(),h=retailEscape;
  const codeByProduct=new Map();retailCodes.forEach(c=>{const a=codeByProduct.get(c.product_id)||[];a.push(c.code);codeByProduct.set(c.product_id,a);});
- el('retailProductRows').innerHTML=retailProducts.filter(p=>[p.sku,p.name,p.color,p.size,...(codeByProduct.get(p.id)||[])].join(' ').toLowerCase().includes(q)).map(p=>`<tr><td>${h(p.sku)}</td><td>${h(p.name)}</td><td>${h([p.color,p.size].filter(Boolean).join(' / '))}</td><td>${h(retailRp(p.price))}</td><td>${canManageCases()?h(retailBalances.get(p.sku)?.estimated_qty??'—'):'Lihat detail'}</td><td><button type="button" class="st-secondary-btn" data-product-detail="${h(p.id)}">Detail</button></td></tr>`).join('')||'<tr><td colspan="6">Belum ada produk.</td></tr>';
+  el('retailProductRows').innerHTML=retailProducts.filter(p=>[p.sku,p.name,p.color,p.size,...(codeByProduct.get(p.id)||[])].join(' ').toLowerCase().includes(q)).map(p=>`<tr><td>${h(p.sku)}</td><td>${h(p.name)}</td><td>${h([p.color,p.size].filter(Boolean).join(' / '))}</td><td>${h(retailRp(p.price))}</td><td>${canManageCases()?h(retailBalances.get(p.sku)?.estimated_qty??'—'):'Lihat detail'}</td><td><button type="button" class="st-secondary-btn" data-product-detail="${h(p.id)}">Detail</button></td></tr>`).join('')||'<tr><td colspan="6">Belum ada produk.</td></tr>';
 
 }
 let retailRegistrationRow=null;
