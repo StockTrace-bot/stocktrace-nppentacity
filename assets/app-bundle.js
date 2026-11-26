@@ -1490,7 +1490,7 @@ async function retailStartCamera(){
   if(!nativeReady){
    const lib=await retailLoadDecoder();if(gen!==retailCameraGeneration)return;
    const reader=new lib.BrowserMultiFormatReader();retailCameraReader=reader;
-   const controls=await reader.decodeFromVideoElementContinuously(video,(result,error)=>{if(result)retailCameraAccept(result.getText(),gen);else if(error)retailCameraMarkMissing();});
+   const controls=await reader.decodeFromVideoElement(video,(result,error)=>{if(result)retailCameraAccept(result.getText(),gen);else if(error)retailCameraMarkMissing();});
    if(gen!==retailCameraGeneration){controls?.stop?.();return;}retailCameraControls=controls;
   }
   if(gen===retailCameraGeneration)retailStatus('retailScanStatus',['intake','sales'].includes(retailScanTarget)?'Pemindaian berulang aktif. Produk masuk ke daftar tanpa menutup kamera.':'Arahkan kamera ke barcode atau QR Code.');
