@@ -1226,20 +1226,30 @@ async function retailRead(table,columns='*',apply=q=>q){
  }
 }
 function openSalesHistory(){showView('sales');requestAnimationFrame(()=>el('retailSalesHistoryTitle').scrollIntoView({block:'start'}));}
-function retailLoadSellerOptions(){
- const placeholder = new Option('Pilih sales', '');
-placeholder.disabled = true;
-placeholder.hidden = true;
-placeholder.selected = true;
-placeholder.style.display = 'none';
 
-select.replaceChildren(placeholder);
- if(select.options.length===1)retailStatus('retailSaleStatus','Daftar sales aktif belum tersedia. Hubungi Leader untuk menambahkan sales.');
+function retailLoadSellerOptions(){
+ const select=el('retailSellerSelect');
+ if(!select)return;
+
+ const previous=select.value;
+ select.replaceChildren(new Option('Pilih sales',''));
+
+ retailSalesDirectory
+  .filter(s=>s.is_active===true && String(s.nama_sales||'').trim())
+  .forEach(s=>{
+   select.add(new Option(s.nama_sales,String(s.id_sales)));
+  });
+
+ select.value=[...select.options].some(o=>o.value===previous)
+  ?previous:'';
+
+ if(select.options.length===1){
+  retailStatus(
+   'retailSaleStatus',
+   'Daftar sales aktif belum tersedia. Periksa direktori sales.'
+  );
+ }
 }
-function retailRenderSalesDirectory(){
- const host=el('retailSalesDirectoryRows');if(!host)return;
- host.replaceChildren();
- if(!retailSalesDirectory.length){
   const empty=document.createElement('p');empty.className='text-sm text-slate-500';empty.textContent='Belum ada nama sales dalam direktori.';host.append(empty);return;
  }
  for(const salesperson of retailSalesDirectory){
