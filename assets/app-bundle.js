@@ -80,6 +80,7 @@ const allowedExtensions=new Set(['jpg','jpeg','png','pdf','mp4','webm','doc','do
 const statuses=['Baru Dilaporkan','Dalam Pemeriksaan','Menunggu Tindak Lanjut IT/MD','Dalam Penyelesaian','Selesai'];
 const picProgressStatuses=['Sedang Diperiksa','Menunggu Informasi','Selesai Diperiksa'];
 let activeUser=null,activeRole='Staff',cachedCases=[],selectedCase=null,staffDirectory=[],mustChangePassword=false;
+let retailSalesDirectory=[];
 let casesLoadedAt=0,casesLoadedOnce=false,casesLoadPromise=null;
 const directoryNameById=new Map();
 function displayPerson(id){return directoryNameById.get(String(id||''))||(id===activeUser?.id?'Saya':'Pengguna tercatat');}
@@ -269,8 +270,51 @@ async function openCase(id){
  }
  el('detailEvidence').textContent='Memuat bukti...';el('detailHistory').textContent='Memuat riwayat...';
  showView('detail-kasus');
- await Promise.all([loadEvidence(id),loadHistory(id),loadPICProgress(id,c),loadLinkedCorrection(id)]);
+ await Promise.all([loadEvidence(id),loadHistory(id),loadPICProgress(id,c),loadLinkedCorrection(id),loadCaseWordDocuments(id)]);
 }
+async function loadCaseWordDocuments(id){
+ const status=el('caseWordStatus'),list=el('caseWordDocuments');if(!status||!list)return;
+ status.textContent='Memuat dokumen...';list.replaceChildren();
+ try{
+  const {data,error}=await sb.from('stocktrace_report_documents').select('id,version,file_name,drive_file_id,drive_view_url,created_at,created_by').eq('case_id',id).order('version',{ascending:false});
+  if(error)throw error;
+  if(!data?.length){status.textContent='Belum ada dokumen Word untuk laporan ini.';el('btnGenerateCaseWord').textContent='Buat dokumen Word';return;}
+  status.textContent=`${data.length} dokumen tersimpan.`;el('btnGenerateCaseWord').textContent='Buat ulang dokumen Word';
+  list.innerHTML=data.map(d=>`<div class="flex flex-wrap items-center justify-between gap-2 border rounded-lg p-3"><span><strong>Versi ${Number(d.version)||1}</strong><br><span class="text-xs text-slate-500">${htmlEscape(d.file_name)} · ${htmlEscape(niceDate(d.created_at))}</span></span><span class="flex flex-wrap gap-2"><button type="button" class="st-secondary-btn" data-report-download data-report-case="${htmlEscape(id)}" data-report-file="${htmlEscape(d.id?d.drive_file_id:'')}" data-report-name="${htmlEscape(d.file_name)}">Unduh Word</button><a class="st-secondary-btn" href="${htmlEscape(d.drive_view_url)}" target="_blank" rel="noopener noreferrer">Buka Drive</a></span></div>`).join('');
+ }catch(error){
+  status.textContent='Riwayat dokumen belum tersedia. Pastikan migrasi V4.3 sudah diterapkan di staging.';el('btnGenerateCaseWord').textContent='Buat dokumen Word';
+  console.warn('StockTrace report documents:',error.message);
+ }
+}
+async function generateCaseWordReport(){
+ if(!selectedCase?.id_kasus)return notice('Laporan belum dipilih','Buka detail laporan terlebih dahulu.','warning');
+ const button=el('btnGenerateCaseWord'),status=el('caseWordStatus');button.disabled=true;button.textContent='Membuat dokumen...';status.textContent='Mengambil data laporan dan menyiapkan dokumen Word...';
+ try{
+  const {data:{session},error}=await sb.auth.getSession();if(error||!session?.access_token)throw Error('Sesi login berakhir. Silakan masuk kembali.');
+  const response=await fetch('/api/report-docx',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({case_id:selectedCase.id_kasus})});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok||!result.ok)throw Error(result.message||'Dokumen Word belum berhasil dibuat.');
+  await loadCaseWordDocuments(selectedCase.id_kasus);
+  status.textContent=`Dokumen Word versi ${result.version} berhasil disimpan di Google Drive.`;
+ }catch(error){status.textContent=error.message;await notice('Dokumen Word belum berhasil dibuat',error.message,'error');}
+ finally{button.disabled=false;button.textContent='Buat dokumen Word';}
+}
+
+async function downloadCaseWordDocument(button){
+ const caseId=button.dataset.reportCase,fileId=button.dataset.reportFile,fileName=button.dataset.reportName||'Laporan_Selisih_Stok.docx';
+ if(!caseId||!fileId)return notice('Dokumen tidak valid','Muat ulang detail laporan lalu coba lagi.','warning');
+ button.disabled=true;button.textContent='Mengunduh...';
+ try{
+  const {data:{session},error}=await sb.auth.getSession();if(error||!session?.access_token)throw Error('Sesi login berakhir. Silakan masuk kembali.');
+  const url=`/api/report-download?case_id=${encodeURIComponent(caseId)}&file_id=${encodeURIComponent(fileId)}`;
+  const response=await fetch(url,{headers:{Authorization:`Bearer ${session.access_token}`}});
+  if(!response.ok){const data=await response.json().catch(()=>({}));throw Error(data.error||'Dokumen tidak dapat diunduh.');}
+  const blob=await response.blob(),objectUrl=URL.createObjectURL(blob),a=document.createElement('a');a.href=objectUrl;a.download=fileName;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(objectUrl),1500);
+ }catch(error){await notice('Unduhan gagal',error.message,'error');}
+ finally{button.disabled=false;button.textContent='Unduh Word';}
+}
+el('btnGenerateCaseWord')?.addEventListener('click',generateCaseWordReport);
+el('caseWordDocuments')?.addEventListener('click',e=>{const button=e.target.closest('[data-report-download]');if(button)downloadCaseWordDocument(button);});
 async function loadPICProgress(id,c=selectedCase){
  const panel=el('panelPICProgress'),editor=el('picProgressEditor');
  const isLeader=canManageCases();
@@ -540,7 +584,8 @@ async function submitReport(ev){
   el('formLaporanLengkap').reset();await loadCases({force:true});
   await notice(result.errors.length?'Sebagian bukti belum tersimpan':'Laporan berhasil',`Kasus ${id} tersimpan. ${result.count}/${files.length} bukti berhasil diunggah.${result.errors.length?' '+result.errors.join('; ')+' — Periksa Drive sebelum mengulangi unggah.':''}`,result.errors.length?'warning':'success');
   await openCase(id);
- }catch(e){await notice(saved?'Kasus tersimpan; bukti perlu dilengkapi':'Kasus belum disimpan',`${e.message}. ${saved?'ID kasus: '+id+'. Tambahkan bukti melalui Detail Kasus.':''}`,'error');if(saved){await loadCases({force:true});await openCase(id);}}
+  await generateCaseWordReport();
+ }catch(e){await notice(saved?'Kasus tersimpan; bukti perlu dilengkapi':'Kasus belum disimpan',`${e.message}. ${saved?'ID kasus: '+id+'. Tambahkan bukti melalui Detail Kasus.':''}`,'error');if(saved){await loadCases({force:true});await openCase(id);await generateCaseWordReport();}}
  finally{btn.disabled=false;btn.textContent='Kirim Laporan';}
 }
 async function addEvidenceToCase(ev){
@@ -1163,7 +1208,7 @@ if(!el('intakeItemsBody').rows.length)v21Row();el('intakeDate').value=v21DateBal
 // --- retail.js ---
 /* Product catalog, scan-assisted intake and transaction monitoring. */
 let retailProducts=[],retailCodes=[],retailCart=[],retailSales=[],retailQueue=[],retailSaleId=null;
-let retailScanTarget='',retailEditProduct=null,retailReturnItem=null,retailReturnId=null,retailCameraControls=null,retailCameraStream=null,retailCameraGeneration=0,retailDecoderPromise=null,retailLookupBusy=false,retailLookupGeneration=0;
+let retailScanTarget='',retailEditProduct=null,retailReturnItem=null,retailReturnId=null,retailCameraControls=null,retailCameraStream=null,retailCameraTrack=null,retailCameraCapabilities=null,retailCameraReader=null,retailNativeScanTimer=null,retailCameraGeneration=0,retailDecoderPromise=null,retailLookupBusy=false,retailLookupGeneration=0,retailLastCameraCode='',retailLastCameraAt=0,retailCameraCodePresent=false,retailCameraMissingSince=0,retailTorchEnabled=false;
 let retailReportGeneration=0,retailProductGeneration=0,retailQueueGeneration=0;
 const retailRp=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n);
 const retailEscape=htmlEscape;
@@ -1181,6 +1226,70 @@ async function retailRead(table,columns='*',apply=q=>q){
  }
 }
 function openSalesHistory(){showView('sales');requestAnimationFrame(()=>el('retailSalesHistoryTitle').scrollIntoView({block:'start'}));}
+function retailLoadSellerOptions(){
+ const select=el('retailSellerSelect');if(!select)return;
+ const previous=select.value;select.replaceChildren(new Option('Pilih sales',''));
+ retailSalesDirectory.filter(s=>s.is_active===true&&String(s.nama_sales||'').trim())
+  .forEach(s=>select.add(new Option(s.nama_sales,String(s.id_sales))));
+ select.value=[...select.options].some(o=>o.value===previous)?previous:'';
+ if(select.options.length===1)retailStatus('retailSaleStatus','Daftar sales aktif belum tersedia. Hubungi Leader untuk menambahkan sales.');
+}
+function retailRenderSalesDirectory(){
+ const host=el('retailSalesDirectoryRows');if(!host)return;
+ host.replaceChildren();
+ if(!retailSalesDirectory.length){
+  const empty=document.createElement('p');empty.className='text-sm text-slate-500';empty.textContent='Belum ada nama sales dalam direktori.';host.append(empty);return;
+ }
+ for(const salesperson of retailSalesDirectory){
+  const row=document.createElement('div');row.className='flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3';
+  const info=document.createElement('div');info.className='min-w-0';
+  const name=document.createElement('p');name.className='font-medium break-words';name.textContent=salesperson.nama_sales||'Nama belum diisi';
+  const status=document.createElement('p');status.className='text-xs text-slate-500';status.textContent=salesperson.is_active===true?'Aktif · dapat dipilih untuk transaksi':'Nonaktif · tidak muncul pada transaksi baru';
+  info.append(name,status);
+  const toggle=document.createElement('button');toggle.type='button';toggle.className='st-secondary-btn shrink-0';
+  toggle.textContent=salesperson.is_active===true?'Nonaktifkan':'Aktifkan';
+  toggle.dataset.salesToggle=String(salesperson.id_sales);toggle.dataset.salesActive=String(salesperson.is_active===true);
+  row.append(info,toggle);host.append(row);
+ }
+}
+async function retailLoadSalesDirectory(){
+ const data=await retailRpc('stocktrace_sales_directory',{});
+ retailSalesDirectory=Array.isArray(data)?data:[];
+ retailLoadSellerOptions();retailRenderSalesDirectory();
+ return retailSalesDirectory;
+}
+function retailOpenSalesManager(){
+ if(!canManageCases()||mustChangePassword){notice('Akses terbatas','Hanya Leader yang dapat mengelola direktori sales.','warning');return;}
+ el('retailSalesManagerForm').reset();retailStatus('retailSalesManagerStatus','Memuat direktori sales...');
+ el('retailSalesManagerDialog').showModal();
+ retailLoadSalesDirectory().then(()=>retailStatus('retailSalesManagerStatus','')).catch(err=>retailStatus('retailSalesManagerStatus',err.message));
+}
+async function retailSaveSalesperson(e){
+ e.preventDefault();if(!canManageCases()||mustChangePassword)return;
+ const button=el('retailAddSalesperson'),name=retailVal('retailNewSalesName').trim();
+ if(name.length<2||name.length>80){retailStatus('retailSalesManagerStatus','Nama sales harus terdiri dari 2–80 karakter.');return;}
+ button.disabled=true;
+ try{
+  const id=await retailRpc('st_add_salesperson',{p_name:name});
+  await retailLoadSalesDirectory();
+  if(id)el('retailSellerSelect').value=String(id);
+  el('retailNewSalesName').value='';
+  retailStatus('retailSalesManagerStatus',`Sales ${name} berhasil ditambahkan dan siap dipilih.`);
+ }catch(err){retailStatus('retailSalesManagerStatus','Gagal menambahkan sales: '+err.message);}
+ finally{button.disabled=false;}
+}
+async function retailToggleSalesperson(id,isActive,button){
+ if(!canManageCases()||mustChangePassword)return;
+ const nextActive=!isActive;
+ const action=nextActive?'mengaktifkan':'menonaktifkan';
+ if(!window.confirm(`Yakin ingin ${action} nama sales ini? Riwayat transaksi lama tidak akan dihapus.`))return;
+ button.disabled=true;
+ try{
+  await retailRpc('st_set_salesperson_active',{p_id:id,p_active:nextActive});
+  await retailLoadSalesDirectory();
+  retailStatus('retailSalesManagerStatus',nextActive?'Sales berhasil diaktifkan.':'Sales dinonaktifkan. Riwayat transaksi tetap tersimpan.');
+ }catch(err){retailStatus('retailSalesManagerStatus','Gagal mengubah status sales: '+err.message);button.disabled=false;}
+}
 function retailView(view){
  if(!activeUser||mustChangePassword)return;
  if(view==='products'){
@@ -1189,7 +1298,7 @@ function retailView(view){
   el('retailBalancePanel').hidden=!canManageCases();
   if(canManageCases()){el('retailOpeningDate').max=retailDay();if(!el('retailOpeningDate').value)el('retailOpeningDate').value=retailDay();retailLoadBalances();}
  }
- if(view==='sales'){el('retailSeller').textContent=el('displayUserName').textContent;el('retailReturnQueue').hidden=!canManageCases();el('retailSalesFilter').disabled=!canManageCases();retailRenderCart();retailLoadSales();if(canManageCases())retailLoadQueue();}
+ if(view==='sales'){el('retailSeller').textContent=el('displayUserName').textContent;el('retailManageSales').hidden=!canManageCases();retailLoadSalesDirectory().catch(err=>retailStatus('retailSaleStatus',err.message));el('retailReturnQueue').hidden=!canManageCases();el('retailSalesFilter').disabled=!canManageCases();retailRenderCart();retailLoadSales();if(canManageCases())retailLoadQueue();}
  if(view==='reports'){el('retailMovementPanel').hidden=!canManageCases();if(canManageCases()){if(!el('retailMovementMonth').value)el('retailMovementMonth').value=retailDay().slice(0,7);retailLoadMovement();}}
 }
 let retailBalances=new Map(),retailSelectedProduct=null,retailDetailGeneration=0;
@@ -1226,36 +1335,121 @@ async function retailFindCode(code){
  let query=sb.from('st_products').select('*');query=alias?query.eq('id',alias.product_id):query.eq('sku',code.toUpperCase());const r=await query.maybeSingle();if(r.error)throw Error(r.error.message);return r.data;
 }
 function retailOpenScan(target,manual=false){
- retailStopCamera();retailScanTarget=target;retailLookupGeneration++;retailLookupBusy=false;el('retailScanForm').reset();retailStatus('retailScanStatus',manual?'Ketik SKU atau kode produk.':'Gunakan kamera, scanner eksternal, atau ketik kode.');el('retailScanDialog').showModal();el('retailScanCode').focus();
+ retailStopCamera();retailScanTarget=target;retailLookupGeneration++;retailLookupBusy=false;retailLastCameraCode='';retailLastCameraAt=0;retailCameraCodePresent=false;retailCameraMissingSince=0;
+ el('retailScanForm').reset();el('retailCameraControls').classList.add('hidden');el('retailZoomWrap').hidden=true;el('retailCameraTorch').hidden=true;
+ retailStatus('retailScanStatus',manual?'Ketik SKU atau kode produk.':'Gunakan kamera, scanner eksternal, atau ketik kode.');
+ el('retailScanDialog').showModal();el('retailScanCode').focus();
 }
 async function retailSubmitScan(e){
- e?.preventDefault();if(retailLookupBusy)return;const code=retailVal('retailScanCode');if(!code||code.length>512)return;
- retailLookupBusy=true;const target=retailScanTarget,gen=retailLookupGeneration;retailStopCamera();retailStatus('retailScanStatus','Mencari produk...');
- try{const p=await retailFindCode(code);if(gen!==retailLookupGeneration||!el('retailScanDialog').open)return;if(p){await retailApplyProduct(p,target);el('retailScanDialog').close();}else{el('retailScanDialog').close();if(['case','inventory','lookup','sales'].includes(target))return notice('Produk belum terdaftar','Daftarkan produk melalui penerimaan barang.','warning');retailOpenProduct(null,code,target);}}
- catch(err){if(gen===retailLookupGeneration)retailStatus('retailScanStatus',err.message);}finally{if(gen===retailLookupGeneration)retailLookupBusy=false;}
+ e?.preventDefault();if(retailLookupBusy)return;const code=retailVal('retailScanCode').trim();if(!code||code.length>512)return;
+ retailLookupBusy=true;const target=retailScanTarget,gen=retailLookupGeneration,keepOpen=['intake','sales'].includes(target);
+ if(!keepOpen)retailStopCamera();
+ retailStatus('retailScanStatus','Mencari produk...');
+ try{
+  const p=await retailFindCode(code);
+  if(gen!==retailLookupGeneration||!el('retailScanDialog').open)return;
+  if(p){
+   await retailApplyProduct(p,target);
+   if(keepOpen){
+    el('retailScanCode').value='';el('retailScanCode').focus();
+    retailStatus('retailScanStatus',`${p.sku} · ${p.name} ditambahkan. Arahkan kamera ke produk berikutnya.`);
+   }else el('retailScanDialog').close();
+  }else{
+   retailStopCamera();el('retailScanDialog').close();
+   if(['case','inventory','lookup','sales'].includes(target))return notice('Produk belum terdaftar','Daftarkan produk melalui penerimaan barang.','warning');
+   retailOpenProduct(null,code,target);
+  }
+ }catch(err){
+  if(gen===retailLookupGeneration)retailStatus('retailScanStatus',err.message);
+ }finally{if(gen===retailLookupGeneration)retailLookupBusy=false;}
 }
 function retailStopCamera(){
- retailCameraGeneration++;try{retailCameraControls?.stop();}catch(_){}retailCameraControls=null;
- const video=el('retailVideo');const stream=video.srcObject||retailCameraStream;stream?.getTracks().forEach(t=>t.stop());retailCameraStream=null;video.srcObject=null;video.hidden=true;el('retailCamera').textContent='Aktifkan kamera';
+ retailCameraGeneration++;
+ if(retailNativeScanTimer){clearTimeout(retailNativeScanTimer);retailNativeScanTimer=null;}
+ try{retailCameraControls?.stop?.();}catch(_){}
+ try{retailCameraReader?.reset?.();}catch(_){}
+ retailCameraControls=null;retailCameraReader=null;
+ const video=el('retailVideo'),stream=video.srcObject||retailCameraStream;
+ stream?.getTracks().forEach(t=>t.stop());retailCameraStream=null;retailCameraTrack=null;retailCameraCapabilities=null;retailTorchEnabled=false;
+ video.srcObject=null;video.hidden=true;retailCameraCodePresent=false;retailCameraMissingSince=0;el('retailCamera').textContent='Aktifkan kamera';
+ el('retailCameraControls').classList.add('hidden');el('retailZoomWrap').hidden=true;el('retailCameraTorch').hidden=true;el('retailCameraTorch').textContent='Senter kamera';
 }
 function retailLoadDecoder(){
  if(window.ZXingBrowser?.BrowserMultiFormatReader)return Promise.resolve(window.ZXingBrowser);
  if(!retailDecoderPromise)retailDecoderPromise=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js';script.onload=()=>window.ZXingBrowser?.BrowserMultiFormatReader?resolve(window.ZXingBrowser):reject(Error('Pemindai tidak tersedia.'));script.onerror=()=>{script.remove();reject(Error('Library pemindai gagal dimuat.'));};document.head.appendChild(script);}).catch(e=>{retailDecoderPromise=null;throw e;});return retailDecoderPromise;
+}
+function retailCameraMarkMissing(){
+ if(!retailCameraCodePresent)return;
+ if(!retailCameraMissingSince)retailCameraMissingSince=Date.now();
+ if(Date.now()-retailCameraMissingSince>=850)retailCameraCodePresent=false;
+}
+function retailCameraAccept(code,gen){
+ const value=String(code||'').trim();if(gen!==retailCameraGeneration||!el('retailScanDialog').open||!value||retailLookupBusy)return;
+ if(value.length>512){retailStatus('retailScanStatus','Kode terlalu panjang. Ketik SKU secara manual.');return;}
+ const now=Date.now();if(value===retailLastCameraCode&&retailCameraCodePresent)return;if(value===retailLastCameraCode&&now-retailLastCameraAt<2200)return;
+ retailLastCameraCode=value;retailLastCameraAt=now;retailCameraCodePresent=true;retailCameraMissingSince=0;el('retailScanCode').value=value;retailSubmitScan();
+}
+function retailCameraTrackReady(track){
+ retailCameraTrack=track||null;
+ try{
+  retailCameraCapabilities=track?.getCapabilities?.()||null;
+  const zoom=retailCameraCapabilities?.zoom,zoomWrap=el('retailZoomWrap'),zoomInput=el('retailCameraZoom');
+  if(zoom&&Number(zoom.max)>Number(zoom.min)){
+   zoomWrap.hidden=false;zoomInput.min=String(zoom.min);zoomInput.max=String(zoom.max);zoomInput.step=String(zoom.step||0.1);zoomInput.value=String(Math.min(Number(zoom.max),Math.max(Number(zoom.min),Number(zoomInput.value)||Number(zoom.min))));
+  }else zoomWrap.hidden=true;
+  el('retailCameraTorch').hidden=!retailCameraCapabilities?.torch;
+  el('retailCameraControls').classList.toggle('hidden',zoomWrap.hidden&&!retailCameraCapabilities?.torch);
+  if(retailCameraCapabilities?.focusMode?.includes('continuous'))track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{});
+ }catch(_){el('retailCameraControls').classList.add('hidden');}
+}
+async function retailSetCameraZoom(value){
+ const track=retailCameraTrack||el('retailVideo').srcObject?.getVideoTracks?.()[0];if(!track||!retailCameraCapabilities?.zoom)return;
+ const zoom=Number(value);if(!Number.isFinite(zoom))return;
+ try{await track.applyConstraints({advanced:[{zoom}]});}catch(e){retailStatus('retailScanStatus','Zoom tidak didukung kamera ini.');}
+}
+async function retailToggleTorch(){
+ const track=retailCameraTrack||el('retailVideo').srcObject?.getVideoTracks?.()[0];if(!track||!retailCameraCapabilities?.torch)return;
+ try{retailTorchEnabled=!retailTorchEnabled;await track.applyConstraints({advanced:[{torch:retailTorchEnabled}]});el('retailCameraTorch').textContent=retailTorchEnabled?'Matikan senter':'Nyalakan senter';}
+ catch(_){retailTorchEnabled=false;retailStatus('retailScanStatus','Senter tidak dapat diaktifkan pada kamera ini.');}
 }
 async function retailStartCamera(){
  if(!el('retailScanDialog').open)return;
  if(!el('retailVideo').hidden){retailStopCamera();return;}
  if(!navigator.mediaDevices?.getUserMedia){retailStatus('retailScanStatus','Kamera tidak tersedia. Gunakan input manual.');return;}
  const gen=++retailCameraGeneration,video=el('retailVideo');video.hidden=false;el('retailCamera').textContent='Matikan kamera';retailStatus('retailScanStatus','Mengaktifkan kamera...');
- const accept=code=>{if(gen!==retailCameraGeneration||!el('retailScanDialog').open||!code)return;if(String(code).length>512){retailStopCamera();retailStatus('retailScanStatus','Kode terlalu panjang. Ketik SKU secara manual.');return;}el('retailScanCode').value=String(code);retailSubmitScan();};
  try{
-  // ZXing supports both 1-D barcodes and QR. Native scanning is an optional fallback.
-  let lib=null;try{lib=await retailLoadDecoder();}catch(_){if(!window.BarcodeDetector)throw _;}
-  if(gen!==retailCameraGeneration)return;
-  if(lib){const reader=new lib.BrowserMultiFormatReader();const controls=await reader.decodeFromConstraints({audio:false,video:{facingMode:{ideal:'environment'}}},video,(result)=>{if(result)accept(result.getText());});if(gen!==retailCameraGeneration){controls.stop();return;}retailCameraControls=controls;}
-  else{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});if(gen!==retailCameraGeneration){stream.getTracks().forEach(t=>t.stop());return;}retailCameraStream=stream;video.srcObject=stream;await video.play();const detector=new BarcodeDetector();const tick=async()=>{if(gen!==retailCameraGeneration)return;try{const codes=await detector.detect(video);if(codes.length){accept(codes[0].rawValue);return;}}catch(_){}setTimeout(tick,180);};tick();}
-  if(gen===retailCameraGeneration)retailStatus('retailScanStatus',['intake','sales'].includes(retailScanTarget)?'Arahkan kamera ke kode. Satu pemindaian menambah satu barang.':'Arahkan kamera ke barcode atau QR Code.');
- }catch(e){if(gen===retailCameraGeneration){retailStopCamera();retailStatus('retailScanStatus','Kamera tidak dapat dipakai: '+e.message+'. Gunakan input manual.');}}
+  const stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}}});
+  if(gen!==retailCameraGeneration){stream.getTracks().forEach(t=>t.stop());return;}
+  retailCameraStream=stream;video.srcObject=stream;await video.play();retailCameraTrackReady(stream.getVideoTracks()[0]);
+  // Prefer the browser's native detector when available; it is generally faster on supported devices.
+  let nativeReady=false;
+  if(window.BarcodeDetector){
+   try{
+    const supported=typeof BarcodeDetector.getSupportedFormats==='function'?await BarcodeDetector.getSupportedFormats():[];
+    const wanted=['qr_code','ean_13','ean_8','code_128','code_39','upc_a','upc_e','itf','codabar'];
+    const formats=supported.length?wanted.filter(x=>supported.includes(x)):undefined;
+    const detector=new BarcodeDetector(formats?{formats}:undefined);
+    if(!formats||formats.length){
+     nativeReady=true;
+     const tick=async()=>{
+      if(gen!==retailCameraGeneration||video.hidden)return;
+      try{const codes=await detector.detect(video);if(codes.length)retailCameraAccept(codes[0].rawValue,gen);else retailCameraMarkMissing();}catch(_){retailCameraMarkMissing();}
+      if(gen===retailCameraGeneration)retailNativeScanTimer=setTimeout(tick,90);
+     };
+     tick();
+    }
+   }catch(_){nativeReady=false;}
+  }
+  if(!nativeReady){
+   const lib=await retailLoadDecoder();if(gen!==retailCameraGeneration)return;
+   const reader=new lib.BrowserMultiFormatReader();retailCameraReader=reader;
+   const controls=await reader.decodeFromVideoElementContinuously(video,(result,error)=>{if(result)retailCameraAccept(result.getText(),gen);else if(error)retailCameraMarkMissing();});
+   if(gen!==retailCameraGeneration){controls?.stop?.();return;}retailCameraControls=controls;
+  }
+  if(gen===retailCameraGeneration)retailStatus('retailScanStatus',['intake','sales'].includes(retailScanTarget)?'Pemindaian berulang aktif. Produk masuk ke daftar tanpa menutup kamera.':'Arahkan kamera ke barcode atau QR Code.');
+ }catch(e){
+  if(gen===retailCameraGeneration){retailStopCamera();retailStatus('retailScanStatus','Kamera tidak dapat dipakai: '+e.message+'. Gunakan input manual.');}
+ }
 }
 async function retailApplyProduct(p,target){
  if(target==='lookup'){if(!activeUser||mustChangePassword)throw Error('Sesi tidak tersedia.');showView('products');target='inventory';}
@@ -1281,15 +1475,26 @@ function retailRenderCart(){
 }
 function retailRefreshCartTotal(){const t=retailCartTotals(retailCart);el('retailCartTotal').textContent=retailRp(t.gross-t.discount);}
 function retailCartInput(e){const inp=e.target.closest('[data-cart-field]');if(!inp)return;const i=Number(inp.dataset.cartIndex),item=retailCart[i];if(!item)return;const field=inp.dataset.cartField;try{item[field]=retailInt(inp.value,field==='qty'?1:0,field==='qty'?9999:field==='unit_price'?999999999:9999999999999);inp.setCustomValidity('');}catch(err){inp.setCustomValidity(err.message);return;}const row=inp.closest('tr');const discount=row.querySelector('[data-cart-field="discount"]');discount.setCustomValidity(item.discount>item.qty*item.unit_price?'Diskon melebihi nilai barang.':'');row.querySelector('[data-cart-subtotal]').textContent=retailRp(item.qty*item.unit_price-item.discount);retailRefreshCartTotal();}
-async function retailSaveSale(e){e.preventDefault();const btn=el('retailSaveSale');if(!retailCart.length){retailStatus('retailSaleStatus','Tambahkan barang dahulu.');return;}btn.disabled=true;const form=el('retailSaleForm'),controls=[...form.querySelectorAll('input,button')].filter(c=>c!==btn&&!c.disabled);controls.forEach(c=>c.disabled=true);
- try{const receipt=retailVal('retailReceipt');if(!receipt)throw Error('Nomor struk wajib diisi.');const items=retailCart.map(i=>({product_id:i.id,qty:retailInt(i.qty,1,9999),unit_price:retailInt(i.unit_price,0,999999999),discount:retailInt(i.discount,0,i.qty*i.unit_price)}));
-  // Keep the same transaction ID if the network drops after the server saves it.
+async function retailSaveSale(e){
+ e.preventDefault();const btn=el('retailSaveSale');if(!retailCart.length){retailStatus('retailSaleStatus','Tambahkan barang dahulu.');return;}
+ const sellerId=retailVal('retailSellerSelect');if(!sellerId){retailStatus('retailSaleStatus','Pilih sales yang menangani transaksi.');el('retailSellerSelect').focus();return;}
+ btn.disabled=true;const form=el('retailSaleForm'),controls=[...form.querySelectorAll('input,select,button')].filter(c=>c!==btn&&!c.disabled);controls.forEach(c=>c.disabled=true);
+ try{
+  const receipt=retailVal('retailReceipt');if(!receipt)throw Error('Nomor struk wajib diisi.');
+  const items=retailCart.map(i=>({product_id:i.id,qty:retailInt(i.qty,1,9999),unit_price:retailInt(i.unit_price,0,999999999),discount:retailInt(i.discount,0,i.qty*i.unit_price)}));
+  // Keep the same transaction ID after a network interruption; seller identity is part of the retry fingerprint.
   retailSaleId=retailSaleId||retailUUID();const id=retailSaleId;
-  let existing=await sb.from('st_sales').select('id,receipt,st_sale_items(product_id,qty,unit_price,discount)').eq('id',id).maybeSingle();if(existing.error)throw Error(existing.error.message);
-  if(existing.data){const saved=existing.data.st_sale_items||[];if(existing.data.receipt!==receipt||saved.length!==items.length||!items.every(i=>saved.some(x=>x.product_id===i.product_id&&Number(x.qty)===i.qty&&Number(x.unit_price)===i.unit_price&&Number(x.discount)===i.discount)))throw Error('Transaksi sebelumnya sudah tersimpan dengan rincian berbeda. Periksa riwayat dan muat ulang halaman.');}
-  else await retailRpc('st_record_sale',{p_id:id,p_receipt:receipt,p_items:items});
-  retailCart=[];retailSaleId=null;el('retailReceipt').value='';retailRenderCart();retailStatus('retailSaleStatus','Penjualan tersimpan.');await retailLoadSales();
- }catch(err){retailStatus('retailSaleStatus','Gagal menyimpan: '+err.message);}finally{btn.disabled=false;controls.forEach(c=>c.disabled=false);}}
+  let existing=await sb.from('st_sales').select('id,receipt,seller,created_by,st_sale_items(product_id,qty,unit_price,discount)').eq('id',id).maybeSingle();if(existing.error)throw Error(existing.error.message);
+  if(existing.data){
+   const saved=existing.data.st_sale_items||[];
+   if(existing.data.receipt!==receipt||String(existing.data.seller)!==sellerId||String(existing.data.created_by)!==String(activeUser.id)||saved.length!==items.length||!items.every(i=>saved.some(x=>x.product_id===i.product_id&&Number(x.qty)===i.qty&&Number(x.unit_price)===i.unit_price&&Number(x.discount)===i.discount)))
+    throw Error('Transaksi sebelumnya sudah tersimpan dengan sales atau rincian berbeda. Periksa riwayat dan muat ulang halaman.');
+  }else await retailRpc('st_record_sale',{p_id:id,p_receipt:receipt,p_items:items,p_seller:sellerId});
+  const sellerName=retailSalesDirectory.find(u=>String(u.id_sales)===sellerId)?.nama_sales||'sales terpilih';
+  retailCart=[];retailSaleId=null;el('retailReceipt').value='';retailRenderCart();retailStatus('retailSaleStatus',`Penjualan untuk ${sellerName} tersimpan.`);await retailLoadSales();
+ }catch(err){retailStatus('retailSaleStatus','Gagal menyimpan: '+err.message);}
+ finally{btn.disabled=false;controls.forEach(c=>c.disabled=false);}
+}
 function retailMonthRange(month){if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw Error('Pilih bulan transaksi.');const [y,m]=month.split('-').map(Number);const next=m===12?`${y+1}-01`:`${y}-${String(m+1).padStart(2,'0')}`;return [new Date(`${month}-01T00:00:00+08:00`).toISOString(),new Date(`${next}-01T00:00:00+08:00`).toISOString()];}
 async function retailLoadSales(){
  const gen=++retailReportGeneration;if(!el('retailMonth').value)el('retailMonth').value=retailDay().slice(0,7);retailStatus('retailReportStatus','Memuat penjualan...');el('retailExport').disabled=true;
@@ -1323,10 +1528,11 @@ function retailTopScan(){
  const target=retailTopScanTarget(view);retailOpenScan(target);retailStartCamera();
 }
 retailBind('retailTopScan','click',retailTopScan);retailBind('retailSaleManual','click',()=>retailOpenScan('sales',true));retailBind('retailNewIntakeProduct','click',()=>retailOpenProduct(null,'','intake-register'));retailBind('retailProductRefresh','click',()=>{retailLoadProducts();if(canManageCases())retailLoadBalances();});retailBind('retailProductSearch','input',retailRenderProducts);
-retailBind('retailScanForm','submit',retailSubmitScan);retailBind('retailCamera','click',retailStartCamera);retailBind('retailCloseScan','click',()=>el('retailScanDialog').close());retailBind('retailScanDialog','close',retailStopCamera);retailBind('retailScanDialog','cancel',retailStopCamera);window.addEventListener('pagehide',retailStopCamera);document.addEventListener('visibilitychange',()=>{if(document.hidden)retailStopCamera();});
+retailBind('retailScanForm','submit',retailSubmitScan);retailBind('retailCamera','click',retailStartCamera);retailBind('retailCameraZoom','input',e=>retailSetCameraZoom(e.target.value));retailBind('retailCameraTorch','click',retailToggleTorch);retailBind('retailCloseScan','click',()=>el('retailScanDialog').close());retailBind('retailScanDialog','close',retailStopCamera);retailBind('retailScanDialog','cancel',retailStopCamera);window.addEventListener('pagehide',retailStopCamera);document.addEventListener('visibilitychange',()=>{if(document.hidden)retailStopCamera();});
 retailBind('retailProductForm','submit',retailSaveProduct);retailBind('retailCloseProduct','click',()=>el('retailProductDialog').close());
 retailBind('retailProductRows','click',e=>{const b=e.target.closest('[data-product-detail]');if(b){const p=retailProducts.find(x=>x.id===b.dataset.productDetail);if(p)retailOpenDetail(p);}});
 retailBind('retailCartRows','input',retailCartInput);retailBind('retailCartRows','click',e=>{const b=e.target.closest('[data-cart-remove]');if(b){retailCart.splice(Number(b.dataset.cartRemove),1);retailRenderCart();}});retailBind('retailSaleForm','submit',retailSaveSale);
+retailBind('retailManageSales','click',retailOpenSalesManager);retailBind('retailSalesManagerForm','submit',retailSaveSalesperson);retailBind('retailCloseSalesManager','click',()=>el('retailSalesManagerDialog').close());retailBind('retailSalesDirectoryRows','click',e=>{const b=e.target.closest('button[data-sales-toggle]');if(b)retailToggleSalesperson(b.dataset.salesToggle,b.dataset.salesActive==='true',b);});
 retailBind('retailMonth','change',retailLoadSales);retailBind('retailSalesFilter','change',retailRenderReport);retailBind('retailReceiptSearch','input',retailRenderReport);retailBind('retailSalesRefresh','click',retailLoadSales);retailBind('retailExport','click',retailExport);retailBind('retailHistory','click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.returnItem)retailOpenReturn(b.dataset.returnItem);if(b.dataset.voidSale&&canManageCases())retailVoid(b.dataset.voidSale);});
 retailBind('retailReturnForm','submit',retailSaveReturn);retailBind('retailCloseReturn','click',()=>el('retailReturnDialog').close());retailBind('retailQueueRefresh','click',retailLoadQueue);retailBind('retailQueueRows','click',e=>{const b=e.target.closest('button');if(!b||!canManageCases())return;if(b.dataset.returnApprove)retailDecision(b.dataset.returnApprove,true);if(b.dataset.returnReject)retailDecision(b.dataset.returnReject,false);});
 
