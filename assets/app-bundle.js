@@ -1226,32 +1226,79 @@ async function retailRead(table,columns='*',apply=q=>q){
  }
 }
 function openSalesHistory(){showView('sales');requestAnimationFrame(()=>el('retailSalesHistoryTitle').scrollIntoView({block:'start'}));}
+
 function retailLoadSellerOptions(){
- const select=el('retailSellerSelect');if(!select)return;
- const previous=select.value;select.replaceChildren(new Option('Pilih sales',''));
- retailSalesDirectory.filter(s=>s.is_active===true&&String(s.nama_sales||'').trim())
-  .forEach(s=>select.add(new Option(s.nama_sales,String(s.id_sales))));
- select.value=[...select.options].some(o=>o.value===previous)?previous:'';
- if(select.options.length===1)retailStatus('retailSaleStatus','Daftar sales aktif belum tersedia. Hubungi Leader untuk menambahkan sales.');
+ const select=el('retailSellerSelect');
+ if(!select)return;
+
+ const previous=select.value;
+ select.replaceChildren(new Option('Pilih sales',''));
+
+ retailSalesDirectory
+  .filter(s=>s.is_active===true&&String(s.nama_sales||'').trim())
+  .forEach(s=>{
+   select.add(new Option(s.nama_sales,String(s.id_sales)));
+  });
+
+ select.value=[...select.options].some(o=>o.value===previous)
+  ?previous:'';
+
+ if(select.options.length===1){
+  retailStatus(
+   'retailSaleStatus',
+   'Daftar sales aktif belum tersedia. Hubungi Leader untuk menambahkan sales.'
+  );
+ }
 }
+
 function retailRenderSalesDirectory(){
- const host=el('retailSalesDirectoryRows');if(!host)return;
+ const host=el('retailSalesDirectoryRows');
+ if(!host)return;
+
  host.replaceChildren();
+
  if(!retailSalesDirectory.length){
-  const empty=document.createElement('p');empty.className='text-sm text-slate-500';empty.textContent='Belum ada nama sales dalam direktori.';host.append(empty);return;
+  const empty=document.createElement('p');
+  empty.className='text-sm text-slate-500';
+  empty.textContent='Belum ada nama sales dalam direktori.';
+  host.append(empty);
+  return;
  }
+
  for(const salesperson of retailSalesDirectory){
-  const row=document.createElement('div');row.className='flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3';
-  const info=document.createElement('div');info.className='min-w-0';
-  const name=document.createElement('p');name.className='font-medium break-words';name.textContent=salesperson.nama_sales||'Nama belum diisi';
-  const status=document.createElement('p');status.className='text-xs text-slate-500';status.textContent=salesperson.is_active===true?'Aktif · dapat dipilih untuk transaksi':'Nonaktif · tidak muncul pada transaksi baru';
+  const row=document.createElement('div');
+  row.className='flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3';
+
+  const info=document.createElement('div');
+  info.className='min-w-0';
+
+  const name=document.createElement('p');
+  name.className='font-medium break-words';
+  name.textContent=salesperson.nama_sales||'Nama belum diisi';
+
+  const status=document.createElement('p');
+  status.className='text-xs text-slate-500';
+  status.textContent=salesperson.is_active===true
+   ?'Aktif · dapat dipilih untuk transaksi'
+   :'Nonaktif · tidak muncul pada transaksi baru';
+
   info.append(name,status);
-  const toggle=document.createElement('button');toggle.type='button';toggle.className='st-secondary-btn shrink-0';
-  toggle.textContent=salesperson.is_active===true?'Nonaktifkan':'Aktifkan';
-  toggle.dataset.salesToggle=String(salesperson.id_sales);toggle.dataset.salesActive=String(salesperson.is_active===true);
-  row.append(info,toggle);host.append(row);
+
+  const toggle=document.createElement('button');
+  toggle.type='button';
+  toggle.className='st-secondary-btn shrink-0';
+  toggle.textContent=salesperson.is_active===true
+   ?'Nonaktifkan'
+   :'Aktifkan';
+
+  toggle.dataset.salesToggle=String(salesperson.id_sales);
+  toggle.dataset.salesActive=String(salesperson.is_active===true);
+
+  row.append(info,toggle);
+  host.append(row);
  }
 }
+
 async function retailLoadSalesDirectory(){
  const data=await retailRpc('stocktrace_sales_directory',{});
  retailSalesDirectory=Array.isArray(data)?data:[];
