@@ -1227,11 +1227,12 @@ async function retailRead(table,columns='*',apply=q=>q){
 }
 function openSalesHistory(){showView('sales');requestAnimationFrame(()=>el('retailSalesHistoryTitle').scrollIntoView({block:'start'}));}
 function retailLoadSellerOptions(){
- const select=el('retailSellerSelect');if(!select)return;
-const placeholder = new Option('Pilih sales', '');
+ const placeholder = new Option('Pilih sales', '');
 placeholder.disabled = true;
 placeholder.hidden = true;
 placeholder.selected = true;
+placeholder.style.display = 'none';
+
 select.replaceChildren(placeholder);
  if(select.options.length===1)retailStatus('retailSaleStatus','Daftar sales aktif belum tersedia. Hubungi Leader untuk menambahkan sales.');
 }
