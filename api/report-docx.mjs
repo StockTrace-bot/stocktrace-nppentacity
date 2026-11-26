@@ -43,94 +43,165 @@ function safeFilePart(value) {
     .slice(0, 70) || 'KASUS';
 }
 
-function run(text, { bold = false, size = 22, color = '222222', italic = false } = {}) {
+function run(text, { bold = false, size = 24, color = '000000', italic = false, underline = false } = {}) {
   const props = [
-    '<w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>',
+    '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman"/>',
     bold ? '<w:b/>' : '',
     italic ? '<w:i/>' : '',
+    underline ? '<w:u w:val="single"/>' : '',
     `<w:color w:val="${color}"/>`,
-    `<w:sz w:val="${size}"/>`
+    `<w:sz w:val="${size}"/>`,
+    `<w:szCs w:val="${size}"/>`
   ].join('');
   return `<w:r><w:rPr>${props}</w:rPr><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r>`;
 }
 
 function paragraph(text = '', options = {}) {
-  const { style = '', before = 0, after = 100, align = '' } = options;
+  const {
+    style = '', before = 0, after = 120, align = '', line = 360,
+    firstLine = 0, left = 0, right = 0, keepNext = false, bottomRule = false
+  } = options;
   const pPr = `${style ? `<w:pStyle w:val="${style}"/>` : ''}`
-    + `<w:spacing w:before="${before}" w:after="${after}"/>`
-    + `${align ? `<w:jc w:val="${align}"/>` : ''}`;
+    + `<w:spacing w:before="${before}" w:after="${after}" w:line="${line}" w:lineRule="auto"/>`
+    + `${firstLine || left || right ? `<w:ind${firstLine ? ` w:firstLine="${firstLine}"` : ''}${left ? ` w:left="${left}"` : ''}${right ? ` w:right="${right}"` : ''}/>` : ''}`
+    + `${align ? `<w:jc w:val="${align}"/>` : ''}`
+    + `${keepNext ? '<w:keepNext/>' : ''}`
+    + `${bottomRule ? '<w:pBdr><w:bottom w:val="single" w:sz="8" w:space="5" w:color="000000"/></w:pBdr>' : ''}`;
   return `<w:p><w:pPr>${pPr}</w:pPr>${run(text, options)}</w:p>`;
 }
 
-function labelValue(label, value) {
-  return `<w:p><w:pPr><w:spacing w:after="70"/></w:pPr>${run(`${label}: `, { bold: true, size: 21 })}${run(value || '—', { size: 21 })}</w:p>`;
+function labelValue(label, value, options = {}) {
+  const { after = 80 } = options;
+  return `<w:p><w:pPr><w:spacing w:after="${after}" w:line="300" w:lineRule="auto"/></w:pPr>${run(`${label}: `, { bold: true, size: 24 })}${run(value === null || value === undefined || value === '' ? '—' : String(value), { size: 24 })}</w:p>`;
 }
 
-function table(rows) {
-  const border = '<w:tblBorders><w:top w:val="single" w:sz="5" w:color="D9E2F3"/><w:left w:val="single" w:sz="5" w:color="D9E2F3"/><w:bottom w:val="single" w:sz="5" w:color="D9E2F3"/><w:right w:val="single" w:sz="5" w:color="D9E2F3"/><w:insideH w:val="single" w:sz="4" w:color="E6EAF0"/><w:insideV w:val="single" w:sz="4" w:color="E6EAF0"/></w:tblBorders>';
-  const body = rows.map((row, index) => {
+function textParagraphs(value, options = {}) {
+  const text = String(value ?? '').trim();
+  if (!text) return paragraph('Belum ada keterangan yang dicatat.', options);
+  return text.split(/\r?\n+/).map(line => line.trim()).filter(Boolean)
+    .map(line => paragraph(line, options)).join('');
+}
+
+function tabbedParagraph(values, { bold = false, size = 22, after = 80 } = {}) {
+  const tabs = '<w:tabs><w:tab w:val="left" w:pos="3023"/><w:tab w:val="left" w:pos="6046"/></w:tabs>';
+  const pPr = `<w:spacing w:after="${after}" w:line="300" w:lineRule="auto"/>${tabs}`;
+  const content = values.map((value, index) => `${index ? '<w:r><w:tab/></w:r>' : ''}${run(value, { bold, size })}`).join('');
+  return `<w:p><w:pPr>${pPr}</w:pPr>${content}</w:p>`;
+}
+
+function productTable(rows) {
+  // The only table in the document: product/SKU details.
+  const widths = [1450, 2500, 1700, 1600, 1820]; // 9,070 twips: A4 printable width with 2.5 cm margins.
+  const border = '<w:tblBorders>'
+    + '<w:top w:val="single" w:sz="6" w:color="000000"/>'
+    + '<w:left w:val="single" w:sz="6" w:color="000000"/>'
+    + '<w:bottom w:val="single" w:sz="6" w:color="000000"/>'
+    + '<w:right w:val="single" w:sz="6" w:color="000000"/>'
+    + '<w:insideH w:val="single" w:sz="4" w:color="7F7F7F"/>'
+    + '<w:insideV w:val="single" w:sz="4" w:color="7F7F7F"/>'
+    + '</w:tblBorders>';
+  const body = rows.map((row, rowIndex) => {
     const cells = row.map((cell, cellIndex) => {
-      const header = index === 0;
-      const fill = header ? '1F4E78' : (index % 2 ? 'F4F7FB' : 'FFFFFF');
-      const color = header ? 'FFFFFF' : '222222';
-      const content = `<w:p><w:pPr><w:spacing w:before="35" w:after="35"/></w:pPr>${run(cell, { bold: header || cellIndex === 0, size: 19, color })}</w:p>`;
-      return `<w:tc><w:tcPr><w:tcW w:w="4500" w:type="dxa"/><w:shd w:fill="${fill}"/></w:tcPr>${content}</w:tc>`;
+      const header = rowIndex === 0;
+      const fill = header ? '<w:shd w:fill="E7E6E6"/>' : '';
+      const align = cellIndex >= 2 ? '<w:jc w:val="center"/>' : '';
+      const content = `<w:p><w:pPr><w:spacing w:before="45" w:after="45" w:line="240" w:lineRule="auto"/>${align}</w:pPr>${run(String(cell ?? '—'), { bold: header, size: 19 })}</w:p>`;
+      return `<w:tc><w:tcPr><w:tcW w:w="${widths[cellIndex]}" w:type="dxa"/><w:vAlign w:val="center"/>${fill}</w:tcPr>${content}</w:tc>`;
     }).join('');
     return `<w:tr>${cells}</w:tr>`;
   }).join('');
-  return `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblCellMar><w:top w:w="80" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar>${border}</w:tblPr><w:tblGrid><w:gridCol w:w="4500"/><w:gridCol w:w="4500"/></w:tblGrid>${body}</w:tbl>`;
+  const grid = widths.map(width => `<w:gridCol w:w="${width}"/>`).join('');
+  return `<w:tbl><w:tblPr><w:tblW w:w="9070" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="75" w:type="dxa"/><w:left w:w="85" w:type="dxa"/><w:bottom w:w="75" w:type="dxa"/><w:right w:w="85" w:type="dxa"/></w:tblCellMar>${border}</w:tblPr><w:tblGrid>${grid}</w:tblGrid>${body}</w:tbl>`;
 }
 
-function buildDocumentXml({ caseRow, evidence, logs, version, createdAt }) {
-  const c = caseRow;
-  const detailRows = [
-    ['Informasi', 'Nilai'],
-    ['ID Kasus', c.id_kasus],
-    ['Nama Produk', c.nama_produk],
-    ['SKU Produk', c.sku_produk],
-    ['Stok Sistem', c.stok_sistem],
-    ['Stok Fisik', c.stok_fisik],
-    ['Selisih Fisik − Sistem', c.selisih],
-    ['Status Kasus', c.status_kasus],
-    ['Pelapor (ID)', c.id_pelapor],
-    ['PIC Penanganan', c.pic_nama],
-    ['Tanggal Penugasan PIC', readableDate(c.pic_ditetapkan_pada)],
-    ['Tanggal Laporan Dibuat', readableDate(c.created_at)]
-  ];
+function formatQuantity(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  const number = Number(value);
+  return Number.isFinite(number) ? new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(number) : String(value);
+}
 
+function buildDocumentXml({ caseRow, evidence, logs, version, createdAt, reporterName }) {
+  const c = caseRow;
+  const difference = c.selisih !== null && c.selisih !== undefined && c.selisih !== ''
+    ? c.selisih
+    : (Number.isFinite(Number(c.stok_fisik)) && Number.isFinite(Number(c.stok_sistem))
+      ? Number(c.stok_fisik) - Number(c.stok_sistem) : null);
+  const issuedDate = readableDate(createdAt);
+  const receivedDate = readableDate(c.created_at);
+  const evidenceCount = evidence.length;
   const evidenceContent = evidence.length
-    ? evidence.map((item, index) => paragraph(`${index + 1}. ${item.nama_file_asli || 'Bukti tanpa nama'}${item.waktu_unggah ? ` — diunggah ${readableDate(item.waktu_unggah)}` : ''}${item.drive_view_url ? ` — ${item.drive_view_url}` : ''}`, { size: 19, after: 70 })).join('')
-    : paragraph('Belum ada bukti pendukung yang tercatat.', { size: 20 });
+    ? evidence.map((item, index) => [
+        paragraph(`${index + 1}. ${item.nama_file_asli || 'Bukti tanpa nama'}`, { bold: true, size: 22, after: 25 }),
+        item.waktu_unggah ? paragraph(`Waktu unggah: ${readableDate(item.waktu_unggah)}`, { size: 21, after: 25 }) : '',
+        item.drive_view_url ? paragraph(`Tautan Google Drive: ${item.drive_view_url}`, { size: 20, after: 100 }) : paragraph('Tautan Google Drive: —', { size: 20, after: 100 })
+      ].join('')).join('')
+    : paragraph('Belum terdapat bukti pendukung yang tercatat pada saat dokumen diterbitkan.', { size: 22, after: 100 });
 
   const logContent = logs.length
-    ? logs.map((item, index) => paragraph(`${index + 1}. ${item.aksi || 'Aktivitas'} — ${item.catatan || 'Tidak ada catatan'} (${readableDate(item.waktu_aksi)}) · ID pengguna: ${item.id_user || '—'}`, { size: 19, after: 70 })).join('')
-    : paragraph('Belum ada riwayat aktivitas yang tercatat.', { size: 20 });
+    ? logs.map((item, index) => [
+        paragraph(`${index + 1}. ${readableDate(item.waktu_aksi)} — ${item.aksi || 'Tindak lanjut'}`, { bold: true, size: 22, after: 25 }),
+        textParagraphs(item.catatan || 'Tidak ada catatan tambahan.', { size: 22, align: 'both', after: 90, firstLine: 240 })
+      ].join('')).join('')
+    : paragraph('Belum terdapat catatan tindak lanjut tambahan pada saat dokumen diterbitkan.', { size: 22, after: 100 });
+
+  const productRows = [
+    ['SKU', 'Nama Produk', 'Stok Sistem/Kasir', 'Stok Fisik', 'Selisih'],
+    [c.sku_produk || '—', c.nama_produk || '—', formatQuantity(c.stok_sistem), formatQuantity(c.stok_fisik), formatQuantity(difference)]
+  ];
 
   const body = [
-    paragraph('LAPORAN PEMERIKSAAN SELISIH STOK', { bold: true, size: 34, color: '1F4E78', align: 'center', after: 80 }),
-    paragraph('STOCKTRACE · LAPORAN R1', { bold: true, size: 20, color: '5B6573', align: 'center', after: 220 }),
-    table([
-      ['Keterangan Dokumen', 'Nilai'],
-      ['Nomor Kasus', c.id_kasus],
-      ['Versi Dokumen', String(version)],
-      ['Dibuat Pada', readableDate(createdAt)]
-    ]),
-    paragraph('1. IDENTITAS DAN HASIL PEMERIKSAAN', { style: 'Heading1', bold: true, size: 25, color: '1F4E78', before: 240, after: 100 }),
-    table(detailRows),
-    paragraph('2. DUGAAN PENYEBAB', { style: 'Heading1', bold: true, size: 25, color: '1F4E78', before: 240, after: 100 }),
-    paragraph(c.dugaan_penyebab || 'Belum ada dugaan penyebab yang dicatat.', { size: 21, after: 120 }),
-    paragraph('3. KRONOLOGI PEMERIKSAAN', { style: 'Heading1', bold: true, size: 25, color: '1F4E78', before: 180, after: 100 }),
-    paragraph(c.kronologi || 'Belum ada kronologi yang dicatat.', { size: 21, after: 120 }),
-    paragraph('4. BUKTI PENDUKUNG', { style: 'Heading1', bold: true, size: 25, color: '1F4E78', before: 180, after: 100 }),
-    evidenceContent,
-    paragraph('5. RIWAYAT AKTIVITAS', { style: 'Heading1', bold: true, size: 25, color: '1F4E78', before: 180, after: 100 }),
+    paragraph('STOCKTRACE', { bold: true, size: 28, align: 'center', after: 25 }),
+    paragraph('LAPORAN SELISIH STOK BARANG', { bold: true, size: 28, align: 'center', after: 55 }),
+    paragraph('', { bottomRule: true, after: 190 }),
+
+    labelValue('Nomor', c.id_kasus),
+    labelValue('Tanggal diterbitkan', issuedDate),
+    labelValue('Lampiran', `${evidenceCount} berkas bukti`, { after: 45 }),
+    labelValue('Perihal', 'Laporan Selisih Stok Barang', { after: 180 }),
+
+    paragraph('Kepada Yth.', { size: 24, after: 15 }),
+    paragraph('Pihak Terkait', { size: 24, after: 15 }),
+    paragraph('di Tempat', { size: 24, after: 170 }),
+    paragraph('Dengan hormat,', { size: 24, after: 120 }),
+    paragraph('Sehubungan dengan adanya laporan perbedaan antara jumlah persediaan yang tercatat dalam sistem/kasir dan hasil penghitungan fisik, bersama ini kami sampaikan Laporan Selisih Stok Barang untuk keperluan dokumentasi pemeriksaan dan tindak lanjut.', { size: 24, align: 'both', firstLine: 420, after: 140 }),
+    paragraph('Adapun identitas laporan dan rincian barang yang dilaporkan adalah sebagai berikut.', { size: 24, align: 'both', firstLine: 420, after: 140 }),
+
+    paragraph('IDENTITAS LAPORAN', { bold: true, size: 24, before: 100, after: 85, keepNext: true }),
+    labelValue('Tanggal laporan masuk', receivedDate),
+    labelValue('Pelapor', reporterName || 'Pengguna tercatat'),
+    labelValue('PIC penanganan', c.pic_nama || 'Belum ditugaskan'),
+    labelValue('Tanggal penugasan PIC', c.pic_ditetapkan_pada ? readableDate(c.pic_ditetapkan_pada) : 'Belum ditugaskan'),
+    labelValue('Status penanganan', c.status_kasus || 'Belum tercatat'),
+    ...(c.source_intake_id ? [labelValue('Referensi penerimaan', c.source_intake_id)] : []),
+
+    paragraph('RINCIAN BARANG', { bold: true, size: 24, before: 130, after: 85, keepNext: true }),
+    productTable(productRows),
+    paragraph('Keterangan: Selisih dihitung dari stok fisik dikurangi stok sistem/kasir. Nilai negatif menunjukkan jumlah fisik lebih sedikit daripada catatan sistem, sedangkan nilai positif menunjukkan jumlah fisik lebih banyak.', { size: 20, italic: true, before: 65, after: 130, align: 'both' }),
+
+    paragraph('URAIAN PEMERIKSAAN', { bold: true, size: 24, before: 110, after: 75, keepNext: true }),
+    paragraph('Dugaan penyebab', { bold: true, size: 22, after: 25, keepNext: true }),
+    textParagraphs(c.dugaan_penyebab || 'Belum ada dugaan penyebab yang dicatat.', { size: 24, align: 'both', firstLine: 420, after: 100 }),
+    paragraph('Kronologi pemeriksaan', { bold: true, size: 22, after: 25, keepNext: true }),
+    textParagraphs(c.kronologi || 'Belum ada kronologi pemeriksaan yang dicatat.', { size: 24, align: 'both', firstLine: 420, after: 120 }),
+
+    paragraph('TINDAK LANJUT DAN RIWAYAT PEMERIKSAAN', { bold: true, size: 24, before: 110, after: 75, keepNext: true }),
     logContent,
-    paragraph('Dokumen ini dibuat secara otomatis oleh StockTrace. Data pada dokumen merupakan snapshot pada saat dokumen dibuat; perubahan berikutnya pada kasus tidak mengubah versi dokumen ini.', { size: 17, color: '666666', italic: true, before: 260, after: 80 })
+
+    paragraph('DOKUMENTASI PENDUKUNG', { bold: true, size: 24, before: 110, after: 75, keepNext: true }),
+    evidenceContent,
+
+    paragraph('Demikian laporan selisih stok barang ini disampaikan sebagai dokumentasi pemeriksaan dan bahan tindak lanjut. Atas perhatian serta kerja sama pihak terkait, kami ucapkan terima kasih.', { size: 24, align: 'both', firstLine: 420, before: 120, after: 190 }),
+
+    tabbedParagraph(['Pelapor,', 'Diperiksa oleh (PIC),', 'Disetujui oleh (Leader),'], { bold: true, size: 21, after: 620 }),
+    tabbedParagraph([reporterName || 'Pengguna tercatat', c.pic_nama || 'Belum ditugaskan', '____________________'], { size: 21, after: 45 }),
+    tabbedParagraph(['____________________', '____________________', '____________________'], { size: 21, after: 150 }),
+
+    paragraph(`Dokumen diterbitkan secara otomatis oleh StockTrace. Nomor versi dokumen: ${version}. Isi dokumen merupakan snapshot data pada saat diterbitkan.`, { size: 18, italic: true, before: 180, after: 0, align: 'both' })
   ].join('');
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`
     + `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">`
-    + `<w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+    + `<w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1417" w:right="1417" w:bottom="1417" w:left="1417" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>`;
 }
 
 const CRC_TABLE = (() => {
@@ -217,8 +288,8 @@ function createDocx(data) {
   const documentXml = buildDocumentXml(data);
   const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`
     + `<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">`
-    + `<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="22"/></w:rPr></w:style>`
-    + `<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:rPr><w:b/><w:color w:val="1F4E78"/><w:sz w:val="25"/></w:rPr></w:style>`
+    + `<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>`
+    + `<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:b/><w:color w:val="000000"/><w:sz w:val="24"/></w:rPr></w:style>`
     + `</w:styles>`;
   const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`
     + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">`
@@ -261,12 +332,12 @@ async function getUserAndRole(token, supabase) {
   const user = await userResponse.json();
   if (!user?.id) throw apiError('Akun tidak dikenal.', 401);
 
-  const profileResponse = await fetch(`${supabase.url}/rest/v1/users?select=role&id_user=eq.${encodeURIComponent(user.id)}&limit=1`, { headers });
+  const profileResponse = await fetch(`${supabase.url}/rest/v1/users?select=role,nama_lengkap&id_user=eq.${encodeURIComponent(user.id)}&limit=1`, { headers });
   if (!profileResponse.ok) throw apiError('Profil pengguna tidak dapat diperiksa.', 403);
   const profiles = await profileResponse.json();
   const role = String(profiles?.[0]?.role || '').toLowerCase().trim();
   if (!ROLES.has(role)) throw apiError('Role tidak memiliki akses membuat laporan Word.', 403);
-  return { user, headers };
+  return { user, headers, profile: profiles[0] };
 }
 
 async function getAccessibleCase(caseId, headers, supabase) {
@@ -276,6 +347,42 @@ async function getAccessibleCase(caseId, headers, supabase) {
   const rows = await response.json();
   if (!Array.isArray(rows) || rows.length !== 1) throw apiError('Laporan tidak ditemukan atau tidak boleh diakses.', 404);
   return rows[0];
+}
+
+async function getReporterName(caseRow, user, profile, headers, supabase) {
+  const reporterId = String(caseRow.id_pelapor || '').trim();
+  if (!reporterId) return 'Tidak tercatat';
+  if (reporterId === user.id && profile?.nama_lengkap) return String(profile.nama_lengkap).trim();
+  const query = new URLSearchParams({
+    select: 'id_user,nama_lengkap',
+    id_user: `eq.${reporterId}`,
+    limit: '1'
+  }).toString();
+  try {
+    const response = await fetch(`${supabase.url}/rest/v1/users?${query}`, { headers });
+    if (!response.ok) return 'Pengguna tercatat';
+    const rows = await response.json();
+    const directName = String(rows?.[0]?.nama_lengkap || '').trim();
+    if (directName) return directName;
+  } catch {
+    // Continue to the existing staff-directory RPC fallback.
+  }
+  try {
+    const directoryResponse = await fetch(`${supabase.url}/rest/v1/rpc/stocktrace_staff_directory`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    if (directoryResponse.ok) {
+      const directory = await directoryResponse.json();
+      const match = Array.isArray(directory) ? directory.find(row => String(row.id_user) === reporterId) : null;
+      const directoryName = String(match?.nama_lengkap || '').trim();
+      if (directoryName) return directoryName;
+    }
+  } catch {
+    // Name remains private/unavailable under the current user's access policy.
+  }
+  return 'Pengguna tercatat';
 }
 
 async function optionalRows(tableName, query, headers, supabase) {
@@ -410,8 +517,9 @@ export default {
       if (!CASE_PATTERN.test(caseId)) throw apiError('Format ID kasus tidak valid.', 400);
 
       const supabase = getSupabaseConfig();
-      const { user, headers } = await getUserAndRole(authToken, supabase);
+      const { user, headers, profile } = await getUserAndRole(authToken, supabase);
       const caseRow = await getAccessibleCase(caseId, headers, supabase);
+      const reporterName = await getReporterName(caseRow, user, profile, headers, supabase);
 
       const evidenceQuery = new URLSearchParams({
         select: 'nama_file_asli,drive_view_url,waktu_unggah,deleted_at',
@@ -438,7 +546,7 @@ export default {
       const version = Math.max(0, Number(serviceRows?.[0]?.version) || 0) + 1;
       const createdAt = new Date().toISOString();
       const fileName = `Laporan_Selisih_Stok_${safeFilePart(caseId)}_v${version}.docx`;
-      const docx = createDocx({ caseRow, evidence, logs, version, createdAt });
+      const docx = createDocx({ caseRow, evidence, logs, version, createdAt, reporterName });
       const googleToken = await getGoogleAccessToken();
       const driveFile = await uploadToDrive({
         buffer: docx, fileName, caseId, userId: user.id, version, token: googleToken
@@ -446,6 +554,8 @@ export default {
 
       const snapshot = {
         id_kasus: caseRow.id_kasus,
+        reporter_name: reporterName,
+        report_issued_at: createdAt,
         nama_produk: caseRow.nama_produk ?? null,
         sku_produk: caseRow.sku_produk ?? null,
         stok_sistem: caseRow.stok_sistem ?? null,
