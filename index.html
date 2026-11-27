@@ -432,15 +432,15 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
 <section id="view-sales" class="hidden space-y-5">
  <h1 class="text-2xl font-bold">Penjualan &amp; Retur</h1>
  <div class="st-retail-panel"><div class="st-section-heading"><h2 class="font-semibold">Catat transaksi</h2><button type="button" class="st-secondary-btn" id="retailManageSales" hidden>Kelola sales</button></div><p class="text-sm text-slate-600">Dicatat oleh: <strong id="retailSeller"></strong></p>
- <form id="retailSaleForm" class="space-y-3"><label for="retailSellerSelect">Sales yang menangani transaksi</label><select id="retailSellerSelect" class="st-field" required><option value="">Pilih sales</option></select><label for="retailReceipt">Nomor struk kasir</label><input id="retailReceipt" class="st-field" required maxlength="100" placeholder="Nomor struk">
+ <form id="retailSaleForm" class="space-y-3"><label for="retailSellerSelect">Sales yang menangani transaksi</label><select id="retailSellerSelect" class="st-field" required><option value="">Pilih sales</option></select><p class="text-sm text-slate-600">Nomor transaksi StockTrace dibuat otomatis saat disimpan.</p><label for="retailReceipt">Nomor struk kasir / POS (opsional)</label><input id="retailReceipt" class="st-field" maxlength="100" placeholder="Isi jika tersedia">
  <div class="st-retail-actions"><button type="button" class="st-secondary-btn" id="retailSaleManual">Tambah manual</button></div>
  <div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>Produk / SKU</th><th>Jumlah</th><th>Harga satuan (Rp)</th><th>Total diskon (Rp)</th><th>Subtotal</th><th>Aksi</th></tr></thead><tbody id="retailCartRows"></tbody></table></div>
  <p class="font-semibold">Total: <span id="retailCartTotal">Rp0</span></p><button type="submit" class="st-primary-btn" id="retailSaveSale">Simpan penjualan</button><p id="retailSaleStatus" role="status"></p></form></div>
              <div class="st-retail-panel"><h2 class="font-semibold" id="retailSalesHistoryTitle">Riwayat penjualan &amp; retur</h2>
  <div class="st-retail-actions"><div><label for="retailMonth">Bulan transaksi</label><input type="month" id="retailMonth" class="st-field"></div><div><label for="retailSalesFilter">Sales</label><select id="retailSalesFilter" class="st-field"><option value="">Semua</option></select></div><button type="button" id="retailSalesRefresh" class="st-secondary-btn">Muat ulang</button><button type="button" id="retailExport" class="st-secondary-btn">Ekspor Excel</button></div>
- <label for="retailReceiptSearch">Cari struk / SKU</label><input id="retailReceiptSearch" class="st-field" placeholder="Nomor struk atau SKU"><p id="retailReportStatus" role="status"></p><div class="st-retail-kpis" id="retailKpis"></div>
+ <label for="retailReceiptSearch">Cari nomor transaksi / struk POS / SKU</label><input id="retailReceiptSearch" class="st-field" placeholder="Nomor transaksi, struk POS atau SKU"><p id="retailReportStatus" role="status"></p><div class="st-retail-kpis" id="retailKpis"></div>
  <h3 class="font-semibold">Rekap per sales</h3><div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>Sales</th><th>Transaksi</th><th>Jumlah terjual</th><th>Jumlah retur</th><th>Omzet kotor</th><th>Diskon</th><th>Nilai retur</th><th>Omzet bersih</th></tr></thead><tbody id="retailSalesSummary"></tbody></table></div>
- <h3 class="font-semibold">Rincian penjualan</h3><div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>Struk / tanggal</th><th>Sales</th><th>SKU / produk</th><th>Jumlah</th><th>Harga / diskon</th><th>Retur</th><th>Nilai bersih</th><th>Aksi</th></tr></thead><tbody id="retailHistory"></tbody></table></div><details class="text-xs text-slate-500"><summary class="cursor-pointer">Cara menghitung omzet</summary><p class="mt-2">Omzet bersih = omzet kotor dikurangi diskon dan retur yang disetujui. Retur mengurangi omzet pada bulan penjualan awal. Transaksi batal tidak dihitung.</p></details>
+ <h3 class="font-semibold">Rincian penjualan</h3><div class="st-data-table overflow-x-auto"><table class="st-entry-table w-full"><thead><tr><th>Transaksi / struk POS / tanggal</th><th>Sales</th><th>SKU / produk</th><th>Jumlah</th><th>Harga / diskon</th><th>Retur</th><th>Nilai bersih</th><th>Aksi</th></tr></thead><tbody id="retailHistory"></tbody></table></div><details class="text-xs text-slate-500"><summary class="cursor-pointer">Cara menghitung omzet</summary><p class="mt-2">Omzet bersih = omzet kotor dikurangi diskon dan retur yang disetujui. Retur mengurangi omzet pada bulan penjualan awal. Transaksi batal tidak dihitung.</p></details>
  </div>
 
  <div class="st-retail-panel" id="retailReturnQueue" hidden><h2 class="font-semibold">Retur menunggu persetujuan</h2><button type="button" id="retailQueueRefresh" class="st-secondary-btn">Muat ulang retur</button><p id="retailQueueStatus" role="status"></p><div id="retailQueueRows"></div></div>
@@ -467,7 +467,7 @@ body.st-auth-pending.st-auth-error .st-auth-boot-retry { display: block; }
         </div>
     </main>
 
-    <script defer src="assets/app-bundle.js?v=4.3.1-sales-directory-scanfix1"></script>
+    <script defer src="assets/app-bundle.js?v=4.3.2-auto-transaction"></script>
 
 
 
